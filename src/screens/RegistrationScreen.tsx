@@ -19,10 +19,56 @@ import authService from '../services/auth';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
+// Create a stable FloatingInput component outside the main component
+const FloatingInput = React.memo(({ 
+  label, 
+  value, 
+  onChangeText, 
+  field,
+  focusedField,
+  setFocusedField,
+  theme,
+  secureTextEntry = false,
+  keyboardType = 'default',
+  autoCapitalize = 'words'
+}: any) => (
+  <View style={styles.inputContainer}>
+    <Text style={[
+      styles.floatingLabel,
+      { color: (focusedField === field || value) ? theme.colors.primary : theme.colors.textSecondary },
+      (focusedField === field || value) && styles.floatingLabelFocused
+    ]}>
+      {label}
+    </Text>
+    <TextInput
+      style={[
+        styles.input,
+        { 
+          borderColor: focusedField === field ? theme.colors.primary : theme.colors.border,
+          backgroundColor: theme.colors.inputBackground,
+          color: theme.colors.text
+        },
+        focusedField === field && styles.inputFocused
+      ]}
+              value={value}
+        onChangeText={(text) => onChangeText(field, text)}
+        onFocus={() => setFocusedField(field)}
+        onBlur={() => setFocusedField(null)}
+        secureTextEntry={secureTextEntry}
+        keyboardType={keyboardType}
+        autoCapitalize={autoCapitalize}
+        placeholderTextColor={theme.colors.textSecondary}
+        blurOnSubmit={false}
+        returnKeyType="next"
+        autoCorrect={false}
+        spellCheck={false}
+        textContentType="none"
+    />
+  </View>
+));
+
 const RegistrationScreen: React.FC = ({ navigation }: any) => {
-  console.log('RegistrationScreen: Component rendering');
   const { isDarkMode, theme } = useTheme();
-  console.log('RegistrationScreen: Theme loaded:', theme.colors.background);
   const [formData, setFormData] = useState({
     companyName: '',
     email: '',
@@ -72,44 +118,7 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
     }
   }, [formData, navigation]);
 
-  const FloatingInput = useMemo(() => ({ 
-    label, 
-    value, 
-    onChangeText, 
-    field,
-    secureTextEntry = false,
-    keyboardType = 'default',
-    autoCapitalize = 'words'
-  }: any) => (
-    <View style={styles.inputContainer}>
-      <Text style={[
-        styles.floatingLabel,
-        { color: (focusedField === field || value) ? theme.colors.primary : theme.colors.textSecondary },
-        (focusedField === field || value) && styles.floatingLabelFocused
-      ]}>
-        {label}
-      </Text>
-      <TextInput
-        style={[
-          styles.input,
-          { 
-            borderColor: focusedField === field ? theme.colors.primary : theme.colors.border,
-            backgroundColor: theme.colors.inputBackground,
-            color: theme.colors.text
-          },
-          focusedField === field && styles.inputFocused
-        ]}
-        value={value}
-        onChangeText={(text) => onChangeText(field, text)}
-        onFocus={() => setFocusedField(field)}
-        onBlur={() => setFocusedField(null)}
-        secureTextEntry={secureTextEntry}
-        keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize}
-        placeholderTextColor={theme.colors.textSecondary}
-      />
-    </View>
-  ), [focusedField, theme]);
+
 
   return (
     <SafeAreaView 
@@ -146,6 +155,9 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
                   value={formData.companyName}
                   onChangeText={handleInputChange}
                   field="companyName"
+                  focusedField={focusedField}
+                  setFocusedField={setFocusedField}
+                  theme={theme}
                   autoCapitalize="words"
                 />
 
@@ -154,6 +166,9 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
                   value={formData.email}
                   onChangeText={handleInputChange}
                   field="email"
+                  focusedField={focusedField}
+                  setFocusedField={setFocusedField}
+                  theme={theme}
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
@@ -163,6 +178,9 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
                   value={formData.phone}
                   onChangeText={handleInputChange}
                   field="phone"
+                  focusedField={focusedField}
+                  setFocusedField={setFocusedField}
+                  theme={theme}
                   keyboardType="phone-pad"
                 />
 
@@ -171,6 +189,9 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
                   value={formData.password}
                   onChangeText={handleInputChange}
                   field="password"
+                  focusedField={focusedField}
+                  setFocusedField={setFocusedField}
+                  theme={theme}
                   secureTextEntry={true}
                   autoCapitalize="none"
                 />
@@ -180,6 +201,9 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
                   value={formData.confirmPassword}
                   onChangeText={handleInputChange}
                   field="confirmPassword"
+                  focusedField={focusedField}
+                  setFocusedField={setFocusedField}
+                  theme={theme}
                   secureTextEntry={true}
                   autoCapitalize="none"
                 />
@@ -229,84 +253,94 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: screenWidth * 0.05,
-    paddingTop: screenHeight * 0.05,
-    paddingBottom: screenHeight * 0.05,
+    paddingHorizontal: 20,
+    paddingTop: 40,
+    paddingBottom: 40,
   },
   header: {
     alignItems: 'center',
-    marginBottom: screenHeight * 0.05,
+    marginBottom: 32,
   },
   title: {
-    fontSize: Math.min(screenWidth * 0.08, 32),
+    fontSize: 32,
     fontWeight: 'bold',
     color: '#ffffff',
-    marginBottom: screenHeight * 0.01,
+    marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: Math.min(screenWidth * 0.04, 16),
-    color: 'rgba(255,255,255,0.8)',
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.9)',
     textAlign: 'center',
+    lineHeight: 22,
   },
   formContainer: {
     borderRadius: 20,
-    padding: screenWidth * 0.05,
+    padding: 24,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 8,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   inputContainer: {
-    marginBottom: screenHeight * 0.02,
+    marginBottom: 20,
+    position: 'relative',
   },
   floatingLabel: {
     position: 'absolute',
-    left: screenWidth * 0.02,
-    top: screenHeight * 0.015,
-    fontSize: Math.min(screenWidth * 0.04, 16),
+    left: 16,
+    top: 18,
+    fontSize: 16,
     zIndex: 1,
     backgroundColor: 'transparent',
   },
   floatingLabelFocused: {
-    top: screenHeight * 0.005,
-    fontSize: Math.min(screenWidth * 0.03, 12),
+    top: 8,
+    fontSize: 12,
     fontWeight: '600',
   },
   input: {
     borderWidth: 1,
     borderRadius: 12,
-    paddingHorizontal: screenWidth * 0.04,
-    paddingVertical: screenHeight * 0.015,
-    fontSize: Math.min(screenWidth * 0.04, 16),
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingTop: 24,
+    fontSize: 16,
     fontWeight: '500',
+    minHeight: 56,
   },
   inputFocused: {
     borderWidth: 2,
   },
   registerButton: {
     borderRadius: 12,
-    paddingVertical: screenHeight * 0.015,
+    paddingVertical: 16,
     alignItems: 'center',
-    marginBottom: screenHeight * 0.015,
-    shadowColor: '#667eea',
+    marginTop: 8,
+    marginBottom: 20,
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
-    elevation: 6,
+    elevation: 8,
+    minHeight: 56,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   registerButtonText: {
-    fontSize: Math.min(screenWidth * 0.04, 16),
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   footer: {
     flexDirection: 'row',
@@ -314,10 +348,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerText: {
-    fontSize: Math.min(screenWidth * 0.035, 14),
+    fontSize: 14,
   },
   footerLink: {
-    fontSize: Math.min(screenWidth * 0.035, 14),
+    fontSize: 14,
     fontWeight: '600',
   },
 });

@@ -20,6 +20,54 @@ import authService from '../services/auth';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
+// Create a stable FloatingInput component outside the main component
+const FloatingInput = React.memo(({ 
+  label, 
+  value, 
+  onChangeText, 
+  onFocus, 
+  onBlur, 
+  isFocused, 
+  theme,
+  secureTextEntry = false,
+  keyboardType = 'default',
+  autoCapitalize = 'none'
+}: any) => (
+  <View style={styles.inputContainer}>
+         <Text style={[
+       styles.floatingLabel, 
+       { color: (isFocused || value) ? theme.colors.primary : theme.colors.textSecondary },
+       (isFocused || value) && styles.floatingLabelFocused
+     ]}>
+       {label}
+     </Text>
+           <TextInput
+         style={[
+           styles.input, 
+           { 
+             borderColor: (isFocused || value) ? theme.colors.primary : theme.colors.border,
+             backgroundColor: theme.colors.inputBackground,
+             color: theme.colors.text
+           },
+           (isFocused || value) && styles.inputFocused
+         ]}
+              value={value}
+        onChangeText={onChangeText}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        secureTextEntry={secureTextEntry}
+        keyboardType={keyboardType}
+        autoCapitalize={autoCapitalize}
+        placeholderTextColor={theme.colors.textSecondary}
+        blurOnSubmit={false}
+        returnKeyType="next"
+        autoCorrect={false}
+        spellCheck={false}
+        textContentType="none"
+    />
+  </View>
+));
+
 const LoginScreen: React.FC = ({ navigation }: any) => {
   const { isDarkMode, theme } = useTheme();
   const [email, setEmail] = useState('');
@@ -87,46 +135,7 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
     }
   }, []);
 
-  const FloatingInput = useMemo(() => ({ 
-    label, 
-    value, 
-    onChangeText, 
-    onFocus, 
-    onBlur, 
-    isFocused, 
-    secureTextEntry = false,
-    keyboardType = 'default',
-    autoCapitalize = 'none'
-  }: any) => (
-    <View style={styles.inputContainer}>
-      <Text style={[
-        styles.floatingLabel, 
-        { color: isFocused ? theme.colors.primary : theme.colors.textSecondary },
-        isFocused && styles.floatingLabelFocused
-      ]}>
-        {label}
-      </Text>
-      <TextInput
-        style={[
-          styles.input, 
-          { 
-            borderColor: isFocused ? theme.colors.primary : theme.colors.border,
-            backgroundColor: theme.colors.inputBackground,
-            color: theme.colors.text
-          },
-          isFocused && styles.inputFocused
-        ]}
-        value={value}
-        onChangeText={onChangeText}
-        onFocus={onFocus}
-        onBlur={onBlur}
-        secureTextEntry={secureTextEntry}
-        keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize}
-        placeholderTextColor={theme.colors.textSecondary}
-      />
-    </View>
-  ), [theme]);
+
 
   return (
     <SafeAreaView 
@@ -165,6 +174,7 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
                 onFocus={() => setEmailFocused(true)}
                 onBlur={() => setEmailFocused(false)}
                 isFocused={emailFocused}
+                theme={theme}
                 keyboardType="email-address"
               />
 
@@ -175,6 +185,7 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
                 onFocus={() => setPasswordFocused(true)}
                 onBlur={() => setPasswordFocused(false)}
                 isFocused={passwordFocused}
+                theme={theme}
                 secureTextEntry={true}
               />
 

@@ -22,6 +22,61 @@ import { useTheme } from '../context/ThemeContext';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
+// Create a stable FloatingInput component outside the main component
+const FloatingInput = React.memo(({ 
+  value, 
+  onChangeText, 
+  field, 
+  placeholder, 
+  focusedField,
+  setFocusedField,
+  theme,
+  multiline = false,
+  numberOfLines = 1,
+  keyboardType = 'default',
+}: {
+  value: string;
+  onChangeText: (text: string) => void;
+  field: string;
+  placeholder: string;
+  focusedField: string | null;
+  setFocusedField: (field: string | null) => void;
+  theme: any;
+  multiline?: boolean;
+  numberOfLines?: number;
+  keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'url';
+}) => (
+  <View style={styles.inputContainer}>
+    <TextInput
+      style={[
+        styles.input,
+        { 
+          backgroundColor: theme.colors.inputBackground,
+          color: theme.colors.text,
+          borderColor: theme.colors.border
+        },
+        focusedField === field && [styles.inputFocused, { borderColor: theme.colors.primary }],
+        multiline && styles.multilineInput
+      ]}
+      value={value}
+      onChangeText={onChangeText}
+      onFocus={() => setFocusedField(field)}
+      onBlur={() => setFocusedField(null)}
+      placeholder={placeholder}
+      placeholderTextColor={theme.colors.textSecondary}
+      multiline={multiline}
+      numberOfLines={numberOfLines}
+      keyboardType={keyboardType}
+      autoCapitalize={field === 'email' ? 'none' : 'words'}
+      blurOnSubmit={false}
+      returnKeyType="next"
+      autoCorrect={false}
+      spellCheck={false}
+      textContentType="none"
+    />
+  </View>
+));
+
 interface BusinessProfileFormProps {
   visible: boolean;
   onClose: () => void;
@@ -261,57 +316,7 @@ const BusinessProfileForm: React.FC<BusinessProfileFormProps> = ({
     onSubmit(formData);
   };
 
-  const FloatingInput = ({ 
-    label, 
-    value, 
-    onChangeText, 
-    field, 
-    placeholder, 
-    multiline = false,
-    numberOfLines = 1,
-    keyboardType = 'default',
-  }: {
-    label: string;
-    value: string;
-    onChangeText: (text: string) => void;
-    field: string;
-    placeholder: string;
-    multiline?: boolean;
-    numberOfLines?: number;
-    keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'url';
-  }) => (
-    <View style={styles.inputContainer}>
-      <Text style={[
-        styles.floatingLabel,
-        { color: theme.colors.textSecondary },
-        (focusedField === field || value) && [styles.floatingLabelActive, { color: theme.colors.text }]
-      ]}>
-        {label}
-      </Text>
-             <TextInput
-         style={[
-           styles.input,
-           { 
-             backgroundColor: theme.colors.inputBackground,
-             color: theme.colors.text,
-             borderColor: theme.colors.border
-           },
-           focusedField === field && [styles.inputFocused, { borderColor: theme.colors.primary }],
-           multiline && styles.multilineInput
-         ]}
-         value={value}
-         onChangeText={onChangeText}
-         onFocus={() => setFocusedField(field)}
-         onBlur={() => setFocusedField(null)}
-         placeholder={placeholder}
-         placeholderTextColor={theme.colors.textSecondary}
-         multiline={multiline}
-         numberOfLines={numberOfLines}
-         keyboardType={keyboardType}
-         autoCapitalize={field === 'email' ? 'none' : 'words'}
-       />
-    </View>
-  );
+  
 
   return (
     <>
@@ -350,25 +355,29 @@ const BusinessProfileForm: React.FC<BusinessProfileFormProps> = ({
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView 
+            style={styles.content} 
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="none"
+          >
             {/* Company Information */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Company Information</Text>
               
-              <FloatingInput
-                label="Company Name *"
-                value={formData.name}
-                onChangeText={(value) => handleInputChange('name', value)}
-                field="name"
-                placeholder="Enter company name"
-              />
+                             <FloatingInput
+                 value={formData.name}
+                 onChangeText={(value) => handleInputChange('name', value)}
+                 field="name"
+                 placeholder="Enter company name"
+                 focusedField={focusedField}
+                 setFocusedField={setFocusedField}
+                 theme={theme}
+               />
 
               {/* Company Logo Upload */}
               <View style={styles.inputContainer}>
-                <Text style={[
-                  styles.floatingLabel,
-                  (focusedField === 'logo' || logoImage) && styles.floatingLabelActive
-                ]}>
+                <Text style={styles.sectionTitle}>
                   Company Logo
                 </Text>
                 <View style={[
@@ -425,10 +434,7 @@ const BusinessProfileForm: React.FC<BusinessProfileFormProps> = ({
               </View>
 
               <View style={styles.inputContainer}>
-                <Text style={[
-                  styles.floatingLabel,
-                  (focusedField === 'category' || formData.category) && styles.floatingLabelActive
-                ]}>
+                <Text style={styles.sectionTitle}>
                   Business Category *
                 </Text>
                 <View style={[
@@ -439,7 +445,7 @@ const BusinessProfileForm: React.FC<BusinessProfileFormProps> = ({
                   },
                   focusedField === 'category' && [styles.inputFocused, { borderColor: theme.colors.primary }]
                 ]}>
-                  <Text style={[styles.pickerText, { color: theme.colors.text }]}>
+                  <Text style={[styles.pickerText, { color: formData.category ? theme.colors.text : theme.colors.textSecondary }]}>
                     {formData.category || 'Select business category'}
                   </Text>
                 </View>
@@ -456,8 +462,8 @@ const BusinessProfileForm: React.FC<BusinessProfileFormProps> = ({
                     >
                       <Text style={[
                         styles.categoryOptionText,
-                        { color: theme.colors.text },
-                        formData.category === category && [styles.categoryOptionTextSelected, { color: theme.colors.surface }]
+                        { color: formData.category === category ? '#ffffff' : '#ffffff' },
+                        formData.category === category && [styles.categoryOptionTextSelected, { color: '#ffffff' }]
                       ]}>
                         {category}
                       </Text>
@@ -471,51 +477,61 @@ const BusinessProfileForm: React.FC<BusinessProfileFormProps> = ({
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Contact Information</Text>
               
-              <FloatingInput
-                label="Phone Number *"
-                value={formData.phone}
-                onChangeText={(value) => handleInputChange('phone', value)}
-                field="phone"
-                placeholder="Enter phone number"
-                keyboardType="phone-pad"
-              />
+                             <FloatingInput
+                 value={formData.phone}
+                 onChangeText={(value) => handleInputChange('phone', value)}
+                 field="phone"
+                 placeholder="Enter phone number"
+                 keyboardType="phone-pad"
+                 focusedField={focusedField}
+                 setFocusedField={setFocusedField}
+                 theme={theme}
+               />
 
-                              <FloatingInput
-                  label="Alternate Phone Number"
-                  value={formData.alternatePhone || ''}
-                  onChangeText={(value) => handleInputChange('alternatePhone', value)}
-                  field="alternatePhone"
-                  placeholder="Enter alternate phone number"
-                  keyboardType="phone-pad"
-                />
+               <FloatingInput
+                 value={formData.alternatePhone || ''}
+                 onChangeText={(value) => handleInputChange('alternatePhone', value)}
+                 field="alternatePhone"
+                 placeholder="Enter alternate phone number"
+                 keyboardType="phone-pad"
+                 focusedField={focusedField}
+                 setFocusedField={setFocusedField}
+                 theme={theme}
+               />
 
-              <FloatingInput
-                label="Email Address *"
-                value={formData.email}
-                onChangeText={(value) => handleInputChange('email', value)}
-                field="email"
-                placeholder="Enter email address"
-                keyboardType="email-address"
-              />
+               <FloatingInput
+                 value={formData.email}
+                 onChangeText={(value) => handleInputChange('email', value)}
+                 field="email"
+                 placeholder="Enter email address"
+                 keyboardType="email-address"
+                 focusedField={focusedField}
+                 setFocusedField={setFocusedField}
+                 theme={theme}
+               />
 
-                              <FloatingInput
-                  label="Company Website"
-                  value={formData.website || ''}
-                  onChangeText={(value) => handleInputChange('website', value)}
-                  field="website"
-                  placeholder="Enter company website URL"
-                  keyboardType="url"
-                />
+               <FloatingInput
+                 value={formData.website || ''}
+                 onChangeText={(value) => handleInputChange('website', value)}
+                 field="website"
+                 placeholder="Enter company website URL"
+                 keyboardType="url"
+                 focusedField={focusedField}
+                 setFocusedField={setFocusedField}
+                 theme={theme}
+               />
 
-              <FloatingInput
-                label="Address *"
-                value={formData.address}
-                onChangeText={(value) => handleInputChange('address', value)}
-                field="address"
-                placeholder="Enter company address"
-                multiline
-                numberOfLines={2}
-              />
+               <FloatingInput
+                 value={formData.address}
+                 onChangeText={(value) => handleInputChange('address', value)}
+                 field="address"
+                 placeholder="Enter company address"
+                 multiline
+                 numberOfLines={2}
+                 focusedField={focusedField}
+                 setFocusedField={setFocusedField}
+                 theme={theme}
+               />
             </View>
           </ScrollView>
         </LinearGradient>
@@ -645,22 +661,11 @@ const styles = StyleSheet.create({
   inputContainer: {
     marginBottom: screenHeight * 0.02,
   },
-  floatingLabel: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    fontSize: Math.min(screenWidth * 0.04, 16),
-    zIndex: 1,
-  },
-  floatingLabelActive: {
-    fontSize: Math.min(screenWidth * 0.035, 14),
-    fontWeight: '600',
-  },
+
   input: {
     borderRadius: 12,
     paddingHorizontal: screenWidth * 0.04,
     paddingVertical: screenHeight * 0.015,
-    paddingTop: screenHeight * 0.025,
     fontSize: Math.min(screenWidth * 0.04, 16),
     borderWidth: 1,
     shadowColor: '#000',
