@@ -133,6 +133,7 @@ const BusinessProfileForm: React.FC<BusinessProfileFormProps> = ({
     'Decorators',
     'Sound Suppliers',
     'Light Suppliers',
+    'Video Services',
   ];
 
   useEffect(() => {
@@ -544,55 +545,78 @@ const BusinessProfileForm: React.FC<BusinessProfileFormProps> = ({
       transparent={true}
       animationType="fade"
       onRequestClose={() => setShowUploadModal(false)}
+      statusBarTranslucent={true}
     >
-      <View style={styles.modalOverlay}>
-        <View style={[styles.uploadModalContainer, { backgroundColor: theme.colors.surface }]}>
-          <View style={styles.uploadModalHeader}>
-            <Text style={[styles.uploadModalTitle, { color: theme.colors.text }]}>Upload Company Logo</Text>
-            <TouchableOpacity 
-              style={styles.closeModalButton}
-              onPress={() => setShowUploadModal(false)}
+      <TouchableOpacity 
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={() => setShowUploadModal(false)}
+      >
+                <TouchableOpacity 
+          activeOpacity={1}
+          onPress={() => {}} // Prevent closing when tapping inside modal
+        >
+          <View style={[styles.uploadModalContainer, { backgroundColor: theme.colors.surface }]}>
+            <View style={styles.uploadModalHeader}>
+              <Text style={[styles.uploadModalTitle, { color: theme.colors.text }]}>Upload Company Logo</Text>
+              <TouchableOpacity 
+                style={[styles.closeModalButton, { backgroundColor: theme.colors.inputBackground }]}
+                onPress={() => setShowUploadModal(false)}
+                activeOpacity={0.7}
+              >
+                <Icon name="close" size={Math.min(screenWidth * 0.06, 24)} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView 
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.uploadModalScrollContent}
+              keyboardShouldPersistTaps="handled"
             >
-              <Icon name="close" size={24} color={theme.colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-          
-          <Text style={[styles.uploadModalSubtitle, { color: theme.colors.textSecondary }]}>
-            Choose how you want to add your company logo
-          </Text>
-          
-          <View style={styles.uploadModalOptions}>
-            <TouchableOpacity 
-              style={[styles.uploadModalOption, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border }]}
-              onPress={() => handleImagePickerWithClose('gallery')}
-            >
-              <View style={[styles.uploadModalOptionIcon, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                <Icon name="photo-library" size={28} color={theme.colors.primary} />
+              <Text style={[styles.uploadModalSubtitle, { color: theme.colors.textSecondary }]}>
+                Choose how you want to add your company logo
+              </Text>
+              
+              <View style={styles.uploadModalOptions}>
+                <TouchableOpacity 
+                  style={[styles.uploadModalOption, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border }]}
+                  onPress={() => handleImagePickerWithClose('gallery')}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.uploadModalOptionIcon, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                    <Icon name="photo-library" size={Math.min(screenWidth * 0.07, 28)} color={theme.colors.primary} />
+                  </View>
+                  <View style={styles.uploadModalOptionContent}>
+                    <Text style={[styles.uploadModalOptionTitle, { color: theme.colors.text }]}>Gallery</Text>
+                    <Text style={[styles.uploadModalOptionSubtitle, { color: theme.colors.textSecondary }]}>Choose from your photos</Text>
+                  </View>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.uploadModalOption, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border }]}
+                  onPress={() => handleImagePickerWithClose('camera')}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.uploadModalOptionIcon, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                    <Icon name="camera-alt" size={Math.min(screenWidth * 0.07, 28)} color={theme.colors.primary} />
+                  </View>
+                  <View style={styles.uploadModalOptionContent}>
+                    <Text style={[styles.uploadModalOptionTitle, { color: theme.colors.text }]}>Camera</Text>
+                    <Text style={[styles.uploadModalOptionSubtitle, { color: theme.colors.textSecondary }]}>Take a new photo</Text>
+                  </View>
+                </TouchableOpacity>
               </View>
-              <Text style={[styles.uploadModalOptionTitle, { color: theme.colors.text }]}>Gallery</Text>
-              <Text style={[styles.uploadModalOptionSubtitle, { color: theme.colors.textSecondary }]}>Choose from your photos</Text>
-            </TouchableOpacity>
+            </ScrollView>
             
             <TouchableOpacity 
-              style={[styles.uploadModalOption, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border }]}
-              onPress={() => handleImagePickerWithClose('camera')}
+              style={[styles.cancelModalButton, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border }]}
+              onPress={() => setShowUploadModal(false)}
             >
-              <View style={[styles.uploadModalOptionIcon, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                <Icon name="camera-alt" size={28} color={theme.colors.primary} />
-              </View>
-              <Text style={[styles.uploadModalOptionTitle, { color: theme.colors.text }]}>Camera</Text>
-              <Text style={[styles.uploadModalOptionSubtitle, { color: theme.colors.textSecondary }]}>Take a new photo</Text>
+              <Text style={[styles.cancelModalText, { color: theme.colors.textSecondary }]}>Cancel</Text>
             </TouchableOpacity>
           </View>
-          
-          <TouchableOpacity 
-            style={[styles.cancelModalButton, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border }]}
-            onPress={() => setShowUploadModal(false)}
-          >
-            <Text style={[styles.cancelModalText, { color: theme.colors.textSecondary }]}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   </>
 );
@@ -960,49 +984,75 @@ const styles = StyleSheet.create({
   // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: Math.min(screenWidth * 0.05, 20),
   },
   uploadModalContainer: {
-    borderRadius: 24,
-    padding: screenWidth * 0.06,
-    width: screenWidth * 0.85,
-    maxWidth: 400,
+    borderRadius: Math.min(screenWidth * 0.06, 24),
+    padding: Math.min(screenWidth * 0.06, 24),
+    width: '100%',
+    maxWidth: Math.min(screenWidth * 0.9, 420),
+    minWidth: Math.min(screenWidth * 0.8, 320),
+    maxHeight: screenHeight * 0.8,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 20,
     },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.3,
     shadowRadius: 40,
-    elevation: 20,
+    elevation: 25,
+    position: 'relative',
   },
   uploadModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: screenHeight * 0.02,
+    marginBottom: Math.min(screenHeight * 0.025, 20),
+    paddingBottom: Math.min(screenHeight * 0.015, 12),
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   uploadModalTitle: {
-    fontSize: Math.min(screenWidth * 0.05, 20),
+    fontSize: Math.min(screenWidth * 0.055, 22),
     fontWeight: '700',
+    flex: 1,
+    marginRight: Math.min(screenWidth * 0.03, 12),
   },
   closeModalButton: {
-    padding: screenWidth * 0.01,
+    width: Math.min(screenWidth * 0.08, 32),
+    height: Math.min(screenWidth * 0.08, 32),
+    borderRadius: Math.min(screenWidth * 0.04, 16),
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   uploadModalSubtitle: {
-    fontSize: Math.min(screenWidth * 0.038, 15),
-    marginBottom: screenHeight * 0.03,
-    lineHeight: 20,
+    fontSize: Math.min(screenWidth * 0.04, 16),
+    marginBottom: Math.min(screenHeight * 0.035, 28),
+    lineHeight: Math.min(screenWidth * 0.05, 20),
+    opacity: 0.8,
+  },
+  uploadModalScrollContent: {
+    paddingBottom: Math.min(screenHeight * 0.02, 16),
   },
   uploadModalOptions: {
-    gap: screenHeight * 0.02,
-    marginBottom: screenHeight * 0.03,
+    gap: Math.min(screenHeight * 0.025, 20),
+    marginBottom: Math.min(screenHeight * 0.035, 28),
   },
   uploadModalOption: {
-    borderRadius: 16,
-    padding: screenWidth * 0.05,
+    borderRadius: Math.min(screenWidth * 0.04, 16),
+    padding: Math.min(screenWidth * 0.05, 20),
     borderWidth: 2,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1011,35 +1061,59 @@ const styles = StyleSheet.create({
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 6,
+    minHeight: Math.min(screenHeight * 0.08, 64),
+    transform: [{ scale: 1 }],
   },
   uploadModalOptionIcon: {
-    width: screenWidth * 0.12,
-    height: screenWidth * 0.12,
-    borderRadius: screenWidth * 0.06,
+    width: Math.min(screenWidth * 0.12, 48),
+    height: Math.min(screenWidth * 0.12, 48),
+    borderRadius: Math.min(screenWidth * 0.06, 24),
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: screenWidth * 0.04,
+    marginRight: Math.min(screenWidth * 0.04, 16),
     borderWidth: 1,
+    shadowColor: '#667eea',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  uploadModalOptionContent: {
+    flex: 1,
+    justifyContent: 'center',
   },
   uploadModalOptionTitle: {
-    fontSize: Math.min(screenWidth * 0.042, 17),
+    fontSize: Math.min(screenWidth * 0.045, 18),
     fontWeight: '600',
-    marginBottom: screenHeight * 0.002,
+    marginBottom: Math.min(screenHeight * 0.005, 4),
   },
   uploadModalOptionSubtitle: {
-    fontSize: Math.min(screenWidth * 0.035, 14),
+    fontSize: Math.min(screenWidth * 0.038, 15),
+    opacity: 0.7,
+    lineHeight: Math.min(screenWidth * 0.045, 18),
   },
   cancelModalButton: {
-    borderRadius: 12,
-    paddingVertical: screenHeight * 0.015,
+    borderRadius: Math.min(screenWidth * 0.03, 12),
+    paddingVertical: Math.min(screenHeight * 0.018, 14),
     alignItems: 'center',
     borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   cancelModalText: {
-    fontSize: Math.min(screenWidth * 0.04, 16),
+    fontSize: Math.min(screenWidth * 0.042, 17),
     fontWeight: '600',
   },
 });

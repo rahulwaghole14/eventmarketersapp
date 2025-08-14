@@ -21,6 +21,30 @@ import { useTheme } from '../context/ThemeContext';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
+// Responsive design helpers
+const isSmallScreen = screenWidth < 375;
+const isMediumScreen = screenWidth >= 375 && screenWidth < 414;
+const isLargeScreen = screenWidth >= 414;
+
+// Responsive spacing and sizing
+const responsiveSpacing = {
+  xs: isSmallScreen ? 8 : isMediumScreen ? 12 : 16,
+  sm: isSmallScreen ? 12 : isMediumScreen ? 16 : 20,
+  md: isSmallScreen ? 16 : isMediumScreen ? 20 : 24,
+  lg: isSmallScreen ? 20 : isMediumScreen ? 24 : 32,
+  xl: isSmallScreen ? 24 : isMediumScreen ? 32 : 40,
+};
+
+const responsiveFontSize = {
+  xs: isSmallScreen ? 10 : isMediumScreen ? 12 : 14,
+  sm: isSmallScreen ? 12 : isMediumScreen ? 14 : 16,
+  md: isSmallScreen ? 14 : isMediumScreen ? 16 : 18,
+  lg: isSmallScreen ? 16 : isMediumScreen ? 18 : 20,
+  xl: isSmallScreen ? 18 : isMediumScreen ? 20 : 22,
+  xxl: isSmallScreen ? 20 : isMediumScreen ? 22 : 24,
+  xxxl: isSmallScreen ? 24 : isMediumScreen ? 28 : 32,
+};
+
 const SubscriptionScreen: React.FC = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -196,19 +220,19 @@ const SubscriptionScreen: React.FC = () => {
 
   return (
     <View style={[styles.container, { 
-      paddingTop: insets.top,
       backgroundColor: theme.colors.background 
     }]}>
       <StatusBar 
-        barStyle={theme.dark ? "light-content" : "dark-content"} 
-        backgroundColor={theme.colors.background} 
+        barStyle="light-content" 
+        backgroundColor="transparent" 
+        translucent={true}
       />
       
-      {/* Header */}
-      <LinearGradient
-        colors={['#667eea', '#764ba2']}
-        style={styles.header}
-      >
+             {/* Header */}
+       <LinearGradient
+         colors={['#667eea', '#764ba2']}
+         style={[styles.header, { paddingTop: insets.top + responsiveSpacing.sm }]}
+       >
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
@@ -322,22 +346,22 @@ const SubscriptionScreen: React.FC = () => {
           <Text style={[styles.benefitsTitle, { color: theme.colors.text }]}>Why Upgrade to Pro?</Text>
           <View style={styles.benefitsGrid}>
                          <View style={[styles.benefitItem, { backgroundColor: theme.colors.inputBackground }]}>
-               <Icon name="infinity" size={32} color="#667eea" />
+               <Icon name="infinity" size={isSmallScreen ? 28 : isMediumScreen ? 30 : 32} color="#667eea" />
                <Text style={[styles.benefitTitle, { color: theme.colors.text }]}>Unlimited</Text>
                <Text style={[styles.benefitText, { color: theme.colors.textSecondary }]}>Create unlimited posters</Text>
              </View>
              <View style={[styles.benefitItem, { backgroundColor: theme.colors.inputBackground }]}>
-               <Icon name="star" size={32} color="#667eea" />
+               <Icon name="star" size={isSmallScreen ? 28 : isMediumScreen ? 30 : 32} color="#667eea" />
                <Text style={[styles.benefitTitle, { color: theme.colors.text }]}>Premium</Text>
                <Text style={[styles.benefitText, { color: theme.colors.textSecondary }]}>Access premium templates</Text>
              </View>
              <View style={[styles.benefitItem, { backgroundColor: theme.colors.inputBackground }]}>
-               <Icon name="hd" size={32} color="#667eea" />
+               <Icon name="hd" size={isSmallScreen ? 28 : isMediumScreen ? 30 : 32} color="#667eea" />
                <Text style={[styles.benefitTitle, { color: theme.colors.text }]}>HD Quality</Text>
                <Text style={[styles.benefitText, { color: theme.colors.textSecondary }]}>High-resolution exports</Text>
              </View>
              <View style={[styles.benefitItem, { backgroundColor: theme.colors.inputBackground }]}>
-               <Icon name="support-agent" size={32} color="#667eea" />
+               <Icon name="support-agent" size={isSmallScreen ? 28 : isMediumScreen ? 30 : 32} color="#667eea" />
                <Text style={[styles.benefitTitle, { color: theme.colors.text }]}>Priority</Text>
                <Text style={[styles.benefitText, { color: theme.colors.textSecondary }]}>Priority customer support</Text>
              </View>
@@ -348,15 +372,15 @@ const SubscriptionScreen: React.FC = () => {
          <View style={{ height: 140 }} />
       </ScrollView>
 
-      {/* Sticky Upgrade Button */}
-      <View style={[
-        styles.stickyButtonContainer, 
-        { 
-          paddingBottom: Math.max(insets.bottom + 20, 40),
-          backgroundColor: theme.colors.cardBackground,
-          borderTopColor: theme.colors.border
-        }
-      ]}>
+             {/* Sticky Upgrade Button */}
+       <View style={[
+         styles.stickyButtonContainer, 
+         { 
+           backgroundColor: theme.colors.cardBackground,
+           borderTopColor: theme.colors.border,
+           paddingBottom: Math.max(insets.bottom + responsiveSpacing.md, responsiveSpacing.lg)
+         }
+       ]}>
         <TouchableOpacity
           style={styles.upgradeButton}
           onPress={handlePayment}
@@ -404,8 +428,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 18,
+    paddingHorizontal: responsiveSpacing.md,
+    paddingBottom: responsiveSpacing.sm,
     borderBottomWidth: 0,
     zIndex: 1000,
     elevation: 10,
@@ -420,12 +444,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: responsiveFontSize.xxl,
     fontWeight: '700',
     color: '#ffffff',
   },
      headerSubtitle: {
-     fontSize: 14,
+     fontSize: responsiveFontSize.sm,
      color: 'rgba(255, 255, 255, 0.8)',
      marginTop: 2,
    },
@@ -437,7 +461,7 @@ const styles = StyleSheet.create({
      marginTop: 8,
    },
    demoBadgeText: {
-     fontSize: 10,
+     fontSize: responsiveFontSize.xs,
      fontWeight: '700',
      color: '#ffffff',
      textAlign: 'center',
@@ -449,13 +473,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
+    padding: responsiveSpacing.md,
   },
   planSelector: {
     flexDirection: 'row',
-    borderRadius: 16,
+    borderRadius: responsiveSpacing.md,
     padding: 4,
-    marginBottom: 24,
+    marginBottom: responsiveSpacing.lg,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -464,9 +488,9 @@ const styles = StyleSheet.create({
   },
   planOption: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingVertical: responsiveSpacing.sm,
+    paddingHorizontal: responsiveSpacing.md,
+    borderRadius: responsiveSpacing.sm,
     alignItems: 'center',
     position: 'relative',
   },
@@ -474,7 +498,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#667eea',
   },
   planOptionText: {
-    fontSize: 16,
+    fontSize: responsiveFontSize.md,
     fontWeight: '600',
   },
   planOptionTextSelected: {
@@ -490,29 +514,30 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   yearlyBadgeText: {
-    fontSize: 10,
+    fontSize: responsiveFontSize.xs,
     fontWeight: '700',
     color: '#ffffff',
   },
   comparisonContainer: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 32,
+    flexDirection: screenWidth < 600 ? 'column' : 'row',
+    gap: responsiveSpacing.md,
+    marginBottom: responsiveSpacing.xl,
   },
   planCard: {
     flex: 1,
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: responsiveSpacing.lg,
+    padding: responsiveSpacing.lg,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1,
     shadowRadius: 16,
     elevation: 8,
+    minHeight: isSmallScreen ? 400 : isMediumScreen ? 450 : 500,
   },
   proCard: {
     flex: 1,
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: responsiveSpacing.lg,
+    padding: responsiveSpacing.lg,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
@@ -521,6 +546,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#667eea',
     position: 'relative',
+    minHeight: isSmallScreen ? 400 : isMediumScreen ? 450 : 500,
   },
   proBadge: {
     position: 'absolute',
@@ -533,31 +559,31 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   proBadgeText: {
-    fontSize: 12,
+    fontSize: responsiveFontSize.sm,
     fontWeight: '700',
     color: '#ffffff',
     textAlign: 'center',
   },
   planHeader: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: responsiveSpacing.lg,
   },
   planName: {
-    fontSize: 24,
+    fontSize: responsiveFontSize.xxl,
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: responsiveSpacing.xs,
   },
   priceContainer: {
     alignItems: 'center',
     position: 'relative',
   },
   planPrice: {
-    fontSize: 32,
+    fontSize: responsiveFontSize.xxxl,
     fontWeight: '700',
     color: '#667eea',
   },
   originalPrice: {
-    fontSize: 16,
+    fontSize: responsiveFontSize.md,
     fontWeight: '400',
     textDecorationLine: 'line-through',
     marginTop: 4,
@@ -572,29 +598,29 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   savingsText: {
-    fontSize: 10,
+    fontSize: responsiveFontSize.xs,
     fontWeight: '700',
     color: '#ffffff',
   },
   planPeriod: {
-    fontSize: 14,
+    fontSize: responsiveFontSize.sm,
     marginTop: 4,
   },
   featuresList: {
-    gap: 12,
+    gap: responsiveSpacing.sm,
   },
   featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: responsiveSpacing.sm,
   },
   featureText: {
-    fontSize: 14,
+    fontSize: responsiveFontSize.sm,
     flex: 1,
   },
   benefitsSection: {
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: responsiveSpacing.lg,
+    padding: responsiveSpacing.lg,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -602,33 +628,34 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   benefitsTitle: {
-    fontSize: 20,
+    fontSize: responsiveFontSize.xl,
     fontWeight: '700',
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: responsiveSpacing.lg,
   },
   benefitsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 16,
+    gap: responsiveSpacing.md,
+    justifyContent: 'center',
   },
   benefitItem: {
-    width: (screenWidth - 88) / 2,
+    width: screenWidth < 600 ? screenWidth - (responsiveSpacing.md * 4) : (screenWidth - 88) / 2,
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 16,
-    minHeight: 120,
+    padding: responsiveSpacing.md,
+    borderRadius: responsiveSpacing.md,
+    minHeight: isSmallScreen ? 100 : isMediumScreen ? 110 : 120,
     justifyContent: 'center',
   },
   benefitTitle: {
-    fontSize: 16,
+    fontSize: responsiveFontSize.md,
     fontWeight: '600',
-    marginTop: 8,
+    marginTop: responsiveSpacing.xs,
     marginBottom: 4,
     textAlign: 'center',
   },
   benefitText: {
-    fontSize: 12,
+    fontSize: responsiveFontSize.xs,
     textAlign: 'center',
     lineHeight: 16,
   },
@@ -637,30 +664,30 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: responsiveSpacing.md,
+    paddingTop: responsiveSpacing.md,
     borderTopWidth: 1,
   },
   upgradeButton: {
-    borderRadius: 16,
+    borderRadius: responsiveSpacing.md,
     overflow: 'hidden',
-    marginBottom: 12,
+    marginBottom: responsiveSpacing.sm,
   },
   upgradeButtonGradient: {
-    paddingVertical: 18,
-    paddingHorizontal: 24,
+    paddingVertical: responsiveSpacing.sm,
+    paddingHorizontal: responsiveSpacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
   upgradeButtonText: {
     color: '#ffffff',
-    fontSize: 18,
+    fontSize: responsiveFontSize.lg,
     fontWeight: '700',
-    marginLeft: 12,
+    marginLeft: responsiveSpacing.sm,
   },
   termsText: {
-    fontSize: 12,
+    fontSize: responsiveFontSize.xs,
     textAlign: 'center',
     lineHeight: 16,
   },

@@ -32,10 +32,35 @@ import FrameSelector from '../components/FrameSelector';
 import { GOOGLE_FONTS, getFontsByCategory, SYSTEM_FONTS, getFontFamily } from '../services/fontService';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import Watermark from '../components/Watermark';
+import { useTheme } from '../context/ThemeContext';
 
 
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+// Responsive design helpers
+const isSmallScreen = screenWidth < 375;
+const isMediumScreen = screenWidth >= 375 && screenWidth < 414;
+const isLargeScreen = screenWidth >= 414;
+
+// Responsive spacing and sizing
+const responsiveSpacing = {
+  xs: isSmallScreen ? 8 : isMediumScreen ? 12 : 16,
+  sm: isSmallScreen ? 12 : isMediumScreen ? 16 : 20,
+  md: isSmallScreen ? 16 : isMediumScreen ? 20 : 24,
+  lg: isSmallScreen ? 20 : isMediumScreen ? 24 : 32,
+  xl: isSmallScreen ? 24 : isMediumScreen ? 32 : 40,
+};
+
+const responsiveFontSize = {
+  xs: isSmallScreen ? 10 : isMediumScreen ? 12 : 14,
+  sm: isSmallScreen ? 12 : isMediumScreen ? 14 : 16,
+  md: isSmallScreen ? 14 : isMediumScreen ? 16 : 18,
+  lg: isSmallScreen ? 16 : isMediumScreen ? 18 : 20,
+  xl: isSmallScreen ? 18 : isMediumScreen ? 20 : 22,
+  xxl: isSmallScreen ? 20 : isMediumScreen ? 22 : 24,
+  xxxl: isSmallScreen ? 24 : isMediumScreen ? 28 : 32,
+};
 
 // Calculate responsive dimensions that avoid notch problems
 const getResponsiveDimensions = (insets: any) => {
@@ -91,9 +116,397 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   const insets = useSafeAreaInsets();
   const { selectedImage, selectedLanguage, selectedTemplateId } = route.params;
   const { isSubscribed } = useSubscription();
+  const { isDarkMode, theme } = useTheme();
   
   // Get responsive dimensions
   const { canvasWidth, canvasHeight, availableWidth, availableHeight } = getResponsiveDimensions(insets);
+
+  // Create theme-aware styles
+  const getThemeStyles = () => ({
+    container: {
+      flex: 1,
+      backgroundColor: theme?.colors?.background || '#f8f9fa',
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+    },
+    modalContent: {
+      backgroundColor: theme?.colors?.surface || '#ffffff',
+      borderRadius: 20,
+      padding: 20,
+      width: screenWidth * 0.9,
+      maxHeight: screenHeight * 0.7,
+      shadowColor: theme?.colors?.shadow || '#000',
+      shadowOffset: {
+        width: 0,
+        height: 8,
+      },
+      shadowOpacity: isDarkMode ? 0.4 : 0.25,
+      shadowRadius: 16,
+      elevation: 12,
+    },
+    fontModalContent: {
+      backgroundColor: theme?.colors?.surface || '#ffffff',
+      borderRadius: 20,
+      padding: 20,
+      width: screenWidth * 0.9,
+      height: screenHeight * 0.50,
+      shadowColor: theme?.colors?.shadow || '#000',
+      shadowOffset: {
+        width: 0,
+        height: 8,
+      },
+      shadowOpacity: isDarkMode ? 0.4 : 0.25,
+      shadowRadius: 16,
+      elevation: 12,
+    },
+    modalTitle: {
+      fontSize: 22,
+      fontWeight: '700' as const,
+      color: theme?.colors?.text || '#333333',
+      marginBottom: 10,
+    },
+    modalSubtitle: {
+      fontSize: 15,
+      color: theme?.colors?.textSecondary || '#666666',
+      marginBottom: 20,
+      fontWeight: '500' as const,
+    },
+    textInput: {
+      borderWidth: 2,
+      borderColor: theme?.colors?.border || '#e9ecef',
+      borderRadius: 12,
+      padding: 16,
+      fontSize: 16,
+      marginBottom: 20,
+      backgroundColor: theme?.colors?.surface || '#f8f9fa',
+      color: theme?.colors?.text || '#333333',
+    },
+    cancelButton: {
+      backgroundColor: theme?.colors?.surface || '#f8f9fa',
+      borderWidth: 2,
+      borderColor: theme?.colors?.border || '#e9ecef',
+    },
+    cancelButtonText: {
+      color: theme?.colors?.textSecondary || '#666666',
+      fontSize: 16,
+      fontWeight: '600' as const,
+    },
+    profileItem: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      paddingVertical: 16,
+      paddingHorizontal: 20,
+      backgroundColor: theme?.colors?.surface || '#f8f9fa',
+      borderRadius: 12,
+      marginBottom: 12,
+    },
+    profileLogoPlaceholder: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: theme?.colors?.border || '#e9ecef',
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      marginRight: 16,
+    },
+    profileName: {
+      fontSize: 16,
+      fontWeight: '700' as const,
+      color: theme?.colors?.text || '#333333',
+      marginBottom: 4,
+    },
+    profileDescription: {
+      fontSize: 13,
+      color: theme?.colors?.textSecondary || '#666666',
+      lineHeight: 18,
+    },
+    styleOption: {
+      width: 48,
+      height: 48,
+      backgroundColor: theme?.colors?.surface || '#f8f9fa',
+      borderRadius: 12,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      margin: 4,
+      borderWidth: 2,
+      borderColor: theme?.colors?.border || '#e9ecef',
+    },
+    styleOptionText: {
+      fontSize: 14,
+      color: theme?.colors?.text || '#333333',
+      fontWeight: '600' as const,
+    },
+    styleSectionTitle: {
+      fontSize: 16,
+      fontWeight: '700' as const,
+      color: theme?.colors?.text || '#333333',
+      marginBottom: 12,
+    },
+    fieldToggleSection: {
+      width: '100%',
+      backgroundColor: theme?.colors?.surface || 'rgba(255, 255, 255, 0.95)',
+      borderRadius: 16,
+      padding: 12,
+      shadowColor: theme?.colors?.shadow || '#000',
+      shadowOffset: {
+        width: 0,
+        height: 4,
+      },
+      shadowOpacity: isDarkMode ? 0.2 : 0.1,
+      shadowRadius: 12,
+      elevation: 8,
+      borderWidth: 1,
+      borderColor: theme?.colors?.border || '#e9ecef',
+      marginBottom: 15,
+      marginHorizontal: 12,
+    },
+    fieldToggleTitle: {
+      fontSize: 14,
+      fontWeight: '700' as const,
+      color: theme?.colors?.text || '#333333',
+    },
+    fieldToggleSubtitle: {
+      fontSize: 10,
+      color: theme?.colors?.textSecondary || '#666666',
+      marginTop: 1,
+    },
+    fieldToggleButton: {
+      alignItems: 'center' as const,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      borderRadius: 16,
+      backgroundColor: theme?.colors?.border || '#e9ecef',
+      marginHorizontal: 4,
+      flexDirection: 'row' as const,
+      minWidth: 85,
+      justifyContent: 'center' as const,
+    },
+    fieldToggleButtonText: {
+      fontSize: 12,
+      color: theme?.colors?.textSecondary || '#666666',
+      marginLeft: 6,
+      fontWeight: '500' as const,
+    },
+    footerStylesSection: {
+      width: '100%',
+      backgroundColor: theme?.colors?.surface || 'rgba(255, 255, 255, 0.95)',
+      borderRadius: 16,
+      padding: 12,
+      shadowColor: theme?.colors?.shadow || '#000',
+      shadowOffset: {
+        width: 0,
+        height: 4,
+      },
+      shadowOpacity: isDarkMode ? 0.2 : 0.1,
+      shadowRadius: 12,
+      elevation: 8,
+      borderWidth: 1,
+      borderColor: theme?.colors?.border || '#e9ecef',
+      marginBottom: 15,
+      marginHorizontal: 12,
+    },
+    footerStylesTitle: {
+      fontSize: 14,
+      fontWeight: '700' as const,
+      color: theme?.colors?.text || '#333333',
+    },
+    footerStylesSubtitle: {
+      fontSize: 10,
+      color: theme?.colors?.textSecondary || '#666666',
+      marginTop: 1,
+    },
+    footerStyleModalButton: {
+      width: (screenWidth * 0.85 - 64) / 3 - 12,
+      backgroundColor: theme?.colors?.surface || '#ffffff',
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 20,
+      marginHorizontal: 6,
+      alignItems: 'center' as const,
+      borderWidth: 1,
+      borderColor: theme?.colors?.border || '#e9ecef',
+      shadowColor: theme?.colors?.shadow || '#000',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: isDarkMode ? 0.15 : 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    footerStyleModalPreview: {
+      width: 60,
+      height: 60,
+      borderRadius: 8,
+      backgroundColor: theme?.colors?.surface || '#f8f9fa',
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      marginBottom: 8,
+      borderWidth: 2,
+      borderColor: theme?.colors?.border || '#e9ecef',
+      overflow: 'hidden',
+    },
+    footerStyleModalText: {
+      fontSize: 20,
+      fontWeight: '700' as const,
+      color: theme?.colors?.text || '#333333',
+      textAlign: 'center' as const,
+      marginBottom: 8,
+    },
+    footerStyleModalDescription: {
+      fontSize: 12,
+      fontWeight: '600' as const,
+      color: theme?.colors?.textSecondary || '#666666',
+      textAlign: 'center' as const,
+      lineHeight: 14,
+      marginTop: 4,
+    },
+    footerStylePreview: {
+      width: 70,
+      height: 70,
+      borderRadius: 8,
+      backgroundColor: theme?.colors?.surface || '#f8f9fa',
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      marginBottom: 8,
+      borderWidth: 2,
+      borderColor: theme?.colors?.border || '#e9ecef',
+      overflow: 'hidden',
+    },
+    footerStyleText: {
+      fontSize: 10,
+      color: theme?.colors?.textSecondary || '#666666',
+      fontWeight: '600' as const,
+      textAlign: 'center' as const,
+      lineHeight: 12,
+    },
+    fontStyleModalTitle: {
+      fontSize: 12,
+      fontWeight: '600' as const,
+      color: theme?.colors?.text || '#333333',
+      textAlign: 'center' as const,
+      marginTop: 4,
+    },
+    fontStyleSectionTitle: {
+      fontSize: 18,
+      fontWeight: '700' as const,
+      color: theme?.colors?.text || '#333333',
+      marginLeft: 12,
+    },
+    fontStyleSectionSubtitle: {
+      fontSize: 14,
+      color: theme?.colors?.textSecondary || '#666666',
+      marginBottom: 16,
+      marginLeft: 32,
+      lineHeight: 20,
+    },
+    logoModalContent: {
+      backgroundColor: theme?.colors?.surface || '#ffffff',
+      borderRadius: 20,
+      padding: 20,
+      width: screenWidth * 0.9,
+      maxHeight: screenHeight * 0.7,
+      shadowColor: theme?.colors?.shadow || '#000',
+      shadowOffset: {
+        width: 0,
+        height: 8,
+      },
+      shadowOpacity: isDarkMode ? 0.4 : 0.25,
+      shadowRadius: 16,
+      elevation: 12,
+    },
+    logoModalTitle: {
+      fontSize: 22,
+      fontWeight: '700' as const,
+      color: theme?.colors?.text || '#333333',
+      marginBottom: 8,
+    },
+    logoModalSubtitle: {
+      fontSize: 15,
+      color: theme?.colors?.textSecondary || '#666666',
+      marginBottom: 20,
+      fontWeight: '500' as const,
+    },
+    logoModalCloseText: {
+      color: theme?.colors?.textSecondary || '#666666',
+      fontSize: 16,
+      fontWeight: '600' as const,
+    },
+    instructionsContainer: {
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      transform: [{ translateX: -100 }, { translateY: -20 }],
+      alignItems: 'center' as const,
+      backgroundColor: theme?.colors?.surface || 'rgba(255, 255, 255, 0.95)',
+      padding: 20,
+      borderRadius: 16,
+      shadowColor: theme?.colors?.shadow || '#000',
+      shadowOffset: {
+        width: 0,
+        height: 4,
+      },
+      shadowOpacity: isDarkMode ? 0.2 : 0.1,
+      shadowRadius: 8,
+      elevation: 8,
+    },
+    instructionsText: {
+      fontSize: 14,
+      color: theme?.colors?.textSecondary || '#666666',
+      textAlign: 'center' as const,
+      marginTop: 8,
+      maxWidth: 200,
+      lineHeight: 20,
+    },
+    loadingContainer: {
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      transform: [{ translateX: -50 }, { translateY: -20 }],
+      alignItems: 'center' as const,
+      backgroundColor: theme?.colors?.surface || 'rgba(255, 255, 255, 0.95)',
+      padding: 20,
+      borderRadius: 16,
+      shadowColor: theme?.colors?.shadow || '#000',
+      shadowOffset: {
+        width: 0,
+        height: 4,
+      },
+      shadowOpacity: isDarkMode ? 0.2 : 0.1,
+      shadowRadius: 8,
+      elevation: 8,
+    },
+    loadingText: {
+      fontSize: 14,
+      color: theme?.colors?.textSecondary || '#666666',
+      textAlign: 'center' as const,
+      marginTop: 8,
+    },
+    toolbar: {
+      position: 'absolute',
+      right: 20,
+      top: '50%',
+      transform: [{ translateY: -100 }],
+      backgroundColor: theme?.colors?.surface || 'rgba(255, 255, 255, 0.95)',
+      borderRadius: 16,
+      padding: 12,
+      shadowColor: theme?.colors?.shadow || '#000',
+      shadowOffset: {
+        width: 0,
+        height: 4,
+      },
+      shadowOpacity: isDarkMode ? 0.2 : 0.15,
+      shadowRadius: 12,
+      elevation: 8,
+      zIndex: 100,
+    },
+  });
+
+  const themeStyles = getThemeStyles();
 
   
       // Ref for capturing the poster as image
@@ -1167,23 +1580,23 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   return (
     <Animated.View 
       style={[
-        styles.container, 
+        themeStyles.container, 
         { 
-          paddingTop: insets.top,
-          paddingBottom: insets.bottom,
-          paddingLeft: insets.left,
-          paddingRight: insets.right,
           opacity: fadeAnim,
           transform: [{ translateY: slideAnim }]
         }
       ]}
     >
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <StatusBar 
+        barStyle="light-content" 
+        backgroundColor="transparent" 
+        translucent={true}
+      />
       
       {/* Professional Header */}
       <LinearGradient
         colors={['#667eea', '#764ba2']}
-        style={styles.header}
+        style={[styles.header, { paddingTop: insets.top + responsiveSpacing.sm }]}
       >
         <TouchableOpacity
           style={styles.backButton}
@@ -1596,7 +2009,12 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         )}
         
         {/* Controls Container */}
-        <View style={styles.controlsContainer}>
+        <View style={[
+          styles.controlsContainer, 
+          { 
+            paddingBottom: Math.max(insets.bottom + responsiveSpacing.md, responsiveSpacing.lg)
+          }
+        ]}>
         
         {/* Field Toggle Buttons */}
         <View style={styles.fieldToggleSection}>
@@ -2135,10 +2553,10 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
           );
         }}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Business Profile</Text>
-            <Text style={styles.modalSubtitle}>
+        <View style={themeStyles.modalOverlay}>
+          <View style={themeStyles.modalContent}>
+            <Text style={themeStyles.modalTitle}>Select Business Profile</Text>
+            <Text style={themeStyles.modalSubtitle}>
               Choose which business profile to use for your poster. You must select one to continue.
             </Text>
             <FlatList
@@ -2150,13 +2568,13 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
             />
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
+                style={[styles.modalButton, themeStyles.cancelButton]}
                 onPress={() => {
                   setShowProfileSelectionModal(false);
                   navigation.goBack(); // Go back to previous screen if user cancels
                 }}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={themeStyles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -2261,7 +2679,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                   <Icon name="camera-alt" size={32} color="#ffffff" />
                 </LinearGradient>
                 <Text style={styles.logoOptionTitle}>Take Photo</Text>
-                <Text style={styles.logoOptionDescription}>Capture a new logo with your camera</Text>
+
               </TouchableOpacity>
               
               <TouchableOpacity
@@ -2278,7 +2696,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                   <Icon name="photo-library" size={32} color="#ffffff" />
                 </LinearGradient>
                 <Text style={styles.logoOptionTitle}>Choose from Gallery</Text>
-                <Text style={styles.logoOptionDescription}>Select an existing logo from your device</Text>
+                
               </TouchableOpacity>
               
 
@@ -2439,8 +2857,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 18,
+    paddingHorizontal: responsiveSpacing.md,
+    paddingVertical: responsiveSpacing.sm,
     borderBottomWidth: 0,
   },
   backButton: {
@@ -2453,12 +2871,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: responsiveFontSize.xxl,
     fontWeight: '700',
     color: '#ffffff',
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: responsiveFontSize.sm,
     color: 'rgba(255, 255, 255, 0.8)',
     marginTop: 2,
   },
@@ -2471,12 +2889,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-start',
     alignItems: 'center',
-    padding: 12,
-    paddingBottom: 15,
+    padding: responsiveSpacing.sm,
+    paddingBottom: responsiveSpacing.sm,
   },
   controlsContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: responsiveSpacing.md,
+    paddingVertical: responsiveSpacing.sm,
   },
   viewShotContainer: {
     // These will be set dynamically based on responsive dimensions

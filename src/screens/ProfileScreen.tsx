@@ -10,6 +10,8 @@ import {
   Dimensions,
   Image,
   Animated,
+  Modal,
+  TextInput,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -21,8 +23,38 @@ import { useSubscription } from '../contexts/SubscriptionContext';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
+// Responsive design helpers
+const isSmallScreen = screenWidth < 375;
+const isMediumScreen = screenWidth >= 375 && screenWidth < 414;
+const isLargeScreen = screenWidth >= 414;
+
+// Responsive spacing and sizing
+const responsiveSpacing = {
+  xs: isSmallScreen ? 8 : isMediumScreen ? 12 : 16,
+  sm: isSmallScreen ? 12 : isMediumScreen ? 16 : 20,
+  md: isSmallScreen ? 16 : isMediumScreen ? 20 : 24,
+  lg: isSmallScreen ? 20 : isMediumScreen ? 24 : 32,
+  xl: isSmallScreen ? 24 : isMediumScreen ? 32 : 40,
+};
+
+const responsiveFontSize = {
+  xs: isSmallScreen ? 10 : isMediumScreen ? 12 : 14,
+  sm: isSmallScreen ? 12 : isMediumScreen ? 14 : 16,
+  md: isSmallScreen ? 14 : isMediumScreen ? 16 : 18,
+  lg: isSmallScreen ? 16 : isMediumScreen ? 18 : 20,
+  xl: isSmallScreen ? 18 : isMediumScreen ? 20 : 22,
+  xxl: isSmallScreen ? 20 : isMediumScreen ? 22 : 24,
+  xxxl: isSmallScreen ? 24 : isMediumScreen ? 28 : 32,
+};
+
 const ProfileScreen: React.FC = () => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [editDisplayName, setEditDisplayName] = useState(currentUser?.displayName || '');
+  const [editEmail, setEditEmail] = useState(currentUser?.email || '');
+  const [editPhone, setEditPhone] = useState(currentUser?.phoneNumber || '');
+  const [editBio, setEditBio] = useState(currentUser?.bio || '');
+  const [isUpdating, setIsUpdating] = useState(false);
   const { isDarkMode, toggleDarkMode, theme } = useTheme();
   const { isSubscribed } = useSubscription();
   const insets = useSafeAreaInsets();
@@ -103,6 +135,51 @@ const ProfileScreen: React.FC = () => {
     navigation.navigate('Subscription' as never);
   };
 
+  const handleEditProfile = () => {
+    setEditDisplayName(currentUser?.displayName || '');
+    setEditEmail(currentUser?.email || '');
+    setEditPhone(currentUser?.phoneNumber || '');
+    setEditBio(currentUser?.bio || '');
+    setShowEditProfileModal(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editDisplayName.trim()) {
+      Alert.alert('Error', 'Display name is required');
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      // Here you would typically call your auth service to update the profile
+      // For now, we'll simulate the update
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Update the current user object (in a real app, this would come from the service)
+      if (currentUser) {
+        currentUser.displayName = editDisplayName.trim();
+        currentUser.email = editEmail.trim();
+        currentUser.phoneNumber = editPhone.trim();
+        currentUser.bio = editBio.trim();
+      }
+      
+      setShowEditProfileModal(false);
+      Alert.alert('Success', 'Profile updated successfully!');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setShowEditProfileModal(false);
+    setEditDisplayName(currentUser?.displayName || '');
+    setEditEmail(currentUser?.email || '');
+    setEditPhone(currentUser?.phoneNumber || '');
+    setEditBio(currentUser?.bio || '');
+  };
+
   const renderMenuItem = (
     icon: string,
     title: string,
@@ -167,7 +244,7 @@ const ProfileScreen: React.FC = () => {
       <StatusBar 
         barStyle="light-content"
         backgroundColor="transparent" 
-        translucent 
+        translucent={true}
       />
       
       <LinearGradient
@@ -177,7 +254,7 @@ const ProfileScreen: React.FC = () => {
         end={{ x: 1, y: 1 }}
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top + responsiveSpacing.sm }]}>
           <Text style={styles.headerTitle}>Profile</Text>
         </View>
 
@@ -209,6 +286,11 @@ const ProfileScreen: React.FC = () => {
                 <Text style={[styles.userEmail, { color: theme.colors.textSecondary }]}>
                   {currentUser?.email || 'eventmarketer@example.com'}
                 </Text>
+                {currentUser?.bio && (
+                  <Text style={[styles.userBio, { color: theme.colors.textSecondary }]}>
+                    {currentUser.bio}
+                  </Text>
+                )}
                 <View style={styles.profileStats}>
                   <View style={styles.statItem}>
                     <Text style={[styles.statNumber, { color: theme.colors.primary }]}>24</Text>
@@ -227,6 +309,13 @@ const ProfileScreen: React.FC = () => {
                 </View>
               </View>
             </View>
+            <TouchableOpacity 
+              style={[styles.editProfileButton, { backgroundColor: theme.colors.primary }]}
+              onPress={handleEditProfile}
+            >
+              <Icon name="edit" size={16} color="#ffffff" />
+              <Text style={styles.editProfileButtonText}>Edit Profile</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Account Settings */}
@@ -296,6 +385,114 @@ const ProfileScreen: React.FC = () => {
           <Text style={[styles.versionText, { color: 'rgba(255,255,255,0.6)' }]}>Version 1.0.0</Text>
         </ScrollView>
       </LinearGradient>
+
+      {/* Edit Profile Modal */}
+      <Modal
+        visible={showEditProfileModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={handleCancelEdit}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.cardBackground }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Edit Profile</Text>
+              <TouchableOpacity onPress={handleCancelEdit} style={styles.modalCloseButton}>
+                <Icon name="close" size={24} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: theme.colors.text }]}>Display Name *</Text>
+                <TextInput
+                  style={[styles.textInput, { 
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                    color: theme.colors.text
+                  }]}
+                  value={editDisplayName}
+                  onChangeText={setEditDisplayName}
+                  placeholder="Enter your display name"
+                  placeholderTextColor={theme.colors.textSecondary}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: theme.colors.text }]}>Email</Text>
+                <TextInput
+                  style={[styles.textInput, { 
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                    color: theme.colors.text
+                  }]}
+                  value={editEmail}
+                  onChangeText={setEditEmail}
+                  placeholder="Enter your email"
+                  placeholderTextColor={theme.colors.textSecondary}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: theme.colors.text }]}>Phone Number</Text>
+                <TextInput
+                  style={[styles.textInput, { 
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                    color: theme.colors.text
+                  }]}
+                  value={editPhone}
+                  onChangeText={setEditPhone}
+                  placeholder="Enter your phone number"
+                  placeholderTextColor={theme.colors.textSecondary}
+                  keyboardType="phone-pad"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: theme.colors.text }]}>Bio</Text>
+                <TextInput
+                  style={[styles.textArea, { 
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                    color: theme.colors.text
+                  }]}
+                  value={editBio}
+                  onChangeText={setEditBio}
+                  placeholder="Tell us about yourself..."
+                  placeholderTextColor={theme.colors.textSecondary}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                />
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelModalButton, { borderColor: theme.colors.border }]}
+                onPress={handleCancelEdit}
+                disabled={isUpdating}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.colors.textSecondary }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.saveModalButton, { backgroundColor: theme.colors.primary }]}
+                onPress={handleSaveProfile}
+                disabled={isUpdating}
+              >
+                {isUpdating ? (
+                  <Text style={styles.modalButtonText}>Updating...</Text>
+                ) : (
+                  <Text style={[styles.modalButtonText, { color: '#ffffff' }]}>Save Changes</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -369,6 +566,21 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#ffffff',
   },
+  editProfileButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: screenHeight * 0.012,
+    paddingHorizontal: screenWidth * 0.04,
+    borderRadius: 12,
+    marginTop: screenHeight * 0.02,
+    gap: 8,
+  },
+  editProfileButtonText: {
+    color: '#ffffff',
+    fontSize: Math.min(screenWidth * 0.035, 14),
+    fontWeight: '600',
+  },
   profileInfo: {
     alignItems: 'center',
   },
@@ -379,7 +591,14 @@ const styles = StyleSheet.create({
   },
   userEmail: {
     fontSize: Math.min(screenWidth * 0.035, 14),
-    marginBottom: screenHeight * 0.02,
+    marginBottom: screenHeight * 0.01,
+  },
+  userBio: {
+    fontSize: Math.min(screenWidth * 0.03, 12),
+    textAlign: 'center',
+    marginBottom: screenHeight * 0.015,
+    lineHeight: 16,
+    paddingHorizontal: screenWidth * 0.05,
   },
   profileStats: {
     flexDirection: 'row',
@@ -538,6 +757,104 @@ const styles = StyleSheet.create({
     fontSize: Math.min(screenWidth * 0.03, 12),
     textAlign: 'center',
     marginTop: screenHeight * 0.03,
+  },
+  // Edit Profile Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: screenWidth * 0.9,
+    maxHeight: screenHeight * 0.8,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 15,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: screenWidth * 0.05,
+    paddingVertical: screenHeight * 0.02,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  modalTitle: {
+    fontSize: Math.min(screenWidth * 0.05, 20),
+    fontWeight: 'bold',
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  modalBody: {
+    maxHeight: screenHeight * 0.5,
+    paddingHorizontal: screenWidth * 0.05,
+    paddingVertical: screenHeight * 0.02,
+  },
+  inputGroup: {
+    marginBottom: screenHeight * 0.02,
+  },
+  inputLabel: {
+    fontSize: Math.min(screenWidth * 0.035, 14),
+    fontWeight: '600',
+    marginBottom: screenHeight * 0.008,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: screenWidth * 0.04,
+    paddingVertical: screenHeight * 0.012,
+    fontSize: Math.min(screenWidth * 0.04, 16),
+  },
+  textArea: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: screenWidth * 0.04,
+    paddingVertical: screenHeight * 0.012,
+    fontSize: Math.min(screenWidth * 0.04, 16),
+    minHeight: screenHeight * 0.08,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: screenWidth * 0.05,
+    paddingVertical: screenHeight * 0.02,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.1)',
+    gap: screenWidth * 0.03,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: screenHeight * 0.015,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelModalButton: {
+    borderWidth: 1,
+    backgroundColor: 'transparent',
+  },
+  saveModalButton: {
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  modalButtonText: {
+    fontSize: Math.min(screenWidth * 0.04, 16),
+    fontWeight: '600',
   },
 });
 

@@ -26,6 +26,30 @@ import videoProcessingService from '../services/videoProcessingService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
+// Responsive design helpers
+const isSmallScreen = screenWidth < 375;
+const isMediumScreen = screenWidth >= 375 && screenWidth < 414;
+const isLargeScreen = screenWidth >= 414;
+
+// Responsive spacing and sizing
+const responsiveSpacing = {
+  xs: isSmallScreen ? 8 : isMediumScreen ? 12 : 16,
+  sm: isSmallScreen ? 12 : isMediumScreen ? 16 : 20,
+  md: isSmallScreen ? 16 : isMediumScreen ? 20 : 24,
+  lg: isSmallScreen ? 20 : isMediumScreen ? 24 : 32,
+  xl: isSmallScreen ? 24 : isMediumScreen ? 32 : 40,
+};
+
+const responsiveFontSize = {
+  xs: isSmallScreen ? 10 : isMediumScreen ? 12 : 14,
+  sm: isSmallScreen ? 12 : isMediumScreen ? 14 : 16,
+  md: isSmallScreen ? 14 : isMediumScreen ? 16 : 18,
+  lg: isSmallScreen ? 16 : isMediumScreen ? 18 : 20,
+  xl: isSmallScreen ? 18 : isMediumScreen ? 20 : 22,
+  xxl: isSmallScreen ? 20 : isMediumScreen ? 22 : 24,
+  xxxl: isSmallScreen ? 24 : isMediumScreen ? 28 : 32,
+};
+
 interface VideoPreviewScreenProps {
   route: {
     params: {
@@ -39,6 +63,11 @@ interface VideoPreviewScreenProps {
       layers: any[];
       selectedProfile?: any;
       processedVideoPath?: string;
+      canvasData?: {
+        width: number;
+        height: number;
+        layers: any[];
+      };
     };
   };
 }
@@ -46,7 +75,7 @@ interface VideoPreviewScreenProps {
 const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
   const navigation = useNavigation<StackNavigationProp<MainStackParamList>>();
   const insets = useSafeAreaInsets();
-  const { selectedVideo, selectedLanguage, selectedTemplateId, layers, selectedProfile, processedVideoPath } = route.params;
+  const { selectedVideo, selectedLanguage, selectedTemplateId, layers, selectedProfile, processedVideoPath, canvasData } = route.params;
   const { isSubscribed } = useSubscription();
 
   // Video state
@@ -162,26 +191,70 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
 
   // Render video layers
   const renderLayer = (layer: any) => {
+    console.log('Rendering layer:', layer.id, layer.type, layer.fieldType, layer.content?.substring(0, 20));
+    
+    // Calculate scaling factors if canvasData is available
+    let scaleX = 1;
+    let scaleY = 1;
+    
+    if (canvasData) {
+      // Get the actual video container dimensions
+      const videoContainerWidth = screenWidth - 40; // Same as videoCanvasWidth in editor
+      const videoContainerHeight = screenHeight - 200; // Approximate video container height (accounting for header and controls)
+      
+      scaleX = videoContainerWidth / canvasData.width;
+      scaleY = videoContainerHeight / canvasData.height;
+      
+      console.log('Scaling debug:', {
+        canvasData: { width: canvasData.width, height: canvasData.height },
+        videoContainer: { width: videoContainerWidth, height: videoContainerHeight },
+        scale: { x: scaleX, y: scaleY },
+        layer: { id: layer.id, originalPos: layer.position, scaledPos: { x: layer.position.x * scaleX, y: layer.position.y * scaleY } }
+      });
+    }
+    
+    // For debugging, let's make all layers more visible
+    const debugStyle = {
+      borderWidth: 1,
+      borderColor: 'yellow',
+      backgroundColor: layer.type === 'text' && layer.style?.backgroundColor ? 'transparent' : 'rgba(0, 255, 0, 0.3)',
+    };
+    
     return (
       <View
         key={layer.id}
         style={[
           styles.layer,
+          debugStyle,
           {
             position: 'absolute',
-            left: layer.position.x,
-            top: layer.position.y,
-            width: layer.size.width,
-            height: layer.size.height,
-            zIndex: layer.zIndex,
-            transform: [{ rotate: `${layer.rotation}deg` }],
+            left: layer.position.x * scaleX,
+            top: layer.position.y * scaleY,
+            width: layer.size.width * scaleX,
+            height: layer.size.height * scaleY,
+            zIndex: layer.zIndex || 1,
+            transform: [{ rotate: `${layer.rotation || 0}deg` }],
           },
         ]}
       >
         {layer.type === 'text' && (
-          <Text style={[styles.layerText, layer.style]}>
-            {layer.content}
-          </Text>
+          layer.style?.backgroundColor ? (
+            // Background layer (footer background)
+            <View
+              style={[
+                {
+                  width: '100%',
+                  height: '100%',
+                  backgroundColor: layer.style.backgroundColor,
+                },
+              ]}
+            />
+          ) : (
+            // Text layer
+            <Text style={[styles.layerText, layer.style]}>
+              {layer.content}
+            </Text>
+          )
         )}
         {layer.type === 'image' && (
           <Image
@@ -209,7 +282,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
       <StatusBar 
         barStyle="light-content"
         backgroundColor="transparent" 
-        translucent 
+        translucent={true}
       />
       
       <LinearGradient
@@ -217,7 +290,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
         style={styles.gradientBackground}
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top + responsiveSpacing.sm }]}>
           <TouchableOpacity style={styles.backButton} onPress={handleBackToEditor}>
             <Icon name="arrow-back" size={24} color="#ffffff" />
           </TouchableOpacity>
@@ -225,24 +298,42 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
           <View style={styles.headerSpacer} />
         </View>
 
-        {/* Video Player */}
-        <View style={styles.videoContainer}>
-          <Video
-            ref={videoRef}
-            source={{ uri: selectedVideo.uri }}
-            style={styles.video}
-            resizeMode="cover"
-            paused={!isVideoPlaying}
-            onLoad={onVideoLoad}
-            onProgress={onVideoProgress}
-            repeat={true}
-          />
-          
-          {/* Video Layers */}
-          {layers.map(renderLayer)}
-          
-          {/* Watermark */}
-          <Watermark isSubscribed={isSubscribed} />
+                 {/* Video Player */}
+         <View style={styles.videoContainer}>
+           <Video
+             ref={videoRef}
+             source={{ uri: selectedVideo.uri }}
+             style={styles.video}
+             resizeMode="cover"
+             paused={!isVideoPlaying}
+             onLoad={onVideoLoad}
+             onProgress={onVideoProgress}
+             repeat={true}
+           />
+           
+           {/* Video Layers - Only show if no processed video */}
+           {console.log('VideoPreview Debug:', { processedVideoPath, layersCount: layers?.length, canvasData })}
+           {!processedVideoPath && layers && layers.length > 0 && layers.map(renderLayer)}
+           
+           {/* Test layer to verify rendering */}
+           <View
+             style={{
+               position: 'absolute',
+               top: 50,
+               left: 50,
+               width: 200,
+               height: 100,
+               backgroundColor: 'rgba(255, 0, 0, 0.8)',
+               zIndex: 1000,
+             }}
+           >
+             <Text style={{ color: 'white', fontSize: 16, textAlign: 'center' }}>
+               TEST LAYER
+             </Text>
+           </View>
+           
+           {/* Watermark */}
+           <Watermark isSubscribed={isSubscribed} />
           
           {/* Play/Pause Overlay */}
           <TouchableOpacity 

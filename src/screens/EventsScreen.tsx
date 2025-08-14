@@ -20,6 +20,30 @@ import { useTheme } from '../context/ThemeContext';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
+// Responsive design helpers
+const isSmallScreen = screenWidth < 375;
+const isMediumScreen = screenWidth >= 375 && screenWidth < 414;
+const isLargeScreen = screenWidth >= 414;
+
+// Responsive spacing and sizing
+const responsiveSpacing = {
+  xs: isSmallScreen ? 8 : isMediumScreen ? 12 : 16,
+  sm: isSmallScreen ? 12 : isMediumScreen ? 16 : 20,
+  md: isSmallScreen ? 16 : isMediumScreen ? 20 : 24,
+  lg: isSmallScreen ? 20 : isMediumScreen ? 24 : 32,
+  xl: isSmallScreen ? 24 : isMediumScreen ? 32 : 40,
+};
+
+const responsiveFontSize = {
+  xs: isSmallScreen ? 10 : isMediumScreen ? 12 : 14,
+  sm: isSmallScreen ? 12 : isMediumScreen ? 14 : 16,
+  md: isSmallScreen ? 14 : isMediumScreen ? 16 : 18,
+  lg: isSmallScreen ? 16 : isMediumScreen ? 18 : 20,
+  xl: isSmallScreen ? 18 : isMediumScreen ? 20 : 22,
+  xxl: isSmallScreen ? 20 : isMediumScreen ? 22 : 24,
+  xxxl: isSmallScreen ? 24 : isMediumScreen ? 28 : 32,
+};
+
 interface Event {
   id: string;
   title: string;
@@ -347,7 +371,7 @@ const EventsScreen: React.FC = React.memo(() => {
       <StatusBar 
         barStyle="light-content"
         backgroundColor="transparent" 
-        translucent 
+        translucent={true}
       />
       
       <LinearGradient
@@ -357,7 +381,7 @@ const EventsScreen: React.FC = React.memo(() => {
         end={{ x: 1, y: 1 }}
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top + responsiveSpacing.sm }]}>
           <View style={styles.headerTop}>
             <View style={styles.greeting}>
               <Text style={styles.greetingText}>Events Management</Text>

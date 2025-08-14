@@ -20,9 +20,33 @@ import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import axios from 'axios';
 import RNFS from 'react-native-fs';
-// import { CameraRoll } from '@react-native-camera-roll/camera-roll';
+import { CameraRoll } from '@react-native-camera-roll/camera-roll';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+// Responsive design helpers
+const isSmallScreen = screenWidth < 375;
+const isMediumScreen = screenWidth >= 375 && screenWidth < 414;
+const isLargeScreen = screenWidth >= 414;
+
+// Responsive spacing and sizing
+const responsiveSpacing = {
+  xs: isSmallScreen ? 8 : isMediumScreen ? 12 : 16,
+  sm: isSmallScreen ? 12 : isMediumScreen ? 16 : 20,
+  md: isSmallScreen ? 16 : isMediumScreen ? 20 : 24,
+  lg: isSmallScreen ? 20 : isMediumScreen ? 24 : 32,
+  xl: isSmallScreen ? 24 : isMediumScreen ? 32 : 40,
+};
+
+const responsiveFontSize = {
+  xs: isSmallScreen ? 10 : isMediumScreen ? 12 : 14,
+  sm: isSmallScreen ? 12 : isMediumScreen ? 14 : 16,
+  md: isSmallScreen ? 14 : isMediumScreen ? 16 : 18,
+  lg: isSmallScreen ? 16 : isMediumScreen ? 18 : 20,
+  xl: isSmallScreen ? 18 : isMediumScreen ? 20 : 22,
+  xxl: isSmallScreen ? 20 : isMediumScreen ? 22 : 24,
+  xxxl: isSmallScreen ? 24 : isMediumScreen ? 28 : 32,
+};
 
 // Calculate responsive dimensions that avoid notch problems
 const getResponsiveDimensions = (insets: any) => {
@@ -165,28 +189,67 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
     }
   };
 
-  // Request permissions for Android
-  const requestPermissions = async () => {
-    if (Platform.OS === 'android') {
-      try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-          {
-            title: 'Storage Permission',
-            message: 'This app needs access to your storage to save the poster.',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          }
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } catch (err) {
-        console.warn(err);
-        return false;
-      }
-    }
-    return true;
-  };
+     // Request permissions for Android
+   const requestPermissions = async () => {
+     if (Platform.OS === 'android') {
+       try {
+         const granted = await PermissionsAndroid.request(
+           PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+           {
+             title: 'Storage Permission',
+             message: 'This app needs access to your storage to save the poster to EventMarketers folder.',
+             buttonNeutral: 'Ask Me Later',
+             buttonNegative: 'Cancel',
+             buttonPositive: 'OK',
+           }
+         );
+         return granted === PermissionsAndroid.RESULTS.GRANTED;
+       } catch (err) {
+         console.warn(err);
+         return false;
+       }
+     }
+     return true;
+   };
+
+   // Helper function to ensure EventMarketers folder exists
+   const ensureEventMarketersFolder = async (basePath: string) => {
+     const eventMarketersPath = `${basePath}/EventMarketers`;
+     
+     try {
+       console.log('Checking if folder exists:', eventMarketersPath);
+       const folderExists = await RNFS.exists(eventMarketersPath);
+       console.log('Folder exists:', folderExists);
+       
+       if (!folderExists) {
+         console.log('Creating EventMarketers folder...');
+         await RNFS.mkdir(eventMarketersPath);
+         console.log('EventMarketers folder created at:', eventMarketersPath);
+         
+         // Verify folder was created
+         const folderCreated = await RNFS.exists(eventMarketersPath);
+         console.log('Folder creation verified:', folderCreated);
+       } else {
+         console.log('EventMarketers folder already exists');
+       }
+       
+       return eventMarketersPath;
+     } catch (error) {
+       console.error('Error creating EventMarketers folder:', error);
+       console.error('Base path was:', basePath);
+       // Return base path as fallback
+       return basePath;
+     }
+   };
+
+   // Helper function to get user-friendly folder path
+   const getFolderPathForDisplay = () => {
+     if (Platform.OS === 'android') {
+       return 'Downloads/EventMarketers';
+     } else {
+       return 'Files app > On My iPhone/iPad > EventMarketers';
+     }
+   };
 
   // Share poster
   const sharePoster = async () => {
@@ -223,86 +286,118 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
     }
   };
 
-  // Download poster to gallery
-  const downloadPoster = async () => {
-    if (!capturedImageUri) {
-      Alert.alert('Error', 'No poster image available to download');
-      return;
-    }
+     // Download poster to gallery
+   const downloadPoster = async () => {
+     if (!capturedImageUri) {
+       Alert.alert('Error', 'No poster image available to download');
+       return;
+     }
 
-    try {
-      setIsProcessing(true);
-      
-      // Request permissions for Android
-      if (Platform.OS === 'android') {
-        const hasPermission = await requestPermissions();
-        if (!hasPermission) {
-          Alert.alert('Permission Denied', 'Storage permission is required to save the poster.');
-          return;
-        }
-      }
+     try {
+       setIsProcessing(true);
+       
+       console.log('=== DOWNLOAD DEBUG START ===');
+       console.log('CapturedImageUri type:', typeof capturedImageUri);
+       console.log('CapturedImageUri length:', capturedImageUri?.length);
+       console.log('CapturedImageUri starts with:', capturedImageUri.substring(0, 100));
+       console.log('Platform:', Platform.OS);
+       
+       // Request permissions for Android
+       if (Platform.OS === 'android') {
+         console.log('Requesting Android permissions...');
+         const hasPermission = await requestPermissions();
+         console.log('Permission granted:', hasPermission);
+         if (!hasPermission) {
+           Alert.alert('Permission Denied', 'Storage permission is required to save the poster to gallery.');
+           return;
+         }
+       }
 
-      // Create a unique filename
-      const timestamp = new Date().getTime();
-      const filename = `EventMarketers_Poster_${timestamp}.png`;
-      
-      // Determine the download path based on platform
-      let downloadPath;
-      if (Platform.OS === 'android') {
-        downloadPath = `${RNFS.DownloadDirectoryPath}/${filename}`;
-      } else {
-        downloadPath = `${RNFS.DocumentDirectoryPath}/${filename}`;
-      }
+       // Check if source file exists (for file:// URIs)
+       if (capturedImageUri.startsWith('file://')) {
+         const sourceExists = await RNFS.exists(capturedImageUri);
+         console.log('Source file exists:', sourceExists);
+         if (!sourceExists) {
+           throw new Error('Source file does not exist');
+         }
+       }
 
-      // Copy the image to the download directory
-      await RNFS.copyFile(capturedImageUri, downloadPath);
+       // Save to gallery using CameraRoll
+       console.log('Saving to gallery...');
+       await CameraRoll.save(capturedImageUri, {
+         type: 'photo',
+         album: 'EventMarketers'
+       });
+       
+       console.log('Image saved to gallery successfully');
+       console.log('=== DOWNLOAD DEBUG END ===');
 
-      // For Android, we can also try to save to Pictures directory
-      if (Platform.OS === 'android') {
-        const picturesPath = `${RNFS.PicturesDirectoryPath}/${filename}`;
-        try {
-          await RNFS.copyFile(capturedImageUri, picturesPath);
-          ToastAndroid.show(`Poster saved to Downloads and Pictures folders!`, ToastAndroid.LONG);
-        } catch (picturesError) {
-          ToastAndroid.show(`Poster saved to Downloads folder!`, ToastAndroid.LONG);
-        }
-      } else {
-        // For iOS, we'll use Share API to save to Photos
-        const result = await Share.share({
-          url: downloadPath,
-          title: selectedImage.title || 'My Event Poster',
-          message: `Save this poster to your Photos app: ${selectedImage.title || 'Custom Poster'}`,
-        });
-
-        if (result.action === Share.sharedAction) {
-          Alert.alert('Success', 'Select "Save to Photos" to download the poster to your gallery!');
-        }
-      }
-    } catch (error) {
-      console.error('Error downloading poster:', error);
-      
-      // Fallback to Share API if file system approach fails
-      try {
-        const result = await Share.share({
-          url: capturedImageUri,
-          title: selectedImage.title || 'My Event Poster',
-          message: `Save this poster to your gallery: ${selectedImage.title || 'Custom Poster'}`,
-        });
-
-        if (result.action === Share.sharedAction) {
-          if (Platform.OS === 'android') {
-            ToastAndroid.show('Select "Save to Photos" or "Gallery" to download!', ToastAndroid.LONG);
-          } else {
-            Alert.alert('Success', 'Select "Save to Photos" to download the poster to your gallery!');
-          }
-        }
-      } catch (shareError) {
-        Alert.alert('Error', 'Failed to download poster. Please try again.');
-      }
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+       // Show success message
+       if (Platform.OS === 'android') {
+         ToastAndroid.show(
+           'Poster saved to gallery!', 
+           ToastAndroid.LONG
+         );
+         
+         Alert.alert(
+           'Download Successful!', 
+           'Poster has been saved to your device gallery!\n\nYou can find it in your Photos app.',
+           [
+             {
+               text: 'Open Gallery',
+               onPress: () => {
+                 // Try to open gallery using Share API
+                 Share.share({
+                   url: 'content://media/external/images/media',
+                   title: 'Gallery',
+                   message: 'Open your gallery to view the saved poster',
+                 });
+               }
+             },
+             {
+               text: 'OK',
+               style: 'cancel'
+             }
+           ]
+         );
+       } else {
+         Alert.alert(
+           'Success!', 
+           'Poster has been saved to your device gallery!\n\nYou can find it in your Photos app.',
+           [
+             {
+               text: 'OK',
+               style: 'cancel'
+             }
+           ]
+         );
+       }
+     } catch (error: any) {
+       console.error('=== DOWNLOAD ERROR ===');
+       console.error('Error saving to gallery:', error);
+       console.error('Error details:', {
+         message: error?.message || 'Unknown error',
+         stack: error?.stack,
+         capturedImageUri: capturedImageUri?.substring(0, 100) + '...',
+         uriType: capturedImageUri?.startsWith('data:image') ? 'base64' : 
+                 capturedImageUri?.startsWith('file://') ? 'file' : 'other'
+       });
+       
+       // Show user-friendly error message
+       Alert.alert(
+         'Download Failed', 
+         `Failed to save poster to gallery: ${error?.message || 'Unknown error'}`,
+         [
+           {
+             text: 'OK',
+             style: 'cancel'
+           }
+         ]
+       );
+     } finally {
+       setIsProcessing(false);
+     }
+   };
 
   // Handle action button press
   const handleActionPress = (type: 'share' | 'download') => {
@@ -330,22 +425,18 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
   };
 
   return (
-    <View style={[
-      styles.container, 
-      { 
-        paddingTop: insets.top,
-        paddingBottom: insets.bottom,
-        paddingLeft: insets.left,
-        paddingRight: insets.right
-      }
-    ]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+    <View style={styles.container}>
+      <StatusBar 
+        barStyle="light-content" 
+        backgroundColor="transparent" 
+        translucent={true}
+      />
       
-      {/* Professional Header */}
-      <LinearGradient
-        colors={['#667eea', '#764ba2']}
-        style={styles.header}
-      >
+             {/* Professional Header */}
+       <LinearGradient
+         colors={['#667eea', '#764ba2']}
+         style={[styles.header, { paddingTop: insets.top + responsiveSpacing.sm }]}
+       >
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
@@ -422,8 +513,13 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
          </View>
       </View>
 
-      {/* Action Buttons */}
-      <View style={styles.actionContainer}>
+             {/* Action Buttons */}
+       <View style={[
+         styles.actionContainer, 
+         { 
+           paddingBottom: Math.max(insets.bottom + responsiveSpacing.md, responsiveSpacing.lg)
+         }
+       ]}>
         <View style={styles.actionButtons}>
           <TouchableOpacity
             style={styles.actionButton}
@@ -486,34 +582,29 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
               </Text>
             </View>
             
-                         <Text style={styles.modalMessage}>
-               {actionType === 'share' 
-                 ? 'Share your poster with friends and on social media?'
-                 : 'Save this poster to your device storage?'
-               }
-             </Text>
+                                                   <Text style={styles.modalMessage}>
+                {actionType === 'share' 
+                  ? 'Share your poster with friends and on social media?'
+                  : 'Save this poster to your device gallery?'
+                }
+              </Text>
             
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.modalButtonCancel}
                 onPress={cancelAction}
               >
-                <Text style={styles.modalButtonCancelText}>Cancel</Text>
+                                 <Text style={styles.modalButtonCancelText} numberOfLines={1}>Cancel</Text>
               </TouchableOpacity>
               
-              <TouchableOpacity
-                style={styles.modalButtonConfirm}
-                onPress={confirmAction}
-              >
-                <LinearGradient
-                  colors={actionType === 'share' ? ['#667eea', '#764ba2'] : ['#28a745', '#20c997']}
-                  style={styles.modalButtonGradient}
-                >
-                  <Text style={styles.modalButtonConfirmText}>
+                             <TouchableOpacity
+                 style={styles.modalButtonConfirm}
+                 onPress={confirmAction}
+               >
+                                   <Text style={styles.modalButtonConfirmText} numberOfLines={1}>
                     {actionType === 'share' ? 'Share' : 'Download'}
                   </Text>
-                </LinearGradient>
-              </TouchableOpacity>
+               </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -532,8 +623,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 18,
+    paddingHorizontal: responsiveSpacing.md,
+    paddingVertical: responsiveSpacing.sm,
     borderBottomWidth: 0,
     zIndex: 1000,
     elevation: 10,
@@ -548,12 +639,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: responsiveFontSize.xxl,
     fontWeight: '700',
     color: '#ffffff',
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: responsiveFontSize.sm,
     color: 'rgba(255, 255, 255, 0.8)',
     marginTop: 2,
   },
@@ -562,20 +653,20 @@ const styles = StyleSheet.create({
   },
   previewContainer: {
     flex: 1,
-    padding: 20,
+    padding: responsiveSpacing.md,
   },
   previewHeader: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: responsiveSpacing.md,
   },
   previewTitle: {
-    fontSize: 24,
+    fontSize: responsiveFontSize.xxl,
     fontWeight: '700',
     color: '#333333',
     marginBottom: 4,
   },
   previewSubtitle: {
-    fontSize: 16,
+    fontSize: responsiveFontSize.md,
     color: '#666666',
     textAlign: 'center',
   },
@@ -829,8 +920,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   actionContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: responsiveSpacing.md,
+    paddingTop: responsiveSpacing.md,
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: '#e9ecef',
@@ -839,7 +930,7 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: responsiveSpacing.md,
   },
   actionButton: {
     flex: 1,
@@ -856,9 +947,9 @@ const styles = StyleSheet.create({
   },
   shareButtonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: responsiveFontSize.md,
     fontWeight: '600',
-    marginLeft: 8,
+    marginLeft: responsiveSpacing.xs,
   },
   saveButtonGradient: {
     paddingVertical: 16,
@@ -869,14 +960,14 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: responsiveFontSize.md,
     fontWeight: '600',
-    marginLeft: 8,
+    marginLeft: responsiveSpacing.xs,
   },
   editButton: {
-    paddingVertical: Math.max(12, screenHeight * 0.015),
-    paddingHorizontal: Math.max(20, screenWidth * 0.05),
-    borderRadius: 12,
+    paddingVertical: responsiveSpacing.sm,
+    paddingHorizontal: responsiveSpacing.md,
+    borderRadius: responsiveSpacing.sm,
     backgroundColor: '#f8f9fa',
     borderWidth: 2,
     borderColor: '#e9ecef',
@@ -885,87 +976,107 @@ const styles = StyleSheet.create({
   },
   editButtonText: {
     color: '#666666',
-    fontSize: Math.max(14, Math.min(18, screenWidth * 0.04)),
+    fontSize: responsiveFontSize.sm,
     fontWeight: '600',
   },
   // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContainer: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 24,
-    margin: 20,
-    width: Math.min(screenWidth - 40, 320),
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 10,
+                       modalOverlay: {
+       flex: 1,
+       backgroundColor: 'rgba(0, 0, 0, 0.6)',
+       justifyContent: 'center',
+       alignItems: 'center',
+       paddingHorizontal: responsiveSpacing.md,
+     },
+                               modalContainer: {
+        backgroundColor: '#ffffff',
+        borderRadius: 20,
+        padding: responsiveSpacing.xl,
+        margin: responsiveSpacing.md,
+        width: Math.min(screenWidth - (responsiveSpacing.md * 2), isSmallScreen ? 320 : isMediumScreen ? 380 : 420),
+        maxWidth: isLargeScreen ? 480 : 420,
+        alignSelf: 'center',
+        shadowColor: '#000',
+        shadowOffset: {
+          width: 0,
+          height: 15,
+        },
+        shadowOpacity: 0.3,
+        shadowRadius: 25,
+        elevation: 20,
+        minHeight: isSmallScreen ? 240 : 260,
+        borderWidth: 1,
+        borderColor: 'rgba(0, 0, 0, 0.05)',
+      },
+     modalHeader: {
+     alignItems: 'center',
+     marginBottom: responsiveSpacing.lg,
+     paddingBottom: responsiveSpacing.md,
+     borderBottomWidth: 1,
+     borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+   },
+           modalTitle: {
+      fontSize: responsiveFontSize.xxl,
+      fontWeight: '800',
+      color: '#1a1a1a',
+      marginTop: responsiveSpacing.md,
+      textAlign: 'center',
+      paddingHorizontal: responsiveSpacing.sm,
+      letterSpacing: -0.5,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 15,
-  },
-  modalHeader: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: Math.max(18, Math.min(24, screenWidth * 0.05)),
-    fontWeight: '700',
-    color: '#333333',
-    marginTop: 12,
-    textAlign: 'center',
-  },
-  modalMessage: {
-    fontSize: Math.max(14, Math.min(16, screenWidth * 0.035)),
-    color: '#666666',
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 24,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  modalButtonCancel: {
-    flex: 1,
-    paddingVertical: Math.max(12, screenHeight * 0.015),
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: '#f8f9fa',
-    borderWidth: 2,
-    borderColor: '#e9ecef',
-    alignItems: 'center',
-    minHeight: 48,
-  },
-  modalButtonCancelText: {
-    color: '#666666',
-    fontSize: Math.max(14, Math.min(16, screenWidth * 0.035)),
-    fontWeight: '600',
-  },
-  modalButtonConfirm: {
-    flex: 1,
-    borderRadius: 12,
-    overflow: 'hidden',
-    minHeight: 48,
-  },
-  modalButtonGradient: {
-    paddingVertical: Math.max(12, screenHeight * 0.015),
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalButtonConfirmText: {
-    color: '#ffffff',
-    fontSize: Math.max(14, Math.min(16, screenWidth * 0.035)),
-    fontWeight: '600',
-  },
+       modalMessage: {
+      fontSize: responsiveFontSize.md,
+      color: '#4a4a4a',
+      textAlign: 'center',
+      lineHeight: isSmallScreen ? 22 : 24,
+      marginBottom: responsiveSpacing.xl,
+      paddingHorizontal: responsiveSpacing.sm,
+      fontWeight: '400',
+    },
+                                                                                                                                                                                               modalButtons: {
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          marginTop: responsiveSpacing.lg,
+          width: '100%',
+          gap: responsiveSpacing.md,
+        },
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               modalButtonCancel: {
+             flex: 1,
+             paddingVertical: 12,
+             paddingHorizontal: 20,
+             borderRadius: 8,
+             backgroundColor: '#ffffff',
+             borderWidth: 1,
+             borderColor: '#cccccc',
+             alignItems: 'center',
+             justifyContent: 'center',
+             minHeight: 50,
+             height: 50,
+           },
+                                                                                               modalButtonCancelText: {
+         color: '#000000',
+         fontSize: 16,
+         fontWeight: 'bold',
+         textAlign: 'center',
+       },
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               modalButtonConfirm: {
+               flex: 1,
+               paddingVertical: 12,
+               paddingHorizontal: 20,
+               borderRadius: 8,
+               backgroundColor: '#007bff',
+               borderWidth: 1,
+               borderColor: '#0056b3',
+               alignItems: 'center',
+               justifyContent: 'center',
+               minHeight: 50,
+               height: 50,
+             },
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               modalButtonConfirmText: {
+             color: '#ffffff',
+             fontSize: 16,
+             fontWeight: 'bold',
+             textAlign: 'center',
+           },
 });
 
 export default PosterPreviewScreen;

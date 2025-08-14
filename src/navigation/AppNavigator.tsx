@@ -58,6 +58,11 @@ export type MainStackParamList = {
     selectedTemplateId: string;
     layers: any[];
     selectedProfile?: any;
+    canvasData?: {
+      width: number;
+      height: number;
+      layers: any[];
+    };
   };
   BusinessProfiles: undefined;
   Events: undefined;

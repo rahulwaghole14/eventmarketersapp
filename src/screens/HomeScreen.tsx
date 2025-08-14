@@ -15,6 +15,7 @@ import {
   Animated,
   Modal,
 } from 'react-native';
+import Video from 'react-native-video';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,10 +27,244 @@ import { useTheme } from '../context/ThemeContext';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
+// Responsive design helpers
+const isSmallScreen = screenWidth < 375;
+const isMediumScreen = screenWidth >= 375 && screenWidth < 414;
+const isLargeScreen = screenWidth >= 414;
+
+// Responsive spacing and sizing
+const responsiveSpacing = {
+  xs: isSmallScreen ? 8 : isMediumScreen ? 12 : 16,
+  sm: isSmallScreen ? 12 : isMediumScreen ? 16 : 20,
+  md: isSmallScreen ? 16 : isMediumScreen ? 20 : 24,
+  lg: isSmallScreen ? 20 : isMediumScreen ? 24 : 32,
+  xl: isSmallScreen ? 24 : isMediumScreen ? 32 : 40,
+};
+
+const responsiveFontSize = {
+  xs: isSmallScreen ? 10 : isMediumScreen ? 12 : 14,
+  sm: isSmallScreen ? 12 : isMediumScreen ? 14 : 16,
+  md: isSmallScreen ? 14 : isMediumScreen ? 16 : 18,
+  lg: isSmallScreen ? 16 : isMediumScreen ? 18 : 20,
+  xl: isSmallScreen ? 18 : isMediumScreen ? 20 : 22,
+  xxl: isSmallScreen ? 20 : isMediumScreen ? 22 : 24,
+  xxxl: isSmallScreen ? 24 : isMediumScreen ? 28 : 32,
+};
+
 const HomeScreen: React.FC = React.memo(() => {
   const { isDarkMode, theme } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<StackNavigationProp<MainStackParamList>>();
+
+  // Create theme-aware styles
+  const getThemeStyles = () => ({
+    // Image Preview Modal Styles
+    imagePreviewModalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+    },
+    imagePreviewModalBackdrop: {
+      position: 'absolute' as const,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+    imagePreviewModalContent: {
+      backgroundColor: theme?.colors?.background || '#ffffff',
+      borderRadius: 20,
+      width: screenWidth * 0.95,
+      maxHeight: screenHeight * 0.9,
+      shadowColor: theme?.colors?.shadow || '#000',
+      shadowOffset: {
+        width: 0,
+        height: 10,
+      },
+      shadowOpacity: isDarkMode ? 0.5 : 0.3,
+      shadowRadius: 20,
+      elevation: 20,
+    },
+    imagePreviewModalHeader: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'flex-start' as const,
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 15,
+      borderBottomWidth: 1,
+      borderBottomColor: theme?.colors?.border || '#f0f0f0',
+    },
+    imagePreviewModalHeaderLeft: {
+      flex: 1,
+      marginRight: 10,
+    },
+    imagePreviewModalTitle: {
+      fontSize: 18,
+      fontWeight: '700' as const,
+      color: theme?.colors?.text || '#333333',
+      marginBottom: 8,
+      lineHeight: 22,
+    },
+    imagePreviewModalSubtitle: {
+      fontSize: 14,
+      color: theme?.colors?.textSecondary || '#666666',
+      lineHeight: 18,
+    },
+    imagePreviewModalCloseButton: {
+      padding: 4,
+    },
+    imagePreviewModalImageContainer: {
+      position: 'relative' as const,
+      height: screenHeight * 0.5,
+      backgroundColor: theme?.colors?.surface || '#f8f9fa',
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      paddingHorizontal: 20,
+      paddingVertical: 20,
+    },
+    imagePreviewModalImage: {
+      width: '100%' as any,
+      height: '100%' as any,
+      borderRadius: 12,
+    },
+    imagePreviewModalActions: {
+      paddingHorizontal: 20,
+      paddingVertical: 15,
+      borderTopWidth: 1,
+      borderTopColor: theme?.colors?.border || '#f0f0f0',
+    },
+    imagePreviewModalActionButton: {
+      borderRadius: 12,
+      overflow: 'hidden' as const,
+    },
+    imagePreviewModalActionButtonGradient: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      paddingVertical: 14,
+      gap: 8,
+    },
+    imagePreviewModalActionButtonText: {
+      color: '#ffffff',
+      fontSize: 16,
+      fontWeight: '600' as const,
+    },
+    // Language Selection Styles
+    languageSelectionContainer: {
+      paddingHorizontal: 20,
+      paddingVertical: 20,
+      borderTopWidth: 1,
+      borderTopColor: theme?.colors?.border || '#f0f0f0',
+    },
+    languageSelectionTitle: {
+      fontSize: 16,
+      fontWeight: '600' as const,
+      color: theme?.colors?.text || '#333333',
+      marginBottom: 8,
+      textAlign: 'center' as const,
+    },
+    languageSelectionSubtitle: {
+      fontSize: 12,
+      color: theme?.colors?.textSecondary || '#666666',
+      marginBottom: 15,
+      textAlign: 'center' as const,
+      lineHeight: 16,
+    },
+    languageButtonsContainer: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      gap: 10,
+    },
+    languageButton: {
+      flex: 1,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      backgroundColor: theme?.colors?.surface || '#f8f9fa',
+      borderWidth: 2,
+      borderColor: theme?.colors?.border || '#e9ecef',
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    languageButtonSelected: {
+      backgroundColor: '#667eea',
+      borderColor: '#667eea',
+    },
+    languageButtonText: {
+      fontSize: 14,
+      fontWeight: '600' as const,
+      color: theme?.colors?.textSecondary || '#666666',
+    },
+    languageButtonTextSelected: {
+      color: '#ffffff',
+    },
+    // Next Button Styles
+    nextButtonContainer: {
+      paddingHorizontal: 20,
+      paddingBottom: 20,
+    },
+    nextButton: {
+      borderRadius: 12,
+      overflow: 'hidden' as const,
+    },
+    nextButtonDisabled: {
+      opacity: 0.6,
+    },
+    nextButtonGradient: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      paddingVertical: 16,
+      gap: 8,
+    },
+    nextButtonText: {
+      color: '#ffffff',
+      fontSize: 16,
+      fontWeight: '600' as const,
+    },
+    // Language Images Grid Styles
+    languageImagesGrid: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      gap: 10,
+      paddingHorizontal: 10,
+    },
+    languageImageContainer: {
+      flex: 1,
+      height: screenHeight * 0.25,
+      borderRadius: 12,
+      overflow: 'hidden' as const,
+      borderWidth: 2,
+      borderColor: theme?.colors?.border || '#e9ecef',
+    },
+    languageImageContainerSelected: {
+      borderColor: '#667eea',
+      borderWidth: 3,
+    },
+    languageImage: {
+      width: '100%' as any,
+      height: '100%' as any,
+    },
+    languageImageOverlay: {
+      position: 'absolute' as const,
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: 'rgba(0,0,0,0.7)',
+      paddingVertical: 8,
+      paddingHorizontal: 6,
+    },
+    languageImageLabel: {
+      color: '#ffffff',
+      fontSize: 12,
+      fontWeight: '600' as const,
+      textAlign: 'center' as const,
+    },
+  });
+
+  const themeStyles = getThemeStyles();
   const [activeTab, setActiveTab] = useState('trending');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -52,6 +287,7 @@ const HomeScreen: React.FC = React.memo(() => {
   } | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<string>('');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [playingVideos, setPlayingVideos] = useState<Set<string>>(new Set());
 
   // Language options
   const languages = [
@@ -122,6 +358,111 @@ const HomeScreen: React.FC = React.memo(() => {
       marathi: 'https://images.unsplash.com/photo-1556761175-b413da4baf72?w=300&h=200&fit=crop',
       hindi: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=300&h=200&fit=crop',
     },
+    // Video templates language-specific images
+    'video-1': {
+      english: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=300&h=200&fit=crop',
+      marathi: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=300&h=200&fit=crop',
+      hindi: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=300&h=200&fit=crop',
+    },
+    'video-2': {
+      english: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=300&h=200&fit=crop',
+      marathi: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=300&h=200&fit=crop',
+      hindi: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=300&h=200&fit=crop',
+    },
+    'video-3': {
+      english: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=300&h=200&fit=crop',
+      marathi: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=300&h=200&fit=crop',
+      hindi: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300&h=200&fit=crop',
+    },
+    'video-4': {
+      english: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=300&h=200&fit=crop',
+      marathi: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=300&h=200&fit=crop',
+      hindi: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=300&h=200&fit=crop',
+    },
+    'video-5': {
+      english: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=300&h=200&fit=crop',
+      marathi: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=300&h=200&fit=crop',
+      hindi: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=300&h=200&fit=crop',
+    },
+    'video-6': {
+      english: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300&h=200&fit=crop',
+      marathi: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=300&h=200&fit=crop',
+      hindi: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=300&h=200&fit=crop',
+    },
+    'video-7': {
+      english: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=300&h=200&fit=crop',
+      marathi: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=300&h=200&fit=crop',
+      hindi: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=300&h=200&fit=crop',
+    },
+    'video-8': {
+      english: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=300&h=200&fit=crop',
+      marathi: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300&h=200&fit=crop',
+      hindi: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=300&h=200&fit=crop',
+    },
+    'video-9': {
+      english: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=300&h=200&fit=crop',
+      marathi: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=300&h=200&fit=crop',
+      hindi: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=300&h=200&fit=crop',
+    },
+    'video-10': {
+      english: 'https://images.unsplash.com/photo-1556761175-b413da4baf72?w=300&h=200&fit=crop',
+      marathi: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=300&h=200&fit=crop',
+      hindi: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=300&h=200&fit=crop',
+    },
+  }), []);
+
+  // Language-specific videos for each video template
+  const languageSpecificVideos = useMemo(() => ({
+    'video-1': {
+      english: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+      marathi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+      hindi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+    },
+    'video-2': {
+      english: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+      marathi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      hindi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+    },
+    'video-3': {
+      english: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      marathi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+      hindi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
+    },
+    'video-4': {
+      english: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+      marathi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+      hindi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
+    },
+    'video-5': {
+      english: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
+      marathi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+      hindi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    },
+    'video-6': {
+      english: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+      marathi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+      hindi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+    },
+    'video-7': {
+      english: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
+      marathi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
+      hindi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+    },
+    'video-8': {
+      english: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+      marathi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+      hindi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+    },
+    'video-9': {
+      english: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
+      marathi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
+      hindi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    },
+    'video-10': {
+      english: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+      marathi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
+      hindi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    },
   }), []);
 
   // Memoized mock data to prevent recreation on every render
@@ -143,6 +484,120 @@ const HomeScreen: React.FC = React.memo(() => {
       title: 'Sound & Light Solutions',
       imageUrl: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=400&h=200&fit=crop',
       link: '#',
+    },
+  ], []);
+
+  // Separate video templates array with actual video URLs
+  const mockVideoTemplates: Template[] = useMemo(() => [
+    {
+      id: 'video-1',
+      name: 'Event Promo Video',
+      thumbnail: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=300&h=200&fit=crop',
+      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+      category: 'Video',
+      likes: 234,
+      downloads: 156,
+      isLiked: false,
+      isDownloaded: false,
+    },
+    {
+      id: 'video-2',
+      name: 'Wedding Highlight Video',
+      thumbnail: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=300&h=200&fit=crop',
+      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+      category: 'Video',
+      likes: 189,
+      downloads: 123,
+      isLiked: false,
+      isDownloaded: false,
+    },
+    {
+      id: 'video-3',
+      name: 'Corporate Event Video',
+      thumbnail: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=300&h=200&fit=crop',
+      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      category: 'Video',
+      likes: 167,
+      downloads: 98,
+      isLiked: false,
+      isDownloaded: false,
+    },
+    {
+      id: 'video-4',
+      name: 'Birthday Celebration Video',
+      thumbnail: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=300&h=200&fit=crop',
+      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+      category: 'Video',
+      likes: 145,
+      downloads: 87,
+      isLiked: false,
+      isDownloaded: false,
+    },
+    {
+      id: 'video-5',
+      name: 'Music Festival Video',
+      thumbnail: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=300&h=200&fit=crop',
+      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
+      category: 'Video',
+      likes: 298,
+      downloads: 201,
+      isLiked: false,
+      isDownloaded: false,
+    },
+    {
+      id: 'video-6',
+      name: 'Conference Highlights Video',
+      thumbnail: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300&h=200&fit=crop',
+      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+      category: 'Video',
+      likes: 178,
+      downloads: 134,
+      isLiked: false,
+      isDownloaded: false,
+    },
+    {
+      id: 'video-7',
+      name: 'Product Launch Video',
+      thumbnail: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=300&h=200&fit=crop',
+      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
+      category: 'Video',
+      likes: 223,
+      downloads: 167,
+      isLiked: false,
+      isDownloaded: false,
+    },
+    {
+      id: 'video-8',
+      name: 'Award Ceremony Video',
+      thumbnail: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=300&h=200&fit=crop',
+      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+      category: 'Video',
+      likes: 156,
+      downloads: 98,
+      isLiked: false,
+      isDownloaded: false,
+    },
+    {
+      id: 'video-9',
+      name: 'Team Building Video',
+      thumbnail: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=300&h=200&fit=crop',
+      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
+      category: 'Video',
+      likes: 134,
+      downloads: 76,
+      isLiked: false,
+      isDownloaded: false,
+    },
+    {
+      id: 'video-10',
+      name: 'Gala Dinner Video',
+      thumbnail: 'https://images.unsplash.com/photo-1556761175-b413da4baf72?w=300&h=200&fit=crop',
+      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+      category: 'Video',
+      likes: 189,
+      downloads: 123,
+      isLiked: false,
+      isDownloaded: false,
     },
   ], []);
 
@@ -267,37 +722,6 @@ const HomeScreen: React.FC = React.memo(() => {
       isLiked: false,
       isDownloaded: false,
     },
-    // Video templates
-    {
-      id: 'video-1',
-      name: 'Event Promo Video',
-      thumbnail: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=300&h=200&fit=crop',
-      category: 'Video',
-      likes: 234,
-      downloads: 156,
-      isLiked: false,
-      isDownloaded: false,
-    },
-    {
-      id: 'video-2',
-      name: 'Wedding Highlight Video',
-      thumbnail: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=300&h=200&fit=crop',
-      category: 'Video',
-      likes: 189,
-      downloads: 123,
-      isLiked: false,
-      isDownloaded: false,
-    },
-    {
-      id: 'video-3',
-      name: 'Corporate Event Video',
-      thumbnail: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=300&h=200&fit=crop',
-      category: 'Video',
-      likes: 167,
-      downloads: 98,
-      isLiked: false,
-      isDownloaded: false,
-    },
   ], []);
 
   const mockCategories: Category[] = useMemo(() => [
@@ -306,7 +730,6 @@ const HomeScreen: React.FC = React.memo(() => {
     { id: 'decorators', name: 'Decorators' },
     { id: 'sound-suppliers', name: 'Sound Suppliers' },
     { id: 'light-suppliers', name: 'Light Suppliers' },
-    { id: 'video', name: 'Video' },
   ], []);
 
 
@@ -628,8 +1051,7 @@ const HomeScreen: React.FC = React.memo(() => {
         'event-planners': 'Event Planners',
         'decorators': 'Decorators',
         'sound-suppliers': 'Sound Suppliers',
-        'light-suppliers': 'Light Suppliers',
-        'video': 'Video'
+        'light-suppliers': 'Light Suppliers'
       };
       return template.category === categoryMap[categoryId];
     });
@@ -664,9 +1086,13 @@ const HomeScreen: React.FC = React.memo(() => {
   const handleTemplatePress = useCallback((template: Template) => {
     // Set the selected template ID for language-specific images
     setSelectedTemplateId(template.id);
-    // Open image preview modal with selected image data
+    
+    // Check if this is a video template
+    const isVideoTemplate = template.id.startsWith('video-');
+    
+    // Open image preview modal with selected data
     openImagePreviewModal({
-      uri: template.thumbnail,
+      uri: isVideoTemplate && template.videoUrl ? template.videoUrl : template.thumbnail,
       title: template.name,
       description: template.category,
     });
@@ -695,17 +1121,30 @@ const HomeScreen: React.FC = React.memo(() => {
   const handleLanguageSelect = useCallback((languageId: string) => {
     setSelectedLanguage(languageId);
     
-    // Update the displayed image based on selected language
+    // Update the displayed media based on selected language
     if (selectedTemplateId && selectedImageData) {
-      const languageImages = languageSpecificImages[selectedTemplateId as keyof typeof languageSpecificImages];
-      if (languageImages && languageImages[languageId as keyof typeof languageImages]) {
-        setSelectedImageData({
-          ...selectedImageData,
-          uri: languageImages[languageId as keyof typeof languageImages],
-        });
+      const isVideoTemplate = selectedTemplateId.startsWith('video-');
+      if (isVideoTemplate) {
+        const videoMap = languageSpecificVideos[selectedTemplateId as keyof typeof languageSpecificVideos];
+        const newVideoUri = videoMap && videoMap[languageId as keyof typeof videoMap];
+        if (newVideoUri) {
+          setSelectedImageData({
+            ...selectedImageData,
+            uri: newVideoUri,
+          });
+        }
+      } else {
+        const languageImages = languageSpecificImages[selectedTemplateId as keyof typeof languageSpecificImages];
+        const newImageUri = languageImages && languageImages[languageId as keyof typeof languageImages];
+        if (newImageUri) {
+          setSelectedImageData({
+            ...selectedImageData,
+            uri: newImageUri,
+          });
+        }
       }
     }
-  }, [selectedTemplateId, selectedImageData, languageSpecificImages]);
+  }, [selectedTemplateId, selectedImageData, languageSpecificImages, languageSpecificVideos]);
 
   const handleNextButton = useCallback(() => {
     if (selectedLanguage && selectedImageData) {
@@ -872,6 +1311,120 @@ const HomeScreen: React.FC = React.memo(() => {
     );
   }, [handleLikeTemplate, handleDownloadTemplate, handleTemplatePress, theme]);
 
+  const renderVideoTemplate = useCallback(({ item }: { item: Template }) => {
+    const scaleAnim = new Animated.Value(1);
+    const isPlaying = playingVideos.has(item.id);
+
+    const handlePressIn = () => {
+      Animated.timing(scaleAnim, {
+        toValue: 0.95,
+        duration: 150,
+        useNativeDriver: true,
+      }).start();
+    };
+
+    const handlePressOut = () => {
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }).start();
+    };
+
+    const handleCardPress = () => {
+      handleTemplatePress(item);
+    };
+
+    const handleVideoPress = (e: any) => {
+      e.stopPropagation();
+      setPlayingVideos(prev => {
+        const newSet = new Set(prev);
+        if (isPlaying) {
+          newSet.delete(item.id);
+        } else {
+          newSet.add(item.id);
+        }
+        return newSet;
+      });
+    };
+
+    const handleOpenModal = (e: any) => {
+      e.stopPropagation();
+      handleTemplatePress(item);
+    };
+
+    return (
+      <TouchableOpacity
+        activeOpacity={1}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        onPress={handleCardPress}
+        style={styles.templateCardWrapper}
+      >
+        <Animated.View 
+          style={[
+            styles.templateCard, 
+            { 
+              backgroundColor: theme.colors.cardBackground,
+              transform: [{ scale: scaleAnim }],
+            }
+          ]}
+        >
+          <View style={styles.templateImageContainer}>
+            {isPlaying && item.videoUrl ? (
+              <TouchableOpacity onPress={handleVideoPress} style={styles.videoContainer}>
+                <Video
+                  source={{ uri: item.videoUrl }}
+                  style={styles.videoPlayer}
+                  resizeMode="cover"
+                  repeat={true}
+                  paused={!isPlaying}
+                  muted={true}
+                />
+                <View style={styles.videoOverlay}>
+                  <Icon name="pause" size={24} color="#ffffff" />
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={handleVideoPress} style={styles.videoContainer}>
+                <Image source={{ uri: item.thumbnail }} style={styles.templateImage} />
+                <View style={styles.videoPlayOverlay}>
+                  <Icon name="play-arrow" size={32} color="#ffffff" />
+                </View>
+              </TouchableOpacity>
+            )}
+            <View style={styles.templateActions}>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: item.isLiked ? theme.colors.primary : theme.colors.cardBackground }]}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleLikeTemplate(item.id);
+                }}
+              >
+                <Text style={[styles.actionButtonText, { color: item.isLiked ? '#ffffff' : theme.colors.text }]}>LIKE</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: item.isDownloaded ? theme.colors.primary : theme.colors.cardBackground }]}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleDownloadTemplate(item.id);
+                }}
+              >
+                <Text style={[styles.actionButtonText, { color: item.isDownloaded ? '#ffffff' : theme.colors.text }]}>DOWNLOAD</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
+                onPress={handleOpenModal}
+              >
+                <Text style={[styles.actionButtonText, { color: '#ffffff' }]}>OPEN</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Animated.View>
+      </TouchableOpacity>
+    );
+  }, [handleLikeTemplate, handleDownloadTemplate, handleTemplatePress, theme, playingVideos]);
+
   // Memoized key extractors
   const keyExtractor = useCallback((item: any) => item.id, []);
 
@@ -897,7 +1450,7 @@ const HomeScreen: React.FC = React.memo(() => {
       <StatusBar 
         barStyle="light-content"
         backgroundColor="transparent" 
-        translucent 
+        translucent={true}
       />
       
       <LinearGradient
@@ -907,7 +1460,7 @@ const HomeScreen: React.FC = React.memo(() => {
         end={{ x: 1, y: 1 }}
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top + responsiveSpacing.sm }]}>
           <View style={styles.headerTop}>
             <View style={styles.greeting}>
               <Text style={styles.greetingText}>Welcome back</Text>
@@ -1092,6 +1645,25 @@ const HomeScreen: React.FC = React.memo(() => {
               contentContainerStyle={{ paddingBottom: 40 }}
             />
           </View>
+
+          {/* Video Section */}
+          <View style={styles.videoSection}>
+            <Text style={styles.sectionTitle}>Video Templates</Text>
+            <FlatList
+              data={mockVideoTemplates}
+              renderItem={renderVideoTemplate}
+              keyExtractor={keyExtractor}
+              numColumns={3}
+              columnWrapperStyle={styles.templateRow}
+              showsVerticalScrollIndicator={false}
+              scrollEnabled={false}
+              nestedScrollEnabled={true}
+              removeClippedSubviews={true}
+              maxToRenderPerBatch={6}
+              windowSize={10}
+              contentContainerStyle={{ paddingBottom: 40 }}
+            />
+          </View>
                  </ScrollView>
        </LinearGradient>
 
@@ -1257,42 +1829,42 @@ const HomeScreen: React.FC = React.memo(() => {
           animationType="fade"
           onRequestClose={closeImagePreviewModal}
         >
-          <View style={styles.imagePreviewModalOverlay}>
+          <View style={themeStyles.imagePreviewModalOverlay}>
             <TouchableOpacity 
-              style={styles.imagePreviewModalBackdrop} 
+              style={themeStyles.imagePreviewModalBackdrop} 
               activeOpacity={1} 
               onPress={closeImagePreviewModal}
             />
             
-            <View style={styles.imagePreviewModalContent}>
+            <View style={themeStyles.imagePreviewModalContent}>
               {/* Modal Header */}
-              <View style={styles.imagePreviewModalHeader}>
-                <View style={styles.imagePreviewModalHeaderLeft}>
-                  <Text style={styles.imagePreviewModalTitle}>
+              <View style={themeStyles.imagePreviewModalHeader}>
+                <View style={themeStyles.imagePreviewModalHeaderLeft}>
+                  <Text style={themeStyles.imagePreviewModalTitle}>
                     {selectedImageData?.title || 'Image Preview'}
                   </Text>
                   {selectedImageData?.description && (
-                    <Text style={styles.imagePreviewModalSubtitle}>
+                    <Text style={themeStyles.imagePreviewModalSubtitle}>
                       {selectedImageData.description}
                     </Text>
                   )}
                 </View>
                 <TouchableOpacity 
-                  style={styles.imagePreviewModalCloseButton}
+                  style={themeStyles.imagePreviewModalCloseButton}
                   onPress={closeImagePreviewModal}
                   activeOpacity={0.7}
                 >
-                  <Icon name="close" size={24} color="#333333" />
+                  <Icon name="close" size={24} color={theme?.colors?.text || "#333333"} />
                 </TouchableOpacity>
               </View>
 
-              {/* Image Section */}
-              <View style={styles.imagePreviewModalImageContainer}>
+              {/* Image/Video Section */}
+              <View style={themeStyles.imagePreviewModalImageContainer}>
                 {selectedImageData && (
                   <>
-                    {selectedLanguage ? (
+                    {selectedLanguage && !selectedTemplateId.startsWith('video-') ? (
                       // Show language-specific images grid
-                      <View style={styles.languageImagesGrid}>
+                      <View style={themeStyles.languageImagesGrid}>
                         {languages.map((language) => {
                           const languageImages = languageSpecificImages[selectedTemplateId as keyof typeof languageSpecificImages];
                           const imageUri = languageImages ? languageImages[language.id as keyof typeof languageImages] : selectedImageData.uri;
@@ -1300,8 +1872,8 @@ const HomeScreen: React.FC = React.memo(() => {
                             <TouchableOpacity
                               key={language.id}
                               style={[
-                                styles.languageImageContainer,
-                                selectedLanguage === language.id && styles.languageImageContainerSelected
+                                themeStyles.languageImageContainer,
+                                selectedLanguage === language.id && themeStyles.languageImageContainerSelected
                               ]}
                               onPress={() => handleLanguageSelect(language.id)}
                               activeOpacity={0.8}
@@ -1311,25 +1883,49 @@ const HomeScreen: React.FC = React.memo(() => {
                                   uri: imageUri,
                                   cache: 'force-cache'
                                 }}
-                                style={styles.languageImage}
+                                style={themeStyles.languageImage}
                                 resizeMode="cover"
                               />
-                              <View style={styles.languageImageOverlay}>
-                                <Text style={styles.languageImageLabel}>{language.name}</Text>
+                              <View style={themeStyles.languageImageOverlay}>
+                                <Text style={themeStyles.languageImageLabel}>{language.name}</Text>
                               </View>
                             </TouchableOpacity>
                           );
                         })}
                       </View>
+                    ) : !selectedTemplateId.startsWith('video-') ? (
+                      // Show single image or video when no language is selected
+                      <>
+                        {selectedTemplateId.startsWith('video-') && selectedImageData.uri.includes('.mp4') ? (
+                          // Show video player for video templates
+                          <Video
+                            source={{ uri: selectedImageData.uri }}
+                            style={themeStyles.imagePreviewModalImage}
+                            resizeMode="contain"
+                            repeat={true}
+                            paused={false}
+                            muted={true}
+                          />
+                        ) : (
+                          // Show image for image templates
+                          <Image
+                            source={{ 
+                              uri: selectedImageData.uri,
+                              cache: 'force-cache'
+                            }}
+                            style={themeStyles.imagePreviewModalImage}
+                            resizeMode="contain"
+                          />
+                        )}
+                      </>
                     ) : (
-                      // Show single image when no language is selected
-                      <Image
-                        source={{ 
-                          uri: selectedImageData.uri,
-                          cache: 'force-cache'
-                        }}
-                        style={styles.imagePreviewModalImage}
+                      <Video
+                        source={{ uri: selectedImageData.uri }}
+                        style={themeStyles.imagePreviewModalImage}
                         resizeMode="contain"
+                        repeat={true}
+                        paused={false}
+                        muted={true}
                       />
                     )}
                   </>
@@ -1337,30 +1933,32 @@ const HomeScreen: React.FC = React.memo(() => {
               </View>
 
               {/* Language Selection Buttons */}
-              <View style={styles.languageSelectionContainer}>
-                <Text style={styles.languageSelectionTitle}>
+              <View style={themeStyles.languageSelectionContainer}>
+                <Text style={themeStyles.languageSelectionTitle}>
                   {selectedLanguage ? 'Language Variants' : 'Select Language'}
                 </Text>
-                <Text style={styles.languageSelectionSubtitle}>
+                <Text style={themeStyles.languageSelectionSubtitle}>
                   {selectedLanguage 
                     ? 'Tap on any language to switch between variants' 
-                    : 'Choose a language to see different image variants'
+                    : selectedTemplateId.startsWith('video-') 
+                      ? 'Choose a language to see different video variants'
+                      : 'Choose a language to see different image variants'
                   }
                 </Text>
-                <View style={styles.languageButtonsContainer}>
+                <View style={themeStyles.languageButtonsContainer}>
                   {languages.map((language) => (
                     <TouchableOpacity
                       key={language.id}
                       style={[
-                        styles.languageButton,
-                        selectedLanguage === language.id && styles.languageButtonSelected
+                        themeStyles.languageButton,
+                        selectedLanguage === language.id && themeStyles.languageButtonSelected
                       ]}
                       onPress={() => handleLanguageSelect(language.id)}
                       activeOpacity={0.7}
                     >
                       <Text style={[
-                        styles.languageButtonText,
-                        selectedLanguage === language.id && styles.languageButtonTextSelected
+                        themeStyles.languageButtonText,
+                        selectedLanguage === language.id && themeStyles.languageButtonTextSelected
                       ]}>
                         {language.name}
                       </Text>
@@ -1370,11 +1968,11 @@ const HomeScreen: React.FC = React.memo(() => {
               </View>
 
               {/* Next Button */}
-              <View style={styles.nextButtonContainer}>
+              <View style={themeStyles.nextButtonContainer}>
                 <TouchableOpacity 
                   style={[
-                    styles.nextButton,
-                    !selectedLanguage && styles.nextButtonDisabled
+                    themeStyles.nextButton,
+                    !selectedLanguage && themeStyles.nextButtonDisabled
                   ]}
                   onPress={handleNextButton}
                   disabled={!selectedLanguage}
@@ -1382,12 +1980,12 @@ const HomeScreen: React.FC = React.memo(() => {
                 >
                   <LinearGradient
                     colors={selectedLanguage ? ['#667eea', '#764ba2'] : ['#cccccc', '#999999']}
-                    style={styles.nextButtonGradient}
+                    style={themeStyles.nextButtonGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                   >
                     <Icon name="arrow-forward" size={18} color="#ffffff" />
-                    <Text style={styles.nextButtonText}>Next</Text>
+                    <Text style={themeStyles.nextButtonText}>Next</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -1420,8 +2018,8 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingTop: 0,
-    paddingHorizontal: screenWidth * 0.05,
-    paddingBottom: screenHeight * 0.02,
+    paddingHorizontal: responsiveSpacing.md,
+    paddingBottom: responsiveSpacing.sm,
   },
   headerTop: {
     flexDirection: 'row',
@@ -1430,12 +2028,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   greetingText: {
-    fontSize: Math.min(screenWidth * 0.035, 14),
+    fontSize: responsiveFontSize.sm,
     color: 'rgba(255,255,255,0.8)',
-    marginBottom: screenHeight * 0.005,
+    marginBottom: responsiveSpacing.xs,
   },
   userName: {
-    fontSize: Math.min(screenWidth * 0.05, 20),
+    fontSize: responsiveFontSize.xl,
     fontWeight: 'bold',
     color: '#ffffff',
   },
@@ -1446,8 +2044,8 @@ const styles = StyleSheet.create({
     paddingBottom: 100, // Fixed padding for tab bar
   },
   searchContainer: {
-    paddingHorizontal: screenWidth * 0.05,
-    marginBottom: screenHeight * 0.02,
+    paddingHorizontal: responsiveSpacing.md,
+    marginBottom: responsiveSpacing.sm,
   },
   searchBar: {
     flexDirection: 'row',
@@ -1646,6 +2244,9 @@ const styles = StyleSheet.create({
   templatesSection: {
     paddingBottom: screenHeight * 0.05,
   },
+  videoSection: {
+    paddingBottom: screenHeight * 0.05,
+  },
   templateRow: {
     justifyContent: 'space-between',
     paddingHorizontal: screenWidth * 0.03,
@@ -1674,6 +2275,35 @@ const styles = StyleSheet.create({
   templateImage: {
     width: '100%',
     height: '100%',
+  },
+  videoContainer: {
+    width: '100%',
+    height: '100%',
+    position: 'relative' as const,
+  },
+  videoPlayer: {
+    width: '100%',
+    height: '100%',
+  },
+  videoOverlay: {
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  videoPlayOverlay: {
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   templateOverlay: {
     position: 'absolute',
@@ -1972,210 +2602,6 @@ const styles = StyleSheet.create({
       fontSize: Math.min(screenWidth * 0.035, 14),
       color: '#666666',
       fontWeight: '500',
-    },
-    // Image Preview Modal Styles
-    imagePreviewModalOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    imagePreviewModalBackdrop: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-    },
-    imagePreviewModalContent: {
-      backgroundColor: '#ffffff',
-      borderRadius: 20,
-      width: screenWidth * 0.95,
-      maxHeight: screenHeight * 0.9,
-      shadowColor: '#000',
-      shadowOffset: {
-        width: 0,
-        height: 10,
-      },
-      shadowOpacity: 0.3,
-      shadowRadius: 20,
-      elevation: 20,
-    },
-    imagePreviewModalHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      paddingHorizontal: 20,
-      paddingTop: 20,
-      paddingBottom: 15,
-      borderBottomWidth: 1,
-      borderBottomColor: '#f0f0f0',
-    },
-    imagePreviewModalHeaderLeft: {
-      flex: 1,
-      marginRight: 10,
-    },
-    imagePreviewModalTitle: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: '#333333',
-      marginBottom: 8,
-      lineHeight: 22,
-    },
-    imagePreviewModalSubtitle: {
-      fontSize: 14,
-      color: '#666666',
-      lineHeight: 18,
-    },
-    imagePreviewModalCloseButton: {
-      padding: 4,
-    },
-    imagePreviewModalImageContainer: {
-      position: 'relative',
-      height: screenHeight * 0.5,
-      backgroundColor: '#f8f9fa',
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingHorizontal: 20,
-      paddingVertical: 20,
-    },
-    imagePreviewModalImage: {
-      width: '100%',
-      height: '100%',
-      borderRadius: 12,
-    },
-    imagePreviewModalActions: {
-      paddingHorizontal: 20,
-      paddingVertical: 15,
-      borderTopWidth: 1,
-      borderTopColor: '#f0f0f0',
-    },
-    imagePreviewModalActionButton: {
-      borderRadius: 12,
-      overflow: 'hidden',
-    },
-    imagePreviewModalActionButtonGradient: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 14,
-      gap: 8,
-    },
-    imagePreviewModalActionButtonText: {
-      color: '#ffffff',
-      fontSize: 16,
-      fontWeight: '600',
-    },
-    // Language Selection Styles
-    languageSelectionContainer: {
-      paddingHorizontal: 20,
-      paddingVertical: 20,
-      borderTopWidth: 1,
-      borderTopColor: '#f0f0f0',
-    },
-    languageSelectionTitle: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: '#333333',
-      marginBottom: 8,
-      textAlign: 'center',
-    },
-    languageSelectionSubtitle: {
-      fontSize: 12,
-      color: '#666666',
-      marginBottom: 15,
-      textAlign: 'center',
-      lineHeight: 16,
-    },
-    languageButtonsContainer: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      gap: 10,
-    },
-    languageButton: {
-      flex: 1,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: 12,
-      backgroundColor: '#f8f9fa',
-      borderWidth: 2,
-      borderColor: '#e9ecef',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    languageButtonSelected: {
-      backgroundColor: '#667eea',
-      borderColor: '#667eea',
-    },
-    languageButtonText: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: '#666666',
-    },
-    languageButtonTextSelected: {
-      color: '#ffffff',
-    },
-    // Next Button Styles
-    nextButtonContainer: {
-      paddingHorizontal: 20,
-      paddingBottom: 20,
-    },
-    nextButton: {
-      borderRadius: 12,
-      overflow: 'hidden',
-    },
-    nextButtonDisabled: {
-      opacity: 0.6,
-    },
-    nextButtonGradient: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 16,
-      gap: 8,
-    },
-    nextButtonText: {
-      color: '#ffffff',
-      fontSize: 16,
-      fontWeight: '600',
-    },
-    // Language Images Grid Styles
-    languageImagesGrid: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      gap: 10,
-      paddingHorizontal: 10,
-    },
-    languageImageContainer: {
-      flex: 1,
-      height: screenHeight * 0.25,
-      borderRadius: 12,
-      overflow: 'hidden',
-      borderWidth: 2,
-      borderColor: '#e9ecef',
-    },
-    languageImageContainerSelected: {
-      borderColor: '#667eea',
-      borderWidth: 3,
-    },
-    languageImage: {
-      width: '100%',
-      height: '100%',
-    },
-    languageImageOverlay: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      backgroundColor: 'rgba(0,0,0,0.7)',
-      paddingVertical: 8,
-      paddingHorizontal: 6,
-    },
-    languageImageLabel: {
-      color: '#ffffff',
-      fontSize: 12,
-      fontWeight: '600',
-      textAlign: 'center',
     },
   });
 

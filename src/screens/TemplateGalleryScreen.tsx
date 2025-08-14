@@ -29,6 +29,30 @@ import { useSubscription } from '../contexts/SubscriptionContext';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
+// Responsive design helpers
+const isSmallScreen = screenWidth < 375;
+const isMediumScreen = screenWidth >= 375 && screenWidth < 414;
+const isLargeScreen = screenWidth >= 414;
+
+// Responsive spacing and sizing
+const responsiveSpacing = {
+  xs: isSmallScreen ? 8 : isMediumScreen ? 12 : 16,
+  sm: isSmallScreen ? 12 : isMediumScreen ? 16 : 20,
+  md: isSmallScreen ? 16 : isMediumScreen ? 20 : 24,
+  lg: isSmallScreen ? 20 : isMediumScreen ? 24 : 32,
+  xl: isSmallScreen ? 24 : isMediumScreen ? 32 : 40,
+};
+
+const responsiveFontSize = {
+  xs: isSmallScreen ? 10 : isMediumScreen ? 12 : 14,
+  sm: isSmallScreen ? 12 : isMediumScreen ? 14 : 16,
+  md: isSmallScreen ? 14 : isMediumScreen ? 16 : 18,
+  lg: isSmallScreen ? 16 : isMediumScreen ? 18 : 20,
+  xl: isSmallScreen ? 18 : isMediumScreen ? 20 : 22,
+  xxl: isSmallScreen ? 20 : isMediumScreen ? 22 : 24,
+  xxxl: isSmallScreen ? 24 : isMediumScreen ? 28 : 32,
+};
+
 const TemplateGalleryScreen: React.FC = () => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -41,7 +65,6 @@ const TemplateGalleryScreen: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedLanguage, setSelectedLanguage] = useState<string>('');
-  const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
   const [selectedPremiumTemplate, setSelectedPremiumTemplate] = useState<Template | null>(null);
@@ -55,12 +78,9 @@ const TemplateGalleryScreen: React.FC = () => {
 
   const languageFilters = [
     { id: 'all', label: 'All Languages', value: '', icon: 'language' },
-    ...availableLanguages.map(lang => ({
-      id: lang.toLowerCase(),
-      label: lang,
-      value: lang,
-      icon: 'translate',
-    })),
+    { id: 'english', label: 'English', value: 'English', icon: 'translate' },
+    { id: 'marathi', label: 'Marathi', value: 'Marathi', icon: 'translate' },
+    { id: 'hindi', label: 'Hindi', value: 'Hindi', icon: 'translate' },
   ];
 
   // Fetch templates
@@ -78,15 +98,7 @@ const TemplateGalleryScreen: React.FC = () => {
     }
   }, []);
 
-  // Fetch available languages
-  const fetchLanguages = useCallback(async () => {
-    try {
-      const languages = await templateService.getAvailableLanguages();
-      setAvailableLanguages(languages);
-    } catch (error) {
-      console.error('Error fetching languages:', error);
-    }
-  }, []);
+
 
   // Apply filters
   const applyFilters = useCallback(() => {
@@ -158,8 +170,7 @@ const TemplateGalleryScreen: React.FC = () => {
   // Initialize data
   useEffect(() => {
     fetchTemplates();
-    fetchLanguages();
-  }, [fetchTemplates, fetchLanguages]);
+  }, [fetchTemplates]);
 
   // Apply filters when they change
   useEffect(() => {
@@ -443,7 +454,7 @@ const TemplateGalleryScreen: React.FC = () => {
       <StatusBar 
         barStyle="light-content"
         backgroundColor="transparent" 
-        translucent 
+        translucent={true}
       />
       
       <LinearGradient
@@ -453,7 +464,7 @@ const TemplateGalleryScreen: React.FC = () => {
         end={{ x: 1, y: 1 }}
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top + responsiveSpacing.sm }]}>
           <View style={styles.headerTop}>
             <View style={styles.greeting}>
               <Text style={styles.greetingText}>Template Gallery</Text>
@@ -620,7 +631,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: screenWidth * 0.04,
     paddingVertical: screenHeight * 0.012,
-    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,

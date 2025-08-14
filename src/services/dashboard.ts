@@ -11,6 +11,7 @@ export interface Template {
   id: string;
   name: string;
   thumbnail: string;
+  videoUrl?: string;
   category: string;
   likes: number;
   downloads: number;
