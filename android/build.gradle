@@ -6,6 +6,9 @@ buildscript {
         targetSdkVersion = 35
         ndkVersion = "27.1.12297006"
         kotlinVersion = "2.1.20"
+        // Pin FFmpeg Kit version to a valid published coordinate
+        ffmpegKitPackage = "min" // variants: min, full, full-gpl, https
+        ffmpegKitVersion = "5.1.0"
     }
     repositories {
         google()

@@ -18,32 +18,24 @@ import { useTheme } from '../context/ThemeContext';
 import businessProfileService from '../services/businessProfile';
 import BusinessProfileForm from '../components/BusinessProfileForm';
 import BottomSheet from '../components/BottomSheet';
+import responsiveUtils, { 
+  responsiveSpacing, 
+  responsiveFontSize, 
+  responsiveSize, 
+  responsiveLayout, 
+  responsiveShadow, 
+  responsiveText, 
+  responsiveGrid, 
+  responsiveButton, 
+  responsiveInput, 
+  responsiveCard,
+  isTablet,
+  isLandscape 
+} from '../utils/responsiveUtils';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-// Responsive design helpers
-const isSmallScreen = screenWidth < 375;
-const isMediumScreen = screenWidth >= 375 && screenWidth < 414;
-const isLargeScreen = screenWidth >= 414;
-
-// Responsive spacing and sizing
-const responsiveSpacing = {
-  xs: isSmallScreen ? 8 : isMediumScreen ? 12 : 16,
-  sm: isSmallScreen ? 12 : isMediumScreen ? 16 : 20,
-  md: isSmallScreen ? 16 : isMediumScreen ? 20 : 24,
-  lg: isSmallScreen ? 20 : isMediumScreen ? 24 : 32,
-  xl: isSmallScreen ? 24 : isMediumScreen ? 32 : 40,
-};
-
-const responsiveFontSize = {
-  xs: isSmallScreen ? 10 : isMediumScreen ? 12 : 14,
-  sm: isSmallScreen ? 12 : isMediumScreen ? 14 : 16,
-  md: isSmallScreen ? 14 : isMediumScreen ? 16 : 18,
-  lg: isSmallScreen ? 16 : isMediumScreen ? 18 : 20,
-  xl: isSmallScreen ? 18 : isMediumScreen ? 20 : 22,
-  xxl: isSmallScreen ? 20 : isMediumScreen ? 22 : 24,
-  xxxl: isSmallScreen ? 24 : isMediumScreen ? 28 : 32,
-};
+// Responsive design helpers - using imported utilities
 
 const BusinessProfilesScreen: React.FC = () => {
   const { isDarkMode, theme } = useTheme();
@@ -395,70 +387,49 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: screenWidth * 0.05,
-    paddingTop: screenHeight * 0.02,
-    paddingBottom: screenHeight * 0.02,
+    paddingHorizontal: responsiveLayout.headerPaddingHorizontal,
+    paddingTop: Math.max(responsiveSpacing.md, screenHeight * 0.02),
+    paddingBottom: Math.max(responsiveSpacing.md, screenHeight * 0.02),
   },
   headerTitle: {
-    fontSize: Math.min(screenWidth * 0.06, 24),
+    fontSize: responsiveText.heading,
     fontWeight: 'bold',
     color: '#ffffff',
   },
   addButton: {
-    width: screenWidth * 0.1,
-    height: screenWidth * 0.1,
-    borderRadius: screenWidth * 0.05,
+    width: Math.max(44, screenWidth * 0.1),
+    height: Math.max(44, screenWidth * 0.1),
+    borderRadius: Math.max(22, screenWidth * 0.05),
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...responsiveShadow.medium,
   },
   searchContainer: {
-    paddingHorizontal: screenWidth * 0.05,
-    marginBottom: screenHeight * 0.02,
+    paddingHorizontal: responsiveLayout.containerPaddingHorizontal,
+    marginBottom: Math.max(responsiveSpacing.md, screenHeight * 0.02),
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 25,
-    paddingHorizontal: screenWidth * 0.04,
-    paddingVertical: screenHeight * 0.012,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderRadius: Math.max(25, screenWidth * 0.06),
+    paddingHorizontal: Math.max(responsiveSpacing.md, screenWidth * 0.04),
+    paddingVertical: Math.max(responsiveSpacing.sm, screenHeight * 0.012),
+    ...responsiveShadow.medium,
   },
   searchInput: {
     flex: 1,
-    marginLeft: screenWidth * 0.03,
-    fontSize: Math.min(screenWidth * 0.04, 16),
+    marginLeft: Math.max(responsiveSpacing.sm, screenWidth * 0.03),
+    fontSize: responsiveText.body,
   },
   listContainer: {
-    paddingHorizontal: screenWidth * 0.05,
+    paddingHorizontal: responsiveLayout.containerPaddingHorizontal,
     paddingBottom: 100, // Add padding to account for tab bar
   },
   businessCard: {
-    borderRadius: 15,
-    padding: screenWidth * 0.04,
-    marginBottom: screenHeight * 0.02,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 6,
+    borderRadius: responsiveSize.cardBorderRadius,
+    padding: responsiveSize.cardPadding,
+    marginBottom: responsiveSize.cardMarginBottom,
+    ...responsiveShadow.large,
   },
   cardHeader: {
     flexDirection: 'row',

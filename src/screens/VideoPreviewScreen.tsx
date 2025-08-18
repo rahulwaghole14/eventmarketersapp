@@ -85,8 +85,27 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [actionType, setActionType] = useState<'share' | 'download' | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [videoError, setVideoError] = useState(false);
+  const [useProcessedVideo, setUseProcessedVideo] = useState(true);
 
   const videoRef = useRef<any>(null);
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('VideoPreviewScreen - Debug Info:');
+    console.log('- Original video URI:', selectedVideo.uri);
+    console.log('- Processed video path:', processedVideoPath);
+    console.log('- Use processed video:', useProcessedVideo);
+    console.log('- Video error state:', videoError);
+    console.log('- Layers count:', layers?.length || 0);
+    
+    // Ensure processed video is used when available
+    if (processedVideoPath && !useProcessedVideo) {
+      console.log('Processed video available, switching to processed video');
+      setUseProcessedVideo(true);
+    }
+  }, [selectedVideo.uri, processedVideoPath, useProcessedVideo, videoError, layers]);
 
   // Video controls
   const toggleVideoPlayback = () => {
@@ -95,10 +114,33 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
 
   const onVideoLoad = (data: any) => {
     setVideoDuration(data.duration);
+    setVideoError(false);
+    console.log('Video loaded successfully:', data);
+    
+    // Show success message for processed video
+    if (useProcessedVideo && processedVideoPath) {
+      console.log('✅ Processed video loaded successfully with canvas overlays');
+    }
   };
 
   const onVideoProgress = (data: any) => {
     setCurrentTime(data.currentTime);
+  };
+
+  const onVideoError = (error: any) => {
+    console.error('Video playback error:', error);
+    setVideoError(true);
+    
+    // Only fall back to original video if processed video fails and we're currently using processed video
+    if (useProcessedVideo && processedVideoPath) {
+      console.log('Processed video failed, falling back to original video');
+      setUseProcessedVideo(false);
+      Alert.alert(
+        'Video Error', 
+        'The processed video encountered an error. Switching to original video.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   // Navigation
@@ -109,25 +151,50 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
   // Share functionality
   const handleShare = async () => {
     try {
-      const result = await Share.share({
-        message: `Check out this amazing video: ${selectedVideo.title || 'Event Video'}`,
-        url: selectedVideo.uri, // Note: This might not work on all platforms
-      });
+      // Use the processed video path if available, otherwise use original
+      const videoPath = processedVideoPath || selectedVideo.uri;
       
-      if (result.action === Share.sharedAction) {
-        if (result.activityType) {
-          // shared with activity type of result.activityType
-          console.log('Shared with activity type:', result.activityType);
-        } else {
-          // shared
-          console.log('Shared successfully');
+      // Check if it's a remote URL
+      const isRemoteUrl = videoPath.startsWith('http://') || videoPath.startsWith('https://');
+      
+      const shareOptions = {
+        title: selectedVideo.title || 'Event Video',
+        message: `Event Video: ${selectedVideo.title || 'Professional Event Content'}`,
+        url: videoPath,
+      };
+
+      // For remote URLs, we can share the URL directly
+      if (isRemoteUrl) {
+        const result = await Share.share(shareOptions);
+        
+        if (result.action === Share.sharedAction) {
+          // Successfully shared
+        } else if (result.action === Share.dismissedAction) {
+          // User dismissed the share sheet
         }
-      } else if (result.action === Share.dismissedAction) {
-        // dismissed
-        console.log('Share dismissed');
+      } else {
+        // For local files, handle platform differences
+        if (Platform.OS === 'ios') {
+          // On iOS, we'll share the video file directly
+          const result = await Share.share(shareOptions);
+          
+          if (result.action === Share.sharedAction) {
+            // Successfully shared
+          } else if (result.action === Share.dismissedAction) {
+            // User dismissed the share sheet
+          }
+        } else {
+          // For Android, we can share the file path
+          const result = await Share.share(shareOptions);
+          
+          if (result.action === Share.sharedAction) {
+            // Successfully shared
+          } else if (result.action === Share.dismissedAction) {
+            // User dismissed the share sheet
+          }
+        }
       }
     } catch (error) {
-      console.error('Error sharing video:', error);
       Alert.alert('Error', 'Failed to share video. Please try again.');
     }
   };
@@ -136,6 +203,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
   const handleDownload = async () => {
     try {
       setIsDownloading(true);
+      setDownloadProgress(0);
 
       // Use the processed video path if available, otherwise use original
       const videoPath = processedVideoPath || selectedVideo.uri;
@@ -148,23 +216,42 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
         return;
       }
 
+      // Check if video file exists
+      if (!videoPath) {
+        Alert.alert('Error', 'Video file not found. Please try again.');
+        setIsDownloading(false);
+        return;
+      }
+
+      // Check if it's a remote URL and show appropriate message
+      const isRemoteUrl = videoPath.startsWith('http://') || videoPath.startsWith('https://');
+      if (isRemoteUrl) {
+        setDownloadProgress(10); // Show initial progress
+      }
+
       // Save video to gallery
       const success = await videoProcessingService.saveToGallery(videoPath);
 
       if (success) {
-        Alert.alert(
-          'Success',
-          'Video has been saved to your gallery successfully!',
-          [{ text: 'OK' }]
-        );
+        setDownloadProgress(100);
+        
+        // Show success message based on whether overlays are embedded
+        const hasEmbeddedOverlays = processedVideoPath && useProcessedVideo;
+        const message = hasEmbeddedOverlays 
+          ? 'Video with embedded overlays has been saved to your gallery successfully!'
+          : Platform.OS === 'ios' 
+            ? 'Video processing completed! Use the share button to save to your gallery.' 
+            : 'Video has been saved to your gallery successfully!';
+            
+        Alert.alert('Success', message, [{ text: 'OK' }]);
       } else {
         Alert.alert('Error', 'Failed to save video to gallery. Please try again.');
       }
     } catch (error) {
-      console.error('Error downloading video:', error);
       Alert.alert('Error', 'Failed to download video. Please try again.');
     } finally {
       setIsDownloading(false);
+      setDownloadProgress(0);
     }
   };
 
@@ -189,10 +276,13 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
     setActionType(null);
   };
 
+  // Quick download without confirmation
+  const handleQuickDownload = () => {
+    handleDownload();
+  };
+
   // Render video layers
   const renderLayer = (layer: any) => {
-    console.log('Rendering layer:', layer.id, layer.type, layer.fieldType, layer.content?.substring(0, 20));
-    
     // Calculate scaling factors if canvasData is available
     let scaleX = 1;
     let scaleY = 1;
@@ -204,28 +294,13 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
       
       scaleX = videoContainerWidth / canvasData.width;
       scaleY = videoContainerHeight / canvasData.height;
-      
-      console.log('Scaling debug:', {
-        canvasData: { width: canvasData.width, height: canvasData.height },
-        videoContainer: { width: videoContainerWidth, height: videoContainerHeight },
-        scale: { x: scaleX, y: scaleY },
-        layer: { id: layer.id, originalPos: layer.position, scaledPos: { x: layer.position.x * scaleX, y: layer.position.y * scaleY } }
-      });
     }
-    
-    // For debugging, let's make all layers more visible
-    const debugStyle = {
-      borderWidth: 1,
-      borderColor: 'yellow',
-      backgroundColor: layer.type === 'text' && layer.style?.backgroundColor ? 'transparent' : 'rgba(0, 255, 0, 0.3)',
-    };
     
     return (
       <View
         key={layer.id}
         style={[
           styles.layer,
-          debugStyle,
           {
             position: 'absolute',
             left: layer.position.x * scaleX,
@@ -302,35 +377,18 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
          <View style={styles.videoContainer}>
            <Video
              ref={videoRef}
-             source={{ uri: selectedVideo.uri }}
+             source={{ uri: useProcessedVideo ? processedVideoPath || selectedVideo.uri : selectedVideo.uri }}
              style={styles.video}
              resizeMode="cover"
              paused={!isVideoPlaying}
              onLoad={onVideoLoad}
              onProgress={onVideoProgress}
+             onError={onVideoError}
              repeat={true}
            />
            
-           {/* Video Layers - Only show if no processed video */}
-           {console.log('VideoPreview Debug:', { processedVideoPath, layersCount: layers?.length, canvasData })}
-           {!processedVideoPath && layers && layers.length > 0 && layers.map(renderLayer)}
-           
-           {/* Test layer to verify rendering */}
-           <View
-             style={{
-               position: 'absolute',
-               top: 50,
-               left: 50,
-               width: 200,
-               height: 100,
-               backgroundColor: 'rgba(255, 0, 0, 0.8)',
-               zIndex: 1000,
-             }}
-           >
-             <Text style={{ color: 'white', fontSize: 16, textAlign: 'center' }}>
-               TEST LAYER
-             </Text>
-           </View>
+                        {/* Video Layers - Only show when using original video (processed video should have overlays already applied) */}
+             {!useProcessedVideo && layers && layers.length > 0 && layers.map(renderLayer)}
            
            {/* Watermark */}
            <Watermark isSubscribed={isSubscribed} />
@@ -363,56 +421,61 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
             Duration: {Math.floor(videoDuration)}s | Language: {selectedLanguage}
           </Text>
         </View>
+      </LinearGradient>
 
-        {/* Action Buttons */}
-        <View style={styles.actionContainer}>
+      {/* Action Buttons - Outside LinearGradient */}
+      <View style={styles.actionContainer}>
+        <View style={styles.actionButtons}>
           <TouchableOpacity 
             style={styles.actionButton} 
-            onPress={() => handleActionPress('share')}
+            onPress={handleShare}
             disabled={isDownloading}
           >
-            <Icon name="share" size={24} color="#ffffff" />
-            <Text style={styles.actionButtonText}>Share</Text>
+            <LinearGradient
+              colors={isDownloading ? ['#cccccc', '#999999'] : ['#667eea', '#764ba2']}
+              style={styles.shareButtonGradient}
+            >
+              <Icon name="share" size={24} color="#ffffff" />
+              <Text style={styles.shareButtonText}>
+                {isDownloading ? 'Processing...' : 'Share'}
+              </Text>
+            </LinearGradient>
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={[styles.actionButton, isDownloading && styles.actionButtonDisabled]} 
-            onPress={() => handleActionPress('download')}
+            style={styles.actionButton} 
+            onPress={handleQuickDownload}
             disabled={isDownloading}
           >
-            {isDownloading ? (
-              <View style={styles.downloadingContainer}>
-                <ActivityIndicator size="small" color="#ffffff" />
-                <Text style={styles.downloadingText}>Saving...</Text>
-              </View>
-            ) : (
-              <>
-                <Icon name="download" size={24} color="#ffffff" />
-                <Text style={styles.actionButtonText}>Download</Text>
-              </>
-            )}
+            <LinearGradient
+              colors={isDownloading ? ['#cccccc', '#999999'] : ['#28a745', '#20c997']}
+              style={styles.saveButtonGradient}
+            >
+              {isDownloading ? (
+                <View style={styles.downloadingContainer}>
+                  <ActivityIndicator size="small" color="#ffffff" />
+                  <Text style={styles.downloadingText}>
+                    {downloadProgress > 0 ? `Downloading ${downloadProgress}%` : 'Saving...'}
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  <Icon name="download" size={24} color="#ffffff" />
+                  <Text style={styles.saveButtonText}>Download</Text>
+                </>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
         </View>
 
         {/* Edit Button */}
-        <TouchableOpacity 
-          style={[
-            styles.editButton,
-            {
-              marginBottom: Math.max(insets.bottom + 20, 40),
-              paddingVertical: Math.max(12, screenHeight * 0.015),
-              paddingHorizontal: Math.max(20, screenWidth * 0.05),
-            }
-          ]} 
+        <TouchableOpacity
+          style={[styles.editButton, { marginBottom: Math.max(insets.bottom + responsiveSpacing.md, responsiveSpacing.lg) }]}
           onPress={handleBackToEditor}
         >
-          <Icon name="edit" size={20} color="#667eea" />
-          <Text style={[
-            styles.editButtonText,
-            { fontSize: Math.max(14, Math.min(18, screenWidth * 0.04)) }
-          ]}>Back to Editor</Text>
+          <Text style={styles.editButtonText}>Back to Editor</Text>
         </TouchableOpacity>
-      </LinearGradient>
+      </View>
 
       {/* Confirmation Modal */}
       <Modal
@@ -458,6 +521,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f8f9fa',
   },
   gradientBackground: {
     flex: 1,
@@ -522,72 +586,112 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   videoInfo: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    paddingTop: 8,
   },
   videoTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 26,
+    fontWeight: '700',
     color: '#ffffff',
-    marginBottom: 5,
+    marginBottom: 6,
+    letterSpacing: 0.3,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   videoDescription: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.8)',
-    marginBottom: 10,
+    color: 'rgba(255,255,255,0.85)',
+    marginBottom: 12,
+    fontWeight: '500',
+    lineHeight: 22,
   },
   videoStats: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '500',
+    letterSpacing: 0.2,
   },
   actionContainer: {
+    paddingHorizontal: Math.max(responsiveSpacing.md, screenWidth * 0.05),
+    paddingTop: Math.max(responsiveSpacing.md, screenHeight * 0.02),
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
+  },
+  actionButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    justifyContent: 'space-between',
+    marginBottom: Math.max(responsiveSpacing.md, screenHeight * 0.02),
+    gap: Math.max(responsiveSpacing.sm, screenWidth * 0.03),
   },
   actionButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 25,
+    flex: 1,
+    marginHorizontal: Math.max(4, screenWidth * 0.01),
+    borderRadius: Math.max(12, screenWidth * 0.03),
+    overflow: 'hidden',
+    minHeight: Math.max(56, screenHeight * 0.07),
+  },
+  shareButtonGradient: {
+    paddingVertical: Math.max(16, screenHeight * 0.02),
+    paddingHorizontal: Math.max(20, screenWidth * 0.05),
+    flexDirection: 'row',
     alignItems: 'center',
-    minWidth: 120,
+    justifyContent: 'center',
+    minHeight: Math.max(56, screenHeight * 0.07),
   },
-  actionButtonText: {
+  shareButtonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: Math.max(responsiveFontSize.md, Math.min(18, screenWidth * 0.045)),
     fontWeight: '600',
-    marginTop: 5,
+    marginLeft: Math.max(responsiveSpacing.xs, screenWidth * 0.01),
   },
+  saveButtonGradient: {
+    paddingVertical: Math.max(16, screenHeight * 0.02),
+    paddingHorizontal: Math.max(20, screenWidth * 0.05),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: Math.max(56, screenHeight * 0.07),
+  },
+  saveButtonText: {
+    color: '#ffffff',
+    fontSize: Math.max(responsiveFontSize.md, Math.min(18, screenWidth * 0.045)),
+    fontWeight: '600',
+    marginLeft: Math.max(responsiveSpacing.xs, screenWidth * 0.01),
+  },
+
   actionButtonDisabled: {
     opacity: 0.6,
+  },
+  actionButtonPressed: {
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    transform: [{ scale: 0.95 }],
   },
   downloadingContainer: {
     alignItems: 'center',
   },
   downloadingText: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: Math.max(14, Math.min(16, screenWidth * 0.04)),
     fontWeight: '600',
-    marginTop: 5,
+    marginTop: Math.max(5, screenHeight * 0.006),
   },
   editButton: {
-    flexDirection: 'row',
+    paddingVertical: Math.max(responsiveSpacing.sm, screenHeight * 0.015),
+    paddingHorizontal: Math.max(responsiveSpacing.md, screenWidth * 0.05),
+    borderRadius: Math.max(responsiveSpacing.sm, screenWidth * 0.025),
+    backgroundColor: '#f8f9fa',
+    borderWidth: 2,
+    borderColor: '#e9ecef',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ffffff',
-    marginHorizontal: 20,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    minHeight: 48,
+    minHeight: Math.max(48, screenHeight * 0.06),
   },
   editButtonText: {
-    color: '#667eea',
-    fontSize: Math.max(14, Math.min(18, screenWidth * 0.04)),
+    color: '#666666',
+    fontSize: Math.max(responsiveFontSize.sm, Math.min(16, screenWidth * 0.04)),
     fontWeight: '600',
-    marginLeft: 8,
   },
   modalOverlay: {
     flex: 1,
@@ -597,49 +701,81 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#ffffff',
-    borderRadius: 15,
-    padding: 25,
-    width: '80%',
-    maxWidth: 400,
+    borderRadius: 20,
+    padding: 30,
+    width: '85%',
+    maxWidth: 420,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.1)',
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '700',
     textAlign: 'center',
-    marginBottom: 15,
+    marginBottom: 16,
     color: '#333333',
+    letterSpacing: 0.3,
   },
   modalMessage: {
     fontSize: 16,
     textAlign: 'center',
-    marginBottom: 25,
+    marginBottom: 28,
     color: '#666666',
-    lineHeight: 22,
+    lineHeight: 24,
+    fontWeight: '500',
   },
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-around',
   },
   modalButton: {
-    paddingHorizontal: 25,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#cccccc',
-    minWidth: 100,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#e0e0e0',
+    minWidth: 110,
+    minHeight: 44,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   modalButtonPrimary: {
     backgroundColor: '#667eea',
     borderColor: '#667eea',
+    shadowColor: '#667eea',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 5,
   },
   modalButtonText: {
     fontSize: 16,
     textAlign: 'center',
     color: '#666666',
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
   modalButtonTextPrimary: {
     color: '#ffffff',
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });
 

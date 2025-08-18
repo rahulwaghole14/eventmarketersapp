@@ -113,12 +113,14 @@ android {
         }
     }
     
-    // Disable CMake to avoid build issues
+    // Packaging options to avoid duplicate native libs while allowing FFmpeg's C++ runtime
     packagingOptions {
         pickFirst '**/libc++_shared.so'
         pickFirst '**/libjsc.so'
-        exclude '**/libc++_shared.so'
-        exclude '**/libjsc.so'
+        // Do not exclude libc++_shared.so, required by ffmpeg-kit-react-native
+        // exclude '**/libc++_shared.so'
+        // Keep jsc excluded if using Hermes, but it's already pickFirst'ed to avoid conflicts
+        // exclude '**/libjsc.so'
         exclude '**/libreactnativejni.so'
         exclude '**/libhermes.so'
     }
@@ -140,4 +142,6 @@ dependencies {
     implementation('com.facebook.react:react-native:+') {
         exclude group: 'com.yqritc', module: 'android-scalablevideoview'
     }
+
+
 }

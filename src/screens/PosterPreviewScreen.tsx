@@ -10,7 +10,6 @@ import {
   Image,
   Platform,
   ToastAndroid,
-  Modal,
   Share,
   PermissionsAndroid,
 } from 'react-native';
@@ -21,6 +20,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import axios from 'axios';
 import RNFS from 'react-native-fs';
 import { CameraRoll } from '@react-native-camera-roll/camera-roll';
+import downloadedPostersService from '../services/downloadedPosters';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -117,8 +117,6 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [imageLoadError, setImageLoadError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
-  const [showActionModal, setShowActionModal] = useState(false);
-  const [actionType, setActionType] = useState<'share' | 'download' | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Debug safe area values
@@ -330,40 +328,40 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
        });
        
        console.log('Image saved to gallery successfully');
+       
+       // Save poster information to local storage
+       try {
+         await downloadedPostersService.savePosterInfo({
+           title: selectedImage.title || 'Custom Poster',
+           description: selectedImage.description || 'Event poster created with EventMarketers',
+           imageUri: capturedImageUri,
+           templateId: selectedTemplateId,
+           category: selectedImage.title?.toLowerCase().includes('event') ? 'Events' : 'General',
+           tags: ['poster', 'event', 'marketing'],
+           size: {
+             width: canvasWidth || 1080,
+             height: canvasHeight || 1920,
+           },
+         });
+         console.log('Poster information saved successfully');
+       } catch (error) {
+         console.error('Error saving poster information:', error);
+         // Don't fail the download if poster info saving fails
+       }
+       
        console.log('=== DOWNLOAD DEBUG END ===');
 
-       // Show success message
+       // Show simple success message
        if (Platform.OS === 'android') {
          ToastAndroid.show(
            'Poster saved to gallery!', 
            ToastAndroid.LONG
          );
-         
-         Alert.alert(
-           'Download Successful!', 
-           'Poster has been saved to your device gallery!\n\nYou can find it in your Photos app.',
-           [
-             {
-               text: 'Open Gallery',
-               onPress: () => {
-                 // Try to open gallery using Share API
-                 Share.share({
-                   url: 'content://media/external/images/media',
-                   title: 'Gallery',
-                   message: 'Open your gallery to view the saved poster',
-                 });
-               }
-             },
-             {
-               text: 'OK',
-               style: 'cancel'
-             }
-           ]
-         );
        } else {
+         // For iOS, we'll use a simple alert with just OK button
          Alert.alert(
            'Success!', 
-           'Poster has been saved to your device gallery!\n\nYou can find it in your Photos app.',
+           'Poster has been saved to your device gallery!',
            [
              {
                text: 'OK',
@@ -398,31 +396,6 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
        setIsProcessing(false);
      }
    };
-
-  // Handle action button press
-  const handleActionPress = (type: 'share' | 'download') => {
-    setActionType(type);
-    setShowActionModal(true);
-  };
-
-  // Confirm action
-  const confirmAction = async () => {
-    setShowActionModal(false);
-    
-    if (actionType === 'share') {
-      await sharePoster();
-    } else if (actionType === 'download') {
-      await downloadPoster();
-    }
-    
-    setActionType(null);
-  };
-
-  // Cancel action
-  const cancelAction = () => {
-    setShowActionModal(false);
-    setActionType(null);
-  };
 
   return (
     <View style={styles.container}>
@@ -523,7 +496,7 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
         <View style={styles.actionButtons}>
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => handleActionPress('share')}
+            onPress={sharePoster}
             disabled={isProcessing}
           >
             <LinearGradient
@@ -539,7 +512,7 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
           
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => handleActionPress('download')}
+            onPress={downloadPoster}
             disabled={isProcessing}
           >
             <LinearGradient
@@ -561,54 +534,6 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
           <Text style={styles.editButtonText}>Back to Editor</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Action Confirmation Modal */}
-      <Modal
-        visible={showActionModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={cancelAction}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Icon 
-                name={actionType === 'share' ? 'share' : 'download'} 
-                size={32} 
-                color="#667eea" 
-              />
-              <Text style={styles.modalTitle}>
-                {actionType === 'share' ? 'Share Poster' : 'Download Poster'}
-              </Text>
-            </View>
-            
-                                                   <Text style={styles.modalMessage}>
-                {actionType === 'share' 
-                  ? 'Share your poster with friends and on social media?'
-                  : 'Save this poster to your device gallery?'
-                }
-              </Text>
-            
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.modalButtonCancel}
-                onPress={cancelAction}
-              >
-                                 <Text style={styles.modalButtonCancelText} numberOfLines={1}>Cancel</Text>
-              </TouchableOpacity>
-              
-                             <TouchableOpacity
-                 style={styles.modalButtonConfirm}
-                 onPress={confirmAction}
-               >
-                                   <Text style={styles.modalButtonConfirmText} numberOfLines={1}>
-                    {actionType === 'share' ? 'Share' : 'Download'}
-                  </Text>
-               </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
       
              
     </View>
@@ -979,104 +904,6 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.sm,
     fontWeight: '600',
   },
-  // Modal Styles
-                       modalOverlay: {
-       flex: 1,
-       backgroundColor: 'rgba(0, 0, 0, 0.6)',
-       justifyContent: 'center',
-       alignItems: 'center',
-       paddingHorizontal: responsiveSpacing.md,
-     },
-                               modalContainer: {
-        backgroundColor: '#ffffff',
-        borderRadius: 20,
-        padding: responsiveSpacing.xl,
-        margin: responsiveSpacing.md,
-        width: Math.min(screenWidth - (responsiveSpacing.md * 2), isSmallScreen ? 320 : isMediumScreen ? 380 : 420),
-        maxWidth: isLargeScreen ? 480 : 420,
-        alignSelf: 'center',
-        shadowColor: '#000',
-        shadowOffset: {
-          width: 0,
-          height: 15,
-        },
-        shadowOpacity: 0.3,
-        shadowRadius: 25,
-        elevation: 20,
-        minHeight: isSmallScreen ? 240 : 260,
-        borderWidth: 1,
-        borderColor: 'rgba(0, 0, 0, 0.05)',
-      },
-     modalHeader: {
-     alignItems: 'center',
-     marginBottom: responsiveSpacing.lg,
-     paddingBottom: responsiveSpacing.md,
-     borderBottomWidth: 1,
-     borderBottomColor: 'rgba(0, 0, 0, 0.08)',
-   },
-           modalTitle: {
-      fontSize: responsiveFontSize.xxl,
-      fontWeight: '800',
-      color: '#1a1a1a',
-      marginTop: responsiveSpacing.md,
-      textAlign: 'center',
-      paddingHorizontal: responsiveSpacing.sm,
-      letterSpacing: -0.5,
-    },
-       modalMessage: {
-      fontSize: responsiveFontSize.md,
-      color: '#4a4a4a',
-      textAlign: 'center',
-      lineHeight: isSmallScreen ? 22 : 24,
-      marginBottom: responsiveSpacing.xl,
-      paddingHorizontal: responsiveSpacing.sm,
-      fontWeight: '400',
-    },
-                                                                                                                                                                                               modalButtons: {
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          marginTop: responsiveSpacing.lg,
-          width: '100%',
-          gap: responsiveSpacing.md,
-        },
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               modalButtonCancel: {
-             flex: 1,
-             paddingVertical: 12,
-             paddingHorizontal: 20,
-             borderRadius: 8,
-             backgroundColor: '#ffffff',
-             borderWidth: 1,
-             borderColor: '#cccccc',
-             alignItems: 'center',
-             justifyContent: 'center',
-             minHeight: 50,
-             height: 50,
-           },
-                                                                                               modalButtonCancelText: {
-         color: '#000000',
-         fontSize: 16,
-         fontWeight: 'bold',
-         textAlign: 'center',
-       },
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               modalButtonConfirm: {
-               flex: 1,
-               paddingVertical: 12,
-               paddingHorizontal: 20,
-               borderRadius: 8,
-               backgroundColor: '#007bff',
-               borderWidth: 1,
-               borderColor: '#0056b3',
-               alignItems: 'center',
-               justifyContent: 'center',
-               minHeight: 50,
-               height: 50,
-             },
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               modalButtonConfirmText: {
-             color: '#ffffff',
-             fontSize: 16,
-             fontWeight: 'bold',
-             textAlign: 'center',
-           },
 });
 
 export default PosterPreviewScreen;

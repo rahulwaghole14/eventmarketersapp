@@ -36,6 +36,7 @@ import Watermark from '../components/Watermark';
 import videoProcessingService, { VideoLayer } from '../services/videoProcessingService';
 import { useTheme } from '../context/ThemeContext';
 import ViewShot from 'react-native-view-shot';
+import VideoProcessor from '../components/VideoProcessor';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -92,6 +93,8 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   const videoRef = useRef<any>(null);
   const visibleVideoRef = useRef<any>(null);
   const canvasRef = useRef<ViewShot>(null);
+  const overlaysRef = useRef<ViewShot>(null);
+  const [overlayImageUri, setOverlayImageUri] = useState<string | null>(null);
 
   // State for video layers
   const [layers, setLayers] = useState<VideoLayer[]>([]);
@@ -113,6 +116,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   const [isCapturing, setIsCapturing] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingProgress, setProcessingProgress] = useState(0);
+  const [showVideoProcessor, setShowVideoProcessor] = useState(false);
 
   // Business profiles
   const [businessProfiles, setBusinessProfiles] = useState<BusinessProfile[]>([]);
@@ -849,67 +853,51 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
       return;
     }
 
+    // Capture overlays-only transparent PNG for processing
     try {
-      setIsProcessing(true);
-      setProcessingProgress(0);
-
-      // Request storage permission
-      const hasPermission = await videoProcessingService.requestStoragePermission();
-      if (!hasPermission) {
-        Alert.alert('Permission Required', 'Storage permission is required to process videos.');
-        setIsProcessing(false);
-        return;
-      }
-
-      setProcessingProgress(25);
-
-      // Capture the canvas with overlays
-      let canvasImageUri = null;
-      if (canvasRef.current && canvasRef.current.capture) {
-        try {
-          canvasImageUri = await canvasRef.current.capture();
-          console.log('Canvas captured:', canvasImageUri);
-        } catch (captureError) {
-          console.error('Failed to capture canvas:', captureError);
+      if (overlaysRef.current && (overlaysRef.current as any).capture) {
+        const uri = await (overlaysRef.current as any).capture?.();
+        if (uri) {
+          setOverlayImageUri(uri);
+          console.log('Overlay PNG captured at:', uri);
         }
       }
-      
-      // Process video with overlays
-      const processedVideoPath = await videoProcessingService.processVideoWithOverlays(
-        selectedVideo.uri,
-        layers,
-        { 
-          addWatermark: !isSubscribed,
-          canvasImage: canvasImageUri || undefined
-        }
-      );
-
-      setProcessingProgress(75);
-
-      // Navigate to video preview screen with processed video and layer data
-      navigation.navigate('VideoPreview', {
-        selectedVideo: {
-          ...selectedVideo,
-          uri: processedVideoPath, // Use processed video path
-        },
-        selectedLanguage,
-        selectedTemplateId,
-        layers, // Pass layers for rendering in preview
-        selectedProfile,
-        canvasData: {
-          width: videoCanvasWidth,
-          height: videoCanvasHeight,
-          layers: layers,
-        },
-      });
-
-      setProcessingProgress(100);
-      setIsProcessing(false);
-    } catch (error) {
-      console.error('Video processing error:', error);
-      Alert.alert('Processing Error', 'Failed to process video. Please try again.');
-      setIsProcessing(false);
+    } catch (e) {
+      console.warn('Overlay capture failed, continuing without overlay PNG', e);
+      setOverlayImageUri(null);
     }
+
+    // Show the video processor modal
+    setShowVideoProcessor(true);
+  };
+
+  const handleVideoProcessingComplete = (processedVideoPath: string) => {
+    console.log('Video processing completed. Processed video path:', processedVideoPath);
+
+    // Navigate to video preview screen with processed video and layer data
+    navigation.navigate('VideoPreview', {
+      selectedVideo: {
+        ...selectedVideo,
+        uri: processedVideoPath, // Use processed video path
+      },
+      selectedLanguage,
+      selectedTemplateId,
+      layers, // Pass layers for rendering in preview
+      selectedProfile,
+      processedVideoPath: processedVideoPath, // Pass the processed video path
+      canvasData: {
+        width: videoCanvasWidth,
+        height: videoCanvasHeight,
+        layers: layers,
+      },
+    });
+
+    // Close the video processor modal
+    setShowVideoProcessor(false);
+  };
+
+  const handleVideoProcessingClose = () => {
+    setShowVideoProcessor(false);
   };
 
   // Render functions
@@ -1090,8 +1078,22 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
 
 
           
-          {/* Watermark */}
-          {isCapturing && <Watermark isSubscribed={isSubscribed} />}
+          {/* Overlays-only transparent PNG capture */}
+          <View style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }} pointerEvents="none">
+            <ViewShot
+              ref={overlaysRef}
+              style={{ flex: 1, backgroundColor: 'transparent' }}
+              options={{ format: 'png', quality: 1, result: 'tmpfile', width: videoCanvasWidth, height: videoCanvasHeight }}
+            >
+              <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+                {layers.map(l => {
+                  if (l.fieldType && !visibleFields[l.fieldType]) return null;
+                  return renderLayer(l);
+                })}
+                {isCapturing && <Watermark isSubscribed={isSubscribed} />}
+              </View>
+            </ViewShot>
+          </View>
 
           {/* Processing Overlay */}
           {isProcessing && (
@@ -1536,6 +1538,22 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
           </View>
         </View>
       </Modal>
+
+             {/* Video Processor Modal */}
+       <VideoProcessor
+         visible={showVideoProcessor}
+         onComplete={handleVideoProcessingComplete}
+         onClose={handleVideoProcessingClose}
+         layers={layers}
+         selectedVideoUri={selectedVideo.uri}
+         selectedLanguage={selectedLanguage}
+         selectedTemplateId={selectedTemplateId}
+         selectedProfile={selectedProfile}
+         videoCanvasWidth={videoCanvasWidth}
+         videoCanvasHeight={videoCanvasHeight}
+         isSubscribed={isSubscribed}
+         overlayImageUri={overlayImageUri || undefined}
+       />
     </View>
   );
 };
@@ -2025,3 +2043,4 @@ const styles = StyleSheet.create({
 });
 
 export default VideoEditorScreen;
+

@@ -48,7 +48,7 @@ const responsiveFontSize = {
 const SubscriptionScreen: React.FC = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const { isSubscribed, setIsSubscribed } = useSubscription();
+  const { isSubscribed, setIsSubscribed, addTransaction, transactionStats } = useSubscription();
   const { theme } = useTheme();
   
   const [isProcessing, setIsProcessing] = useState(false);
@@ -120,6 +120,24 @@ const SubscriptionScreen: React.FC = () => {
         
         console.log('Demo payment success:', mockResponse);
         
+        // Record transaction
+        await addTransaction({
+          paymentId: mockResponse.razorpay_payment_id,
+          orderId: mockResponse.razorpay_order_id,
+          amount: selectedPlan === 'monthly' ? 299 : 1999,
+          currency: 'INR',
+          status: 'success',
+          plan: selectedPlan,
+          planName: currentPlan.name,
+          description: `${currentPlan.name} Subscription`,
+          method: 'demo',
+          metadata: {
+            email: 'user@example.com',
+            contact: '9999999999',
+            name: 'Demo User',
+          },
+        });
+        
         // Update subscription status
         await updateSubscriptionStatus(mockResponse.razorpay_payment_id);
         
@@ -151,6 +169,24 @@ const SubscriptionScreen: React.FC = () => {
         handler: async (response: any) => {
           console.log('Payment success:', response);
           
+          // Record transaction
+          await addTransaction({
+            paymentId: response.razorpay_payment_id,
+            orderId: response.razorpay_order_id,
+            amount: selectedPlan === 'monthly' ? 299 : 1999,
+            currency: 'INR',
+            status: 'success',
+            plan: selectedPlan,
+            planName: currentPlan.name,
+            description: `${currentPlan.name} Subscription`,
+            method: 'razorpay',
+            metadata: {
+              email: 'user@example.com',
+              contact: '9999999999',
+              name: 'User Name',
+            },
+          });
+          
           // Call your backend to verify payment and update subscription
           await updateSubscriptionStatus(response.razorpay_payment_id);
           
@@ -174,6 +210,28 @@ const SubscriptionScreen: React.FC = () => {
       console.log('Payment data:', data);
     } catch (error: any) {
       console.error('Payment error:', error);
+      
+      // Record failed transaction
+      try {
+        await addTransaction({
+          paymentId: 'pay_failed_' + Date.now(),
+          orderId: 'order_failed_' + Date.now(),
+          amount: selectedPlan === 'monthly' ? 299 : 1999,
+          currency: 'INR',
+          status: 'failed',
+          plan: selectedPlan,
+          planName: currentPlan.name,
+          description: `${currentPlan.name} Subscription - Failed`,
+          method: 'razorpay',
+          metadata: {
+            email: 'user@example.com',
+            contact: '9999999999',
+            name: 'User Name',
+          },
+        });
+      } catch (txnError) {
+        console.error('Error recording failed transaction:', txnError);
+      }
       
       if (error.code === 'PAYMENT_CANCELLED') {
         Alert.alert('Payment Cancelled', 'Payment was cancelled by user.');
@@ -416,6 +474,18 @@ const SubscriptionScreen: React.FC = () => {
             By upgrading, you agree to our Terms of Service and Privacy Policy
           </Text>
         )}
+        
+        {/* Transaction History Button */}
+        <TouchableOpacity
+          style={[styles.transactionHistoryButton, { backgroundColor: theme.colors.inputBackground }]}
+          onPress={() => navigation.navigate('TransactionHistory' as never)}
+        >
+          <Icon name="receipt-long" size={20} color={theme.colors.text} />
+          <Text style={[styles.transactionHistoryButtonText, { color: theme.colors.text }]}>
+            View Transaction History ({transactionStats.total})
+          </Text>
+          <Icon name="chevron-right" size={20} color={theme.colors.textSecondary} />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -690,6 +760,21 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.xs,
     textAlign: 'center',
     lineHeight: 16,
+  },
+  transactionHistoryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: responsiveSpacing.md,
+    paddingVertical: responsiveSpacing.sm,
+    borderRadius: responsiveSpacing.md,
+    marginTop: responsiveSpacing.sm,
+  },
+  transactionHistoryButtonText: {
+    fontSize: responsiveFontSize.sm,
+    fontWeight: '600',
+    flex: 1,
+    marginLeft: responsiveSpacing.sm,
   },
 });
 

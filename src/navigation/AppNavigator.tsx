@@ -48,6 +48,10 @@ export type MainStackParamList = {
     selectedLanguage: string;
     selectedTemplateId: string;
   };
+  VideoPlayer: {
+    selectedVideo: any;
+    relatedVideos: any[];
+  };
   VideoPreview: {
     selectedVideo: {
       uri: string;
@@ -58,6 +62,7 @@ export type MainStackParamList = {
     selectedTemplateId: string;
     layers: any[];
     selectedProfile?: any;
+    processedVideoPath?: string;
     canvasData?: {
       width: number;
       height: number;
@@ -67,11 +72,19 @@ export type MainStackParamList = {
   BusinessProfiles: undefined;
   Events: undefined;
   Subscription: undefined;
+  TransactionHistory: undefined;
+  GreetingTemplates: undefined;
+  GreetingEditor: {
+    template: any;
+  };
+  MyPosters: undefined;
+  LikedItems: undefined;
 };
 
 export type TabParamList = {
   Home: undefined;
   Templates: undefined;
+  Greetings: undefined;
   Profile: undefined;
 };
 
@@ -89,8 +102,14 @@ import TemplateGalleryScreen from '../screens/TemplateGalleryScreen';
 import PosterEditorScreen from '../screens/PosterEditorScreen';
 import PosterPreviewScreen from '../screens/PosterPreviewScreen';
 import VideoEditorScreen from '../screens/VideoEditorScreen';
+import VideoPlayerScreen from '../screens/VideoPlayerScreen';
 import VideoPreviewScreen from '../screens/VideoPreviewScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
+import TransactionHistoryScreen from '../screens/TransactionHistoryScreen';
+import GreetingTemplatesScreen from '../screens/GreetingTemplatesScreen';
+import GreetingEditorScreen from '../screens/GreetingEditorScreen';
+import MyPostersScreen from '../screens/MyPostersScreen';
+import LikedItemsScreen from '../screens/LikedItemsScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const MainStack = createStackNavigator<MainStackParamList>();
@@ -123,6 +142,11 @@ const TabNavigator = () => {
         options={{ headerShown: false }}
       />
       <MainStack.Screen 
+        name="VideoPlayer" 
+        component={VideoPlayerScreen}
+        options={{ headerShown: false }}
+      />
+      <MainStack.Screen 
         name="VideoPreview" 
         component={VideoPreviewScreen}
         options={{ headerShown: false }}
@@ -140,6 +164,31 @@ const TabNavigator = () => {
       <MainStack.Screen 
         name="Subscription" 
         component={SubscriptionScreen}
+        options={{ headerShown: false }}
+      />
+      <MainStack.Screen 
+        name="TransactionHistory" 
+        component={TransactionHistoryScreen}
+        options={{ headerShown: false }}
+      />
+      <MainStack.Screen 
+        name="GreetingTemplates" 
+        component={GreetingTemplatesScreen}
+        options={{ headerShown: false }}
+      />
+      <MainStack.Screen 
+        name="GreetingEditor" 
+        component={GreetingEditorScreen}
+        options={{ headerShown: false }}
+      />
+      <MainStack.Screen 
+        name="MyPosters" 
+        component={MyPostersScreen}
+        options={{ headerShown: false }}
+      />
+      <MainStack.Screen 
+        name="LikedItems" 
+        component={LikedItemsScreen}
         options={{ headerShown: false }}
       />
     </MainStack.Navigator>
@@ -201,6 +250,16 @@ const MainTabNavigator = () => {
           title: 'Templates',
           tabBarIcon: ({ color, size }) => (
             <Icon name="dashboard" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen 
+        name="Greetings" 
+        component={GreetingTemplatesScreen}
+        options={{
+          title: 'Greetings',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="celebration" size={size} color={color} />
           ),
         }}
       />

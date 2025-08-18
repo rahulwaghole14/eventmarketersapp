@@ -17,6 +17,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../context/ThemeContext';
 import authService from '../services/auth';
+import responsiveUtils, { 
+  responsiveSpacing, 
+  responsiveFontSize, 
+  responsiveSize, 
+  responsiveLayout, 
+  responsiveShadow, 
+  responsiveText, 
+  responsiveGrid, 
+  responsiveButton, 
+  responsiveInput, 
+  responsiveCard,
+  isTablet,
+  isLandscape 
+} from '../utils/responsiveUtils';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -322,28 +336,21 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: screenWidth * 0.04,
-    paddingVertical: screenHeight * 0.015,
-    fontSize: Math.min(screenWidth * 0.04, 16),
+    borderRadius: responsiveSize.inputBorderRadius,
+    paddingHorizontal: responsiveSize.inputPaddingHorizontal,
+    paddingVertical: responsiveSize.buttonPaddingVertical,
+    fontSize: responsiveText.body,
     fontWeight: '500',
   },
   inputFocused: {
     borderWidth: 2,
   },
   signInButton: {
-    borderRadius: 12,
-    paddingVertical: screenHeight * 0.015,
+    borderRadius: responsiveSize.buttonBorderRadius,
+    paddingVertical: responsiveSize.buttonPaddingVertical,
     alignItems: 'center',
-    marginBottom: screenHeight * 0.015,
-    shadowColor: '#667eea',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    marginBottom: Math.max(responsiveSpacing.md, screenHeight * 0.015),
+    ...responsiveShadow.large,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -353,21 +360,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   googleButton: {
-    borderRadius: 12,
-    paddingVertical: screenHeight * 0.015,
+    borderRadius: responsiveSize.buttonBorderRadius,
+    paddingVertical: responsiveSize.buttonPaddingVertical,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: screenHeight * 0.015,
+    marginBottom: Math.max(responsiveSpacing.md, screenHeight * 0.015),
     borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...responsiveShadow.medium,
   },
   googleIcon: {
     width: 20,

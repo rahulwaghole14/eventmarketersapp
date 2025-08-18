@@ -12,14 +12,16 @@ import {
   Animated,
   Modal,
   TextInput,
+  Share,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import authService from '../services/auth';
 import { useTheme } from '../context/ThemeContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import downloadedPostersService from '../services/downloadedPosters';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -48,6 +50,7 @@ const responsiveFontSize = {
 };
 
 const ProfileScreen: React.FC = () => {
+  const currentUser = authService.getCurrentUser();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [editDisplayName, setEditDisplayName] = useState(currentUser?.displayName || '');
@@ -55,11 +58,11 @@ const ProfileScreen: React.FC = () => {
   const [editPhone, setEditPhone] = useState(currentUser?.phoneNumber || '');
   const [editBio, setEditBio] = useState(currentUser?.bio || '');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [posterStats, setPosterStats] = useState({ total: 0, recentCount: 0 });
   const { isDarkMode, toggleDarkMode, theme } = useTheme();
-  const { isSubscribed } = useSubscription();
+  const { isSubscribed, transactionStats } = useSubscription();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const currentUser = authService.getCurrentUser();
 
   // Animation values for toggles
   const notificationsAnimation = useRef(new Animated.Value(notificationsEnabled ? 1 : 0)).current;
@@ -73,6 +76,25 @@ const ProfileScreen: React.FC = () => {
   useEffect(() => {
     darkModeAnimation.setValue(isDarkMode ? 1 : 0);
   }, [isDarkMode]);
+
+  // Load poster stats when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadPosterStats = async () => {
+        try {
+          const stats = await downloadedPostersService.getPosterStats();
+          setPosterStats({
+            total: stats.total,
+            recentCount: stats.recentCount,
+          });
+        } catch (error) {
+          console.error('Error loading poster stats:', error);
+        }
+      };
+
+      loadPosterStats();
+    }, [])
+  );
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -133,6 +155,31 @@ const ProfileScreen: React.FC = () => {
 
   const handleSubscription = () => {
     navigation.navigate('Subscription' as never);
+  };
+
+  const handleTransactionHistory = () => {
+    navigation.navigate('TransactionHistory' as never);
+  };
+
+  const handleMyPosters = () => {
+    navigation.navigate('MyPosters' as never);
+  };
+
+  const handleLikedItems = () => {
+    navigation.navigate('LikedItems' as never);
+  };
+
+  const handleShareApp = async () => {
+    try {
+      await Share.share({
+        message: 'Check out EventMarketers - Create amazing event posters and marketing materials! Download now and start creating professional posters for your events.',
+        title: 'EventMarketers - Event Poster Creator',
+        url: 'https://eventmarketers.app', // Replace with actual app store URL
+      });
+    } catch (error) {
+      console.error('Error sharing app:', error);
+      Alert.alert('Error', 'Failed to share app');
+    }
   };
 
   const handleEditProfile = () => {
@@ -298,13 +345,13 @@ const ProfileScreen: React.FC = () => {
                   </View>
                   <View style={[styles.statDivider, { backgroundColor: theme.colors.border }]} />
                   <View style={styles.statItem}>
-                    <Text style={[styles.statNumber, { color: theme.colors.primary }]}>156</Text>
+                    <Text style={[styles.statNumber, { color: theme.colors.primary }]}>{posterStats.total}</Text>
                     <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Downloads</Text>
                   </View>
                   <View style={[styles.statDivider, { backgroundColor: theme.colors.border }]} />
                   <View style={styles.statItem}>
-                    <Text style={[styles.statNumber, { color: theme.colors.primary }]}>89</Text>
-                    <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Likes</Text>
+                    <Text style={[styles.statNumber, { color: theme.colors.primary }]}>{posterStats.recentCount}</Text>
+                    <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Recent</Text>
                   </View>
                 </View>
               </View>
@@ -323,6 +370,58 @@ const ProfileScreen: React.FC = () => {
             <Text style={styles.sectionTitle}>Account Settings</Text>
             {renderMenuItem('business', 'Business Profiles', 'Manage your business profiles', handleBusinessProfiles)}
             {renderMenuItem('notifications', 'Notifications', 'Manage notification preferences', undefined, true, notificationsEnabled, handleNotificationToggle, notificationsAnimation)}
+          </View>
+
+          {/* My Posters Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>My Posters</Text>
+            <TouchableOpacity 
+              style={[styles.myPostersCard, { backgroundColor: theme.colors.cardBackground }]}
+              onPress={handleMyPosters}
+            >
+              <View style={styles.myPostersContent}>
+                <View style={styles.myPostersLeft}>
+                  <View style={[styles.myPostersIcon, { backgroundColor: `${theme.colors.primary}20` }]}>
+                    <Icon name="image" size={24} color={theme.colors.primary} />
+                  </View>
+                  <View style={styles.myPostersInfo}>
+                    <Text style={[styles.myPostersTitle, { color: theme.colors.text }]}>
+                      Downloaded Posters
+                    </Text>
+                    <Text style={[styles.myPostersSubtitle, { color: theme.colors.textSecondary }]}>
+                      {posterStats.total} posters • {posterStats.recentCount} recent
+                    </Text>
+                  </View>
+                </View>
+                <Icon name="chevron-right" size={24} color={theme.colors.textSecondary} />
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* Liked Items Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Liked Items</Text>
+            <TouchableOpacity 
+              style={[styles.likedItemsCard, { backgroundColor: theme.colors.cardBackground }]}
+              onPress={handleLikedItems}
+            >
+              <View style={styles.likedItemsContent}>
+                <View style={styles.likedItemsLeft}>
+                  <View style={[styles.likedItemsIcon, { backgroundColor: '#E74C3C20' }]}>
+                    <Icon name="favorite" size={24} color="#E74C3C" />
+                  </View>
+                  <View style={styles.likedItemsInfo}>
+                    <Text style={[styles.likedItemsTitle, { color: theme.colors.text }]}>
+                      Liked Content
+                    </Text>
+                    <Text style={[styles.likedItemsSubtitle, { color: theme.colors.textSecondary }]}>
+                      Posters • Videos • Templates • Greetings
+                    </Text>
+                  </View>
+                </View>
+                <Icon name="chevron-right" size={24} color={theme.colors.textSecondary} />
+              </View>
+            </TouchableOpacity>
           </View>
 
           {/* Subscription Section */}
@@ -353,6 +452,29 @@ const ProfileScreen: React.FC = () => {
                 <Icon name="chevron-right" size={24} color={theme.colors.textSecondary} />
               </View>
             </TouchableOpacity>
+            
+            {/* Transaction History Button */}
+            <TouchableOpacity 
+              style={[styles.transactionHistoryCard, { backgroundColor: theme.colors.cardBackground }]}
+              onPress={handleTransactionHistory}
+            >
+              <View style={styles.transactionHistoryContent}>
+                <View style={styles.transactionHistoryLeft}>
+                  <View style={[styles.transactionHistoryIcon, { backgroundColor: '#667eea20' }]}>
+                    <Icon name="receipt-long" size={24} color="#667eea" />
+                  </View>
+                  <View style={styles.transactionHistoryInfo}>
+                    <Text style={[styles.transactionHistoryTitle, { color: theme.colors.text }]}>
+                      Transaction History
+                    </Text>
+                    <Text style={[styles.transactionHistorySubtitle, { color: theme.colors.textSecondary }]}>
+                      {transactionStats.total} transactions • View payment history
+                    </Text>
+                  </View>
+                </View>
+                <Icon name="chevron-right" size={24} color={theme.colors.textSecondary} />
+              </View>
+            </TouchableOpacity>
           </View>
 
                      {/* App Settings */}
@@ -367,6 +489,32 @@ const ProfileScreen: React.FC = () => {
             {renderMenuItem('help', 'Help & Support', 'Get help and contact support', () => Alert.alert('Help', 'Help center will be implemented soon.'))}
             {renderMenuItem('privacy-tip', 'Privacy Policy', 'Read our privacy policy', () => Alert.alert('Privacy Policy', 'Privacy policy will be implemented soon.'))}
             {renderMenuItem('info', 'About App', 'Version 1.0.0', () => Alert.alert('About', 'About app information will be implemented soon.'))}
+          </View>
+
+          {/* Share App Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Share & Support</Text>
+            <TouchableOpacity 
+              style={[styles.shareAppCard, { backgroundColor: theme.colors.cardBackground }]}
+              onPress={handleShareApp}
+            >
+              <View style={styles.shareAppContent}>
+                <View style={styles.shareAppLeft}>
+                  <View style={[styles.shareAppIcon, { backgroundColor: `${theme.colors.primary}20` }]}>
+                    <Icon name="share" size={24} color={theme.colors.primary} />
+                  </View>
+                  <View style={styles.shareAppInfo}>
+                    <Text style={[styles.shareAppTitle, { color: theme.colors.text }]}>
+                      Share EventMarketers
+                    </Text>
+                    <Text style={[styles.shareAppSubtitle, { color: theme.colors.textSecondary }]}>
+                      Help others discover amazing event posters
+                    </Text>
+                  </View>
+                </View>
+                <Icon name="chevron-right" size={24} color={theme.colors.textSecondary} />
+              </View>
+            </TouchableOpacity>
           </View>
 
           {/* Sign Out Button */}
@@ -750,6 +898,186 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   subscriptionSubtitle: {
+    fontSize: Math.min(screenWidth * 0.03, 12),
+    marginTop: 2,
+  },
+  // Transaction History Section Styles
+  transactionHistoryCard: {
+    marginHorizontal: screenWidth * 0.05,
+    marginBottom: screenHeight * 0.01,
+    paddingVertical: screenHeight * 0.015,
+    paddingHorizontal: screenWidth * 0.05,
+    borderRadius: 15,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  transactionHistoryContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  transactionHistoryLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  transactionHistoryIcon: {
+    width: screenWidth * 0.08,
+    height: screenWidth * 0.08,
+    borderRadius: screenWidth * 0.04,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: screenWidth * 0.04,
+  },
+  transactionHistoryInfo: {
+    flex: 1,
+  },
+  transactionHistoryTitle: {
+    fontSize: Math.min(screenWidth * 0.04, 16),
+    fontWeight: '600',
+  },
+  transactionHistorySubtitle: {
+    fontSize: Math.min(screenWidth * 0.03, 12),
+    marginTop: 2,
+  },
+  // My Posters Section Styles
+  myPostersCard: {
+    marginHorizontal: screenWidth * 0.05,
+    marginBottom: screenHeight * 0.01,
+    paddingVertical: screenHeight * 0.015,
+    paddingHorizontal: screenWidth * 0.05,
+    borderRadius: 15,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  myPostersContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  myPostersLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  myPostersIcon: {
+    width: screenWidth * 0.08,
+    height: screenWidth * 0.08,
+    borderRadius: screenWidth * 0.04,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: screenWidth * 0.04,
+  },
+  myPostersInfo: {
+    flex: 1,
+  },
+  myPostersTitle: {
+    fontSize: Math.min(screenWidth * 0.04, 16),
+    fontWeight: '600',
+  },
+  myPostersSubtitle: {
+    fontSize: Math.min(screenWidth * 0.03, 12),
+    marginTop: 2,
+  },
+  // Liked Items Section Styles
+  likedItemsCard: {
+    marginHorizontal: screenWidth * 0.05,
+    marginBottom: screenHeight * 0.01,
+    paddingVertical: screenHeight * 0.015,
+    paddingHorizontal: screenWidth * 0.05,
+    borderRadius: 15,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  likedItemsContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  likedItemsLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  likedItemsIcon: {
+    width: screenWidth * 0.08,
+    height: screenWidth * 0.08,
+    borderRadius: screenWidth * 0.04,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: screenWidth * 0.04,
+  },
+  likedItemsInfo: {
+    flex: 1,
+  },
+  likedItemsTitle: {
+    fontSize: Math.min(screenWidth * 0.04, 16),
+    fontWeight: '600',
+  },
+  likedItemsSubtitle: {
+    fontSize: Math.min(screenWidth * 0.03, 12),
+    marginTop: 2,
+  },
+  // Share App Section Styles
+  shareAppCard: {
+    marginHorizontal: screenWidth * 0.05,
+    marginBottom: screenHeight * 0.01,
+    paddingVertical: screenHeight * 0.015,
+    paddingHorizontal: screenWidth * 0.05,
+    borderRadius: 15,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  shareAppContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  shareAppLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  shareAppIcon: {
+    width: screenWidth * 0.08,
+    height: screenWidth * 0.08,
+    borderRadius: screenWidth * 0.04,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: screenWidth * 0.04,
+  },
+  shareAppInfo: {
+    flex: 1,
+  },
+  shareAppTitle: {
+    fontSize: Math.min(screenWidth * 0.04, 16),
+    fontWeight: '600',
+  },
+  shareAppSubtitle: {
     fontSize: Math.min(screenWidth * 0.03, 12),
     marginTop: 2,
   },

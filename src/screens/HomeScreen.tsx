@@ -24,32 +24,24 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { MainStackParamList } from '../navigation/AppNavigator';
 import dashboardService, { Banner, Template, Category } from '../services/dashboard';
 import { useTheme } from '../context/ThemeContext';
+import responsiveUtils, { 
+  responsiveSpacing, 
+  responsiveFontSize, 
+  responsiveSize, 
+  responsiveLayout, 
+  responsiveShadow, 
+  responsiveText, 
+  responsiveGrid, 
+  responsiveButton, 
+  responsiveInput, 
+  responsiveCard,
+  isTablet,
+  isLandscape 
+} from '../utils/responsiveUtils';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-// Responsive design helpers
-const isSmallScreen = screenWidth < 375;
-const isMediumScreen = screenWidth >= 375 && screenWidth < 414;
-const isLargeScreen = screenWidth >= 414;
-
-// Responsive spacing and sizing
-const responsiveSpacing = {
-  xs: isSmallScreen ? 8 : isMediumScreen ? 12 : 16,
-  sm: isSmallScreen ? 12 : isMediumScreen ? 16 : 20,
-  md: isSmallScreen ? 16 : isMediumScreen ? 20 : 24,
-  lg: isSmallScreen ? 20 : isMediumScreen ? 24 : 32,
-  xl: isSmallScreen ? 24 : isMediumScreen ? 32 : 40,
-};
-
-const responsiveFontSize = {
-  xs: isSmallScreen ? 10 : isMediumScreen ? 12 : 14,
-  sm: isSmallScreen ? 12 : isMediumScreen ? 14 : 16,
-  md: isSmallScreen ? 14 : isMediumScreen ? 16 : 18,
-  lg: isSmallScreen ? 16 : isMediumScreen ? 18 : 20,
-  xl: isSmallScreen ? 18 : isMediumScreen ? 20 : 22,
-  xxl: isSmallScreen ? 20 : isMediumScreen ? 22 : 24,
-  xxxl: isSmallScreen ? 24 : isMediumScreen ? 28 : 32,
-};
+// Responsive design helpers - using imported utilities
 
 const HomeScreen: React.FC = React.memo(() => {
   const { isDarkMode, theme } = useTheme();
@@ -224,6 +216,7 @@ const HomeScreen: React.FC = React.memo(() => {
       fontSize: 16,
       fontWeight: '600' as const,
     },
+
     // Language Images Grid Styles
     languageImagesGrid: {
       flexDirection: 'row' as const,
@@ -287,7 +280,6 @@ const HomeScreen: React.FC = React.memo(() => {
   } | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<string>('');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
-  const [playingVideos, setPlayingVideos] = useState<Set<string>>(new Set());
 
   // Language options
   const languages = [
@@ -487,7 +479,7 @@ const HomeScreen: React.FC = React.memo(() => {
     },
   ], []);
 
-  // Separate video templates array with actual video URLs
+  // Separate video templates array with actual video URLs and language metadata
   const mockVideoTemplates: Template[] = useMemo(() => [
     {
       id: 'video-1',
@@ -499,6 +491,7 @@ const HomeScreen: React.FC = React.memo(() => {
       downloads: 156,
       isLiked: false,
       isDownloaded: false,
+      languages: ['english', 'hindi', 'marathi'],
     },
     {
       id: 'video-2',
@@ -510,6 +503,7 @@ const HomeScreen: React.FC = React.memo(() => {
       downloads: 123,
       isLiked: false,
       isDownloaded: false,
+      languages: ['english', 'hindi'],
     },
     {
       id: 'video-3',
@@ -521,6 +515,7 @@ const HomeScreen: React.FC = React.memo(() => {
       downloads: 98,
       isLiked: false,
       isDownloaded: false,
+      languages: ['english', 'marathi'],
     },
     {
       id: 'video-4',
@@ -532,6 +527,7 @@ const HomeScreen: React.FC = React.memo(() => {
       downloads: 87,
       isLiked: false,
       isDownloaded: false,
+      languages: ['english'],
     },
     {
       id: 'video-5',
@@ -543,6 +539,7 @@ const HomeScreen: React.FC = React.memo(() => {
       downloads: 201,
       isLiked: false,
       isDownloaded: false,
+      languages: ['hindi', 'marathi'],
     },
     {
       id: 'video-6',
@@ -554,6 +551,7 @@ const HomeScreen: React.FC = React.memo(() => {
       downloads: 134,
       isLiked: false,
       isDownloaded: false,
+      languages: ['hindi'],
     },
     {
       id: 'video-7',
@@ -565,6 +563,7 @@ const HomeScreen: React.FC = React.memo(() => {
       downloads: 167,
       isLiked: false,
       isDownloaded: false,
+      languages: ['marathi'],
     },
     {
       id: 'video-8',
@@ -576,6 +575,7 @@ const HomeScreen: React.FC = React.memo(() => {
       downloads: 98,
       isLiked: false,
       isDownloaded: false,
+      languages: ['hindi', 'marathi'],
     },
     {
       id: 'video-9',
@@ -587,6 +587,7 @@ const HomeScreen: React.FC = React.memo(() => {
       downloads: 76,
       isLiked: false,
       isDownloaded: false,
+      languages: ['english', 'hindi'],
     },
     {
       id: 'video-10',
@@ -1090,13 +1091,22 @@ const HomeScreen: React.FC = React.memo(() => {
     // Check if this is a video template
     const isVideoTemplate = template.id.startsWith('video-');
     
-    // Open image preview modal with selected data
-    openImagePreviewModal({
-      uri: isVideoTemplate && template.videoUrl ? template.videoUrl : template.thumbnail,
-      title: template.name,
-      description: template.category,
-    });
-  }, [openImagePreviewModal]);
+    if (isVideoTemplate) {
+      // Navigate to VideoPlayer screen for video templates
+      const related = mockVideoTemplates.filter(video => video.id !== template.id);
+      navigation.navigate('VideoPlayer', {
+        selectedVideo: template,
+        relatedVideos: related,
+      });
+    } else {
+      // Open image preview modal for regular templates
+      openImagePreviewModal({
+        uri: template.thumbnail,
+        title: template.name,
+        description: template.category,
+      });
+    }
+  }, [openImagePreviewModal, mockVideoTemplates, navigation]);
 
   const closeModal = useCallback(() => {
     setIsModalVisible(false);
@@ -1117,6 +1127,8 @@ const HomeScreen: React.FC = React.memo(() => {
     setSelectedLanguage('');
     setSelectedTemplateId('');
   }, []);
+
+
 
   const handleLanguageSelect = useCallback((languageId: string) => {
     setSelectedLanguage(languageId);
@@ -1207,7 +1219,7 @@ const HomeScreen: React.FC = React.memo(() => {
                  });
                }}
              >
-               <Text style={[styles.bannerButtonText, { color: theme.colors.primary }]}>EXPLORE</Text>
+               <Text style={[styles.bannerButtonText, { color: theme.colors.primary }]}>VIEW</Text>
              </TouchableOpacity>
            </View>
          </View>
@@ -1287,33 +1299,30 @@ const HomeScreen: React.FC = React.memo(() => {
             <Image source={{ uri: item.thumbnail }} style={styles.templateImage} />
             <View style={styles.templateActions}>
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: item.isLiked ? theme.colors.primary : theme.colors.cardBackground }]}
+                style={[
+                  styles.actionButton, 
+                  { backgroundColor: item.isLiked ? '#E74C3C' : 'rgba(255, 255, 255, 0.9)' }
+                ]}
                 onPress={(e) => {
                   e.stopPropagation();
                   handleLikeTemplate(item.id);
                 }}
               >
-                <Text style={[styles.actionButtonText, { color: item.isLiked ? '#ffffff' : theme.colors.text }]}>LIKE</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: item.isDownloaded ? theme.colors.primary : theme.colors.cardBackground }]}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleDownloadTemplate(item.id);
-                }}
-              >
-                <Text style={[styles.actionButtonText, { color: item.isDownloaded ? '#ffffff' : theme.colors.text }]}>DOWNLOAD</Text>
+                <Icon 
+                  name={item.isLiked ? "favorite" : "favorite-border"} 
+                  size={16} 
+                  color={item.isLiked ? '#FFFFFF' : '#E74C3C'} 
+                />
               </TouchableOpacity>
             </View>
           </View>
         </Animated.View>
       </TouchableOpacity>
     );
-  }, [handleLikeTemplate, handleDownloadTemplate, handleTemplatePress, theme]);
+  }, [handleLikeTemplate, handleTemplatePress, theme]);
 
   const renderVideoTemplate = useCallback(({ item }: { item: Template }) => {
     const scaleAnim = new Animated.Value(1);
-    const isPlaying = playingVideos.has(item.id);
 
     const handlePressIn = () => {
       Animated.timing(scaleAnim, {
@@ -1332,26 +1341,11 @@ const HomeScreen: React.FC = React.memo(() => {
     };
 
     const handleCardPress = () => {
+      // Open the video template
       handleTemplatePress(item);
     };
 
-    const handleVideoPress = (e: any) => {
-      e.stopPropagation();
-      setPlayingVideos(prev => {
-        const newSet = new Set(prev);
-        if (isPlaying) {
-          newSet.delete(item.id);
-        } else {
-          newSet.add(item.id);
-        }
-        return newSet;
-      });
-    };
 
-    const handleOpenModal = (e: any) => {
-      e.stopPropagation();
-      handleTemplatePress(item);
-    };
 
     return (
       <TouchableOpacity
@@ -1371,59 +1365,33 @@ const HomeScreen: React.FC = React.memo(() => {
           ]}
         >
           <View style={styles.templateImageContainer}>
-            {isPlaying && item.videoUrl ? (
-              <TouchableOpacity onPress={handleVideoPress} style={styles.videoContainer}>
-                <Video
-                  source={{ uri: item.videoUrl }}
-                  style={styles.videoPlayer}
-                  resizeMode="cover"
-                  repeat={true}
-                  paused={!isPlaying}
-                  muted={true}
-                />
-                <View style={styles.videoOverlay}>
-                  <Icon name="pause" size={24} color="#ffffff" />
-                </View>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity onPress={handleVideoPress} style={styles.videoContainer}>
-                <Image source={{ uri: item.thumbnail }} style={styles.templateImage} />
-                <View style={styles.videoPlayOverlay}>
-                  <Icon name="play-arrow" size={32} color="#ffffff" />
-                </View>
-              </TouchableOpacity>
-            )}
+            <Image source={{ uri: item.thumbnail }} style={styles.templateImage} />
+            <View style={styles.videoPlayOverlay}>
+              <Icon name="play-arrow" size={32} color="#ffffff" />
+            </View>
+          </View>
             <View style={styles.templateActions}>
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: item.isLiked ? theme.colors.primary : theme.colors.cardBackground }]}
+                style={[
+                  styles.actionButton, 
+                  { backgroundColor: item.isLiked ? '#E74C3C' : 'rgba(255, 255, 255, 0.9)' }
+                ]}
                 onPress={(e) => {
                   e.stopPropagation();
                   handleLikeTemplate(item.id);
                 }}
               >
-                <Text style={[styles.actionButtonText, { color: item.isLiked ? '#ffffff' : theme.colors.text }]}>LIKE</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: item.isDownloaded ? theme.colors.primary : theme.colors.cardBackground }]}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleDownloadTemplate(item.id);
-                }}
-              >
-                <Text style={[styles.actionButtonText, { color: item.isDownloaded ? '#ffffff' : theme.colors.text }]}>DOWNLOAD</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
-                onPress={handleOpenModal}
-              >
-                <Text style={[styles.actionButtonText, { color: '#ffffff' }]}>OPEN</Text>
+                <Icon 
+                  name={item.isLiked ? "favorite" : "favorite-border"} 
+                  size={16} 
+                  color={item.isLiked ? '#FFFFFF' : '#E74C3C'} 
+                />
               </TouchableOpacity>
             </View>
-          </View>
         </Animated.View>
       </TouchableOpacity>
     );
-  }, [handleLikeTemplate, handleDownloadTemplate, handleTemplatePress, theme, playingVideos]);
+  }, [handleLikeTemplate, handleTemplatePress, theme]);
 
   // Memoized key extractors
   const keyExtractor = useCallback((item: any) => item.id, []);
@@ -1463,8 +1431,8 @@ const HomeScreen: React.FC = React.memo(() => {
         <View style={[styles.header, { paddingTop: insets.top + responsiveSpacing.sm }]}>
           <View style={styles.headerTop}>
             <View style={styles.greeting}>
-              <Text style={styles.greetingText}>Welcome back</Text>
-              <Text style={styles.userName}>Event Marketer</Text>
+              <Text style={styles.greetingText}>Dashboard</Text>
+              <Text style={styles.userName}>Event Management</Text>
             </View>
           </View>
         </View>
@@ -1487,7 +1455,7 @@ const HomeScreen: React.FC = React.memo(() => {
               <Text style={[styles.searchIcon, { color: theme.colors.primary }]}>SEARCH</Text>
               <TextInput
                 style={[styles.searchInput, { color: theme.colors.text }]}
-                placeholder="Search event services..."
+                placeholder="Search templates and services..."
                 placeholderTextColor={theme.colors.textSecondary}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -1550,7 +1518,7 @@ const HomeScreen: React.FC = React.memo(() => {
 
           {/* Banner Carousel */}
           <View style={styles.bannerSection}>
-            <Text style={styles.sectionTitle}>Featured Banners</Text>
+            <Text style={styles.sectionTitle}>Featured Content</Text>
             <FlatList
               data={banners}
               renderItem={renderBanner}
@@ -1571,9 +1539,11 @@ const HomeScreen: React.FC = React.memo(() => {
                              <View style={styles.sectionHeader}>
                  <Text style={styles.sectionTitle}>Upcoming Events</Text>
                  <TouchableOpacity style={styles.viewAllButton} onPress={handleViewAllUpcomingEvents}>
-                   <Text style={styles.viewAllButtonText}>View All</Text>
+                   <Text style={styles.viewAllButtonText}>Browse All</Text>
                  </TouchableOpacity>
                </View>
+
+
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -1629,7 +1599,7 @@ const HomeScreen: React.FC = React.memo(() => {
 
           {/* Templates Grid */}
           <View style={styles.templatesSection}>
-            <Text style={styles.sectionTitle}>Event Services</Text>
+            <Text style={styles.sectionTitle}>Professional Templates</Text>
             <FlatList
               data={templates}
               renderItem={renderTemplate}
@@ -1648,7 +1618,7 @@ const HomeScreen: React.FC = React.memo(() => {
 
           {/* Video Section */}
           <View style={styles.videoSection}>
-            <Text style={styles.sectionTitle}>Video Templates</Text>
+            <Text style={styles.sectionTitle}>Video Content</Text>
             <FlatList
               data={mockVideoTemplates}
               renderItem={renderVideoTemplate}
@@ -1719,33 +1689,22 @@ const HomeScreen: React.FC = React.memo(() => {
                        <TouchableOpacity 
                          style={[
                            styles.modalActionButton, 
-                           { backgroundColor: selectedTemplate.isLiked ? theme.colors.primary : theme.colors.cardBackground }
+                           { backgroundColor: selectedTemplate.isLiked ? '#E74C3C' : theme.colors.cardBackground }
                          ]}
                          onPress={() => {
                            handleLikeTemplate(selectedTemplate.id);
                          }}
                        >
+                         <Icon 
+                           name={selectedTemplate.isLiked ? "favorite" : "favorite-border"} 
+                           size={20} 
+                           color={selectedTemplate.isLiked ? '#FFFFFF' : '#E74C3C'} 
+                         />
                          <Text style={[
                            styles.modalActionButtonText, 
-                           { color: selectedTemplate.isLiked ? '#ffffff' : theme.colors.text }
+                           { color: selectedTemplate.isLiked ? '#FFFFFF' : theme.colors.text, marginLeft: 8 }
                          ]}>
                            {selectedTemplate.isLiked ? 'LIKED' : 'LIKE'}
-                         </Text>
-                       </TouchableOpacity>
-                       <TouchableOpacity 
-                         style={[
-                           styles.modalActionButton, 
-                           { backgroundColor: selectedTemplate.isDownloaded ? theme.colors.primary : theme.colors.cardBackground }
-                         ]}
-                         onPress={() => {
-                           handleDownloadTemplate(selectedTemplate.id);
-                         }}
-                       >
-                         <Text style={[
-                           styles.modalActionButtonText, 
-                           { color: selectedTemplate.isDownloaded ? '#ffffff' : theme.colors.text }
-                         ]}>
-                           {selectedTemplate.isDownloaded ? 'DOWNLOADED' : 'DOWNLOAD'}
                          </Text>
                        </TouchableOpacity>
                      </View>
@@ -1772,8 +1731,8 @@ const HomeScreen: React.FC = React.memo(() => {
               >
                 <View style={styles.upcomingEventsModalHeader}>
                   <View style={styles.upcomingEventsModalTitleContainer}>
-                    <Text style={styles.upcomingEventsModalTitle}>All Upcoming Events</Text>
-                    <Text style={styles.upcomingEventsModalSubtitle}>Discover amazing events happening soon</Text>
+                    <Text style={styles.upcomingEventsModalTitle}>Upcoming Events</Text>
+                    <Text style={styles.upcomingEventsModalSubtitle}>Browse upcoming events and professional services</Text>
                   </View>
                   <TouchableOpacity 
                     style={styles.upcomingEventsCloseButton}
@@ -1992,6 +1951,8 @@ const HomeScreen: React.FC = React.memo(() => {
             </View>
           </View>
         </Modal>
+
+
       </SafeAreaView>
     );
   });
@@ -2319,13 +2280,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   actionButton: {
-    borderRadius: 12,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    marginLeft: 4,
+    borderRadius: responsiveSize.buttonBorderRadius,
+    paddingHorizontal: Math.max(6, screenWidth * 0.015),
+    paddingVertical: Math.max(4, screenHeight * 0.005),
+    marginLeft: Math.max(4, screenWidth * 0.01),
+    ...responsiveShadow.small,
   },
   actionButtonText: {
-    fontSize: Math.min(screenWidth * 0.025, 10),
+    fontSize: responsiveText.small,
     fontWeight: '600',
   },
   templateInfo: {
@@ -2440,15 +2402,16 @@ const styles = StyleSheet.create({
    },
    modalActions: {
      flexDirection: 'row',
-     justifyContent: 'space-between',
+     justifyContent: 'center',
      gap: screenWidth * 0.03,
    },
    modalActionButton: {
-     flex: 1,
-     paddingVertical: screenHeight * 0.015,
-     borderRadius: 15,
+     flexDirection: 'row',
      alignItems: 'center',
      justifyContent: 'center',
+     paddingVertical: screenHeight * 0.015,
+     paddingHorizontal: screenWidth * 0.04,
+     borderRadius: 15,
      shadowColor: '#000',
      shadowOffset: {
        width: 0,
@@ -2603,6 +2566,7 @@ const styles = StyleSheet.create({
       color: '#666666',
       fontWeight: '500',
     },
+
   });
 
 export default HomeScreen; 
