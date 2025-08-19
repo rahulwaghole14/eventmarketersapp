@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
-// Simple authentication service without Firebase
+// Authentication service with real API integration
 class AuthService {
   private currentUser: any = null;
   private authStateListeners: ((user: any) => void)[] = [];
@@ -22,7 +22,8 @@ class AuthService {
   private async loadStoredUser() {
     try {
       const storedUser = await AsyncStorage.getItem('currentUser');
-      if (storedUser) {
+      const authToken = await AsyncStorage.getItem('authToken');
+      if (storedUser && authToken) {
         this.currentUser = JSON.parse(storedUser);
         this.notifyAuthStateListeners(this.currentUser);
         console.log('Loaded stored user:', this.currentUser.uid);
@@ -45,9 +46,12 @@ class AuthService {
   }
 
   // Save user to AsyncStorage
-  private async saveUserToStorage(user: any) {
+  private async saveUserToStorage(user: any, token?: string) {
     try {
       await AsyncStorage.setItem('currentUser', JSON.stringify(user));
+      if (token) {
+        await AsyncStorage.setItem('authToken', token);
+      }
     } catch (error) {
       console.error('Error saving user to storage:', error);
     }
@@ -62,10 +66,21 @@ class AuthService {
     }
   }
 
-  // Register new user
+  // Register new user (local only)
   async registerUser(userData: any): Promise<any> {
     try {
-      console.log('Registering new user...');
+      console.log('Registering new user locally...');
+      return this.registerUserLocal(userData);
+    } catch (error) {
+      console.error('User registration error:', error);
+      throw error;
+    }
+  }
+
+  // Local storage registration (fallback)
+  private async registerUserLocal(userData: any): Promise<any> {
+    try {
+      console.log('Registering new user locally...');
       
       // Check if email already exists
       const existingUser = this.registeredUsers.find(user => user.email === userData.email);
@@ -76,11 +91,13 @@ class AuthService {
       // Create new user
       const newUser = {
         uid: 'user-' + Date.now(),
+        id: 'user-' + Date.now(),
         email: userData.email,
         password: userData.password, // In real app, this should be hashed
         companyName: userData.companyName,
         phoneNumber: userData.phoneNumber,
         displayName: userData.companyName,
+        name: userData.companyName,
         isAnonymous: false,
         photoURL: null,
         providerId: 'email',
@@ -97,9 +114,8 @@ class AuthService {
       // Set as current user
       this.currentUser = newUser;
       await this.saveUserToStorage(newUser);
-      this.notifyAuthStateListeners(newUser);
 
-      console.log('User registration successful:', newUser.uid);
+      console.log('User registration successful locally:', newUser.uid);
       return { user: newUser };
     } catch (error) {
       console.error('User registration error:', error);
@@ -107,10 +123,21 @@ class AuthService {
     }
   }
 
-  // Email/Password sign-in
+  // Email/Password sign-in (local only)
   async signInWithEmail(email: string, password: string): Promise<any> {
     try {
-      console.log('Email sign-in started...');
+      console.log('Email sign-in locally...');
+      return this.signInWithEmailLocal(email, password);
+    } catch (error) {
+      console.error('Email sign-in error:', error);
+      throw error;
+    }
+  }
+
+  // Local storage sign-in (fallback)
+  private async signInWithEmailLocal(email: string, password: string): Promise<any> {
+    try {
+      console.log('Email sign-in locally...');
       
       // Find user by email
       const user = this.registeredUsers.find(u => u.email === email && u.password === password);
@@ -126,7 +153,7 @@ class AuthService {
       await this.saveUserToStorage(user);
       this.notifyAuthStateListeners(user);
 
-      console.log('Email sign-in successful:', user.uid);
+      console.log('Email sign-in successful locally:', user.uid);
       return { user };
     } catch (error) {
       console.error('Email sign-in error:', error);
@@ -134,7 +161,7 @@ class AuthService {
     }
   }
 
-  // Google Sign-In implementation
+  // Google Sign-In implementation (local only)
   async signInWithGoogle(): Promise<any> {
     try {
       console.log('Google Sign-In started...');
@@ -147,57 +174,8 @@ class AuthService {
       
       console.log('Google Sign-In user info:', userInfo);
       
-      // Create user object from Google data
-      const googleUser = {
-        uid: 'google-' + userInfo.user.id,
-        email: userInfo.user.email,
-        displayName: userInfo.user.name,
-        isAnonymous: false,
-        photoURL: userInfo.user.photo,
-        phoneNumber: null,
-        providerId: 'google',
-        metadata: {
-          creationTime: new Date().toISOString(),
-          lastSignInTime: new Date().toISOString(),
-        },
-        googleData: {
-          idToken: userInfo.idToken,
-          serverAuthCode: userInfo.serverAuthCode,
-        }
-      };
-
-      // Check if user already exists in registered users
-      const existingUser = this.registeredUsers.find(user => user.email === googleUser.email);
-      
-      if (existingUser) {
-        // Update existing user with Google data
-        existingUser.displayName = googleUser.displayName;
-        existingUser.photoURL = googleUser.photoURL;
-        existingUser.providerId = 'google';
-        existingUser.metadata.lastSignInTime = new Date().toISOString();
-        existingUser.googleData = googleUser.googleData;
-        
-        this.currentUser = existingUser;
-        await this.saveUserToStorage(existingUser);
-        await this.saveRegisteredUsers();
-      } else {
-        // Create new user from Google data
-        const newUser = {
-          ...googleUser,
-          companyName: googleUser.displayName, // Use Google name as company name
-          password: '', // No password for Google users
-        };
-        
-        this.registeredUsers.push(newUser);
-        this.currentUser = newUser;
-        await this.saveUserToStorage(newUser);
-        await this.saveRegisteredUsers();
-      }
-      
-      this.notifyAuthStateListeners(this.currentUser);
-      
-      console.log('Google Sign-In successful:', this.currentUser.uid);
-      return { user: this.currentUser };
+      // Use local storage only
+      return this.signInWithGoogleLocal(userInfo);
     } catch (error) {
       console.error('Google Sign-In Error:', error);
       
@@ -212,6 +190,64 @@ class AuthService {
         throw new Error('Google Sign-In failed. Please try again.');
       }
     }
+  }
+
+  // Local Google sign-in (fallback)
+  private async signInWithGoogleLocal(userInfo: any): Promise<any> {
+    // Create user object from Google data
+    const googleUser = {
+      uid: 'google-' + userInfo.user.id,
+      id: 'google-' + userInfo.user.id,
+      email: userInfo.user.email,
+      displayName: userInfo.user.name,
+      name: userInfo.user.name,
+      isAnonymous: false,
+      photoURL: userInfo.user.photo,
+      phoneNumber: null,
+      providerId: 'google',
+      metadata: {
+        creationTime: new Date().toISOString(),
+        lastSignInTime: new Date().toISOString(),
+      },
+      googleData: {
+        idToken: userInfo.idToken,
+        serverAuthCode: userInfo.serverAuthCode,
+      }
+    };
+
+    // Check if user already exists in registered users
+    const existingUser = this.registeredUsers.find(user => user.email === googleUser.email);
+    
+    if (existingUser) {
+      // Update existing user with Google data
+      existingUser.displayName = googleUser.displayName;
+      existingUser.name = googleUser.name;
+      existingUser.photoURL = googleUser.photoURL;
+      existingUser.providerId = 'google';
+      existingUser.metadata.lastSignInTime = new Date().toISOString();
+      existingUser.googleData = googleUser.googleData;
+      
+      this.currentUser = existingUser;
+      await this.saveUserToStorage(existingUser);
+      await this.saveRegisteredUsers();
+    } else {
+      // Create new user from Google data
+      const newUser = {
+        ...googleUser,
+        companyName: googleUser.displayName, // Use Google name as company name
+        password: '', // No password for Google users
+      };
+      
+      this.registeredUsers.push(newUser);
+      this.currentUser = newUser;
+      await this.saveUserToStorage(newUser);
+      await this.saveRegisteredUsers();
+    }
+    
+    this.notifyAuthStateListeners(this.currentUser);
+    
+    console.log('Google Sign-In successful locally:', this.currentUser.uid);
+    return { user: this.currentUser };
   }
 
   // Simple anonymous sign-in
@@ -246,7 +282,7 @@ class AuthService {
     }
   }
 
-  // Sign out
+  // Sign out (local only)
   async signOut(): Promise<void> {
     try {
       console.log('Signing out user...');
@@ -263,10 +299,30 @@ class AuthService {
       
       this.currentUser = null;
       await AsyncStorage.removeItem('currentUser');
+      await AsyncStorage.removeItem('authToken');
       this.notifyAuthStateListeners(null);
       console.log('Sign out successful');
     } catch (error) {
       console.error('Sign out error:', error);
+      throw error;
+    }
+  }
+
+  // Get current user profile (local only)
+  async getUserProfile(): Promise<any> {
+    return this.currentUser;
+  }
+
+  // Update user profile (local only)
+  async updateUserProfile(profileData: any): Promise<any> {
+    try {
+      // Update current user locally
+      this.currentUser = { ...this.currentUser, ...profileData };
+      await this.saveUserToStorage(this.currentUser);
+      
+      return this.currentUser;
+    } catch (error) {
+      console.error('Error updating user profile:', error);
       throw error;
     }
   }

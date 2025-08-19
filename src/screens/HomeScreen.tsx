@@ -48,216 +48,7 @@ const HomeScreen: React.FC = React.memo(() => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<StackNavigationProp<MainStackParamList>>();
 
-  // Create theme-aware styles
-  const getThemeStyles = () => ({
-    // Image Preview Modal Styles
-    imagePreviewModalOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
-    },
-    imagePreviewModalBackdrop: {
-      position: 'absolute' as const,
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-    },
-    imagePreviewModalContent: {
-      backgroundColor: theme?.colors?.background || '#ffffff',
-      borderRadius: 20,
-      width: screenWidth * 0.95,
-      maxHeight: screenHeight * 0.9,
-      shadowColor: theme?.colors?.shadow || '#000',
-      shadowOffset: {
-        width: 0,
-        height: 10,
-      },
-      shadowOpacity: isDarkMode ? 0.5 : 0.3,
-      shadowRadius: 20,
-      elevation: 20,
-    },
-    imagePreviewModalHeader: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'flex-start' as const,
-      paddingHorizontal: 20,
-      paddingTop: 20,
-      paddingBottom: 15,
-      borderBottomWidth: 1,
-      borderBottomColor: theme?.colors?.border || '#f0f0f0',
-    },
-    imagePreviewModalHeaderLeft: {
-      flex: 1,
-      marginRight: 10,
-    },
-    imagePreviewModalTitle: {
-      fontSize: 18,
-      fontWeight: '700' as const,
-      color: theme?.colors?.text || '#333333',
-      marginBottom: 8,
-      lineHeight: 22,
-    },
-    imagePreviewModalSubtitle: {
-      fontSize: 14,
-      color: theme?.colors?.textSecondary || '#666666',
-      lineHeight: 18,
-    },
-    imagePreviewModalCloseButton: {
-      padding: 4,
-    },
-    imagePreviewModalImageContainer: {
-      position: 'relative' as const,
-      height: screenHeight * 0.5,
-      backgroundColor: theme?.colors?.surface || '#f8f9fa',
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
-      paddingHorizontal: 20,
-      paddingVertical: 20,
-    },
-    imagePreviewModalImage: {
-      width: '100%' as any,
-      height: '100%' as any,
-      borderRadius: 12,
-    },
-    imagePreviewModalActions: {
-      paddingHorizontal: 20,
-      paddingVertical: 15,
-      borderTopWidth: 1,
-      borderTopColor: theme?.colors?.border || '#f0f0f0',
-    },
-    imagePreviewModalActionButton: {
-      borderRadius: 12,
-      overflow: 'hidden' as const,
-    },
-    imagePreviewModalActionButtonGradient: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      paddingVertical: 14,
-      gap: 8,
-    },
-    imagePreviewModalActionButtonText: {
-      color: '#ffffff',
-      fontSize: 16,
-      fontWeight: '600' as const,
-    },
-    // Language Selection Styles
-    languageSelectionContainer: {
-      paddingHorizontal: 20,
-      paddingVertical: 20,
-      borderTopWidth: 1,
-      borderTopColor: theme?.colors?.border || '#f0f0f0',
-    },
-    languageSelectionTitle: {
-      fontSize: 16,
-      fontWeight: '600' as const,
-      color: theme?.colors?.text || '#333333',
-      marginBottom: 8,
-      textAlign: 'center' as const,
-    },
-    languageSelectionSubtitle: {
-      fontSize: 12,
-      color: theme?.colors?.textSecondary || '#666666',
-      marginBottom: 15,
-      textAlign: 'center' as const,
-      lineHeight: 16,
-    },
-    languageButtonsContainer: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      gap: 10,
-    },
-    languageButton: {
-      flex: 1,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: 12,
-      backgroundColor: theme?.colors?.surface || '#f8f9fa',
-      borderWidth: 2,
-      borderColor: theme?.colors?.border || '#e9ecef',
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    },
-    languageButtonSelected: {
-      backgroundColor: '#667eea',
-      borderColor: '#667eea',
-    },
-    languageButtonText: {
-      fontSize: 14,
-      fontWeight: '600' as const,
-      color: theme?.colors?.textSecondary || '#666666',
-    },
-    languageButtonTextSelected: {
-      color: '#ffffff',
-    },
-    // Next Button Styles
-    nextButtonContainer: {
-      paddingHorizontal: 20,
-      paddingBottom: 20,
-    },
-    nextButton: {
-      borderRadius: 12,
-      overflow: 'hidden' as const,
-    },
-    nextButtonDisabled: {
-      opacity: 0.6,
-    },
-    nextButtonGradient: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      paddingVertical: 16,
-      gap: 8,
-    },
-    nextButtonText: {
-      color: '#ffffff',
-      fontSize: 16,
-      fontWeight: '600' as const,
-    },
 
-    // Language Images Grid Styles
-    languageImagesGrid: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      gap: 10,
-      paddingHorizontal: 10,
-    },
-    languageImageContainer: {
-      flex: 1,
-      height: screenHeight * 0.25,
-      borderRadius: 12,
-      overflow: 'hidden' as const,
-      borderWidth: 2,
-      borderColor: theme?.colors?.border || '#e9ecef',
-    },
-    languageImageContainerSelected: {
-      borderColor: '#667eea',
-      borderWidth: 3,
-    },
-    languageImage: {
-      width: '100%' as any,
-      height: '100%' as any,
-    },
-    languageImageOverlay: {
-      position: 'absolute' as const,
-      bottom: 0,
-      left: 0,
-      right: 0,
-      backgroundColor: 'rgba(0,0,0,0.7)',
-      paddingVertical: 8,
-      paddingHorizontal: 6,
-    },
-    languageImageLabel: {
-      color: '#ffffff',
-      fontSize: 12,
-      fontWeight: '600' as const,
-      textAlign: 'center' as const,
-    },
-  });
-
-  const themeStyles = getThemeStyles();
   const [activeTab, setActiveTab] = useState('trending');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -272,190 +63,8 @@ const HomeScreen: React.FC = React.memo(() => {
   const [currentRequestId, setCurrentRequestId] = useState(0);
   const [disableBackgroundUpdates, setDisableBackgroundUpdates] = useState(false);
   const [isUpcomingEventsModalVisible, setIsUpcomingEventsModalVisible] = useState(false);
-  const [isImagePreviewModalVisible, setIsImagePreviewModalVisible] = useState(false);
-  const [selectedImageData, setSelectedImageData] = useState<{
-    uri: string;
-    title?: string;
-    description?: string;
-  } | null>(null);
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('');
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
 
-  // Language options
-  const languages = [
-    { id: 'english', name: 'English', code: 'EN' },
-    { id: 'marathi', name: 'Marathi', code: 'MR' },
-    { id: 'hindi', name: 'Hindi', code: 'HI' },
-  ];
 
-  // Language-specific images for each template
-  const languageSpecificImages = useMemo(() => ({
-    '1': {
-      english: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=300&h=200&fit=crop',
-      marathi: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=300&h=200&fit=crop',
-      hindi: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=300&h=200&fit=crop',
-    },
-    '2': {
-      english: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=300&h=200&fit=crop',
-      marathi: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=300&h=200&fit=crop',
-      hindi: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=300&h=200&fit=crop',
-    },
-    '3': {
-      english: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=300&h=200&fit=crop',
-      marathi: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=300&h=200&fit=crop',
-      hindi: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300&h=200&fit=crop',
-    },
-    '4': {
-      english: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=300&h=200&fit=crop',
-      marathi: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=300&h=200&fit=crop',
-      hindi: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=300&h=200&fit=crop',
-    },
-    '5': {
-      english: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=300&h=200&fit=crop',
-      marathi: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=300&h=200&fit=crop',
-      hindi: 'https://images.unsplash.com/photo-1556761175-b413da4baf72?w=300&h=200&fit=crop',
-    },
-    '6': {
-      english: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=300&h=200&fit=crop',
-      marathi: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=300&h=200&fit=crop',
-      hindi: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=300&h=200&fit=crop',
-    },
-    '7': {
-      english: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300&h=200&fit=crop',
-      marathi: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=300&h=200&fit=crop',
-      hindi: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=300&h=200&fit=crop',
-    },
-    '8': {
-      english: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=300&h=200&fit=crop',
-      marathi: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=300&h=200&fit=crop',
-      hindi: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=300&h=200&fit=crop',
-    },
-    '9': {
-      english: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=300&h=200&fit=crop',
-      marathi: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300&h=200&fit=crop',
-      hindi: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=300&h=200&fit=crop',
-    },
-    '10': {
-      english: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=300&h=200&fit=crop',
-      marathi: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=300&h=200&fit=crop',
-      hindi: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=300&h=200&fit=crop',
-    },
-    '11': {
-      english: 'https://images.unsplash.com/photo-1556761175-b413da4baf72?w=300&h=200&fit=crop',
-      marathi: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=300&h=200&fit=crop',
-      hindi: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=300&h=200&fit=crop',
-    },
-    '12': {
-      english: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=300&h=200&fit=crop',
-      marathi: 'https://images.unsplash.com/photo-1556761175-b413da4baf72?w=300&h=200&fit=crop',
-      hindi: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=300&h=200&fit=crop',
-    },
-    // Video templates language-specific images
-    'video-1': {
-      english: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=300&h=200&fit=crop',
-      marathi: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=300&h=200&fit=crop',
-      hindi: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=300&h=200&fit=crop',
-    },
-    'video-2': {
-      english: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=300&h=200&fit=crop',
-      marathi: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=300&h=200&fit=crop',
-      hindi: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=300&h=200&fit=crop',
-    },
-    'video-3': {
-      english: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=300&h=200&fit=crop',
-      marathi: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=300&h=200&fit=crop',
-      hindi: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300&h=200&fit=crop',
-    },
-    'video-4': {
-      english: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=300&h=200&fit=crop',
-      marathi: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=300&h=200&fit=crop',
-      hindi: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=300&h=200&fit=crop',
-    },
-    'video-5': {
-      english: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=300&h=200&fit=crop',
-      marathi: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=300&h=200&fit=crop',
-      hindi: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=300&h=200&fit=crop',
-    },
-    'video-6': {
-      english: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300&h=200&fit=crop',
-      marathi: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=300&h=200&fit=crop',
-      hindi: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=300&h=200&fit=crop',
-    },
-    'video-7': {
-      english: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=300&h=200&fit=crop',
-      marathi: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=300&h=200&fit=crop',
-      hindi: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=300&h=200&fit=crop',
-    },
-    'video-8': {
-      english: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=300&h=200&fit=crop',
-      marathi: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300&h=200&fit=crop',
-      hindi: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=300&h=200&fit=crop',
-    },
-    'video-9': {
-      english: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=300&h=200&fit=crop',
-      marathi: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=300&h=200&fit=crop',
-      hindi: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=300&h=200&fit=crop',
-    },
-    'video-10': {
-      english: 'https://images.unsplash.com/photo-1556761175-b413da4baf72?w=300&h=200&fit=crop',
-      marathi: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=300&h=200&fit=crop',
-      hindi: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=300&h=200&fit=crop',
-    },
-  }), []);
-
-  // Language-specific videos for each video template
-  const languageSpecificVideos = useMemo(() => ({
-    'video-1': {
-      english: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-      marathi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-      hindi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
-    },
-    'video-2': {
-      english: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-      marathi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-      hindi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-    },
-    'video-3': {
-      english: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-      marathi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-      hindi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
-    },
-    'video-4': {
-      english: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-      marathi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
-      hindi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
-    },
-    'video-5': {
-      english: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
-      marathi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
-      hindi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    },
-    'video-6': {
-      english: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
-      marathi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-      hindi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-    },
-    'video-7': {
-      english: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
-      marathi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
-      hindi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
-    },
-    'video-8': {
-      english: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
-      marathi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-      hindi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-    },
-    'video-9': {
-      english: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
-      marathi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
-      hindi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-    },
-    'video-10': {
-      english: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-      marathi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
-      hindi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-    },
-  }), []);
 
   // Memoized mock data to prevent recreation on every render
   const mockBanners: Banner[] = useMemo(() => [
@@ -783,45 +392,14 @@ const HomeScreen: React.FC = React.memo(() => {
   useEffect(() => {
     const loadInitialData = async () => {
       setLoading(true);
-      const requestId = currentRequestId + 1;
-      setCurrentRequestId(requestId);
       
       try {
-        // Use mock data immediately for better performance
+        // Use mock data only
         setBanners(mockBanners);
         setTemplates(mockTemplates);
         setCategories(mockCategories);
-        
-        // Try API calls in background without blocking UI
-        setTimeout(async () => {
-          // Check if this is still the current request
-          if (currentRequestId !== requestId) return;
-          
-          try {
-            const [bannersData, templatesData, categoriesData] = await Promise.all([
-              dashboardService.getBanners(),
-              dashboardService.getTemplatesByTab(activeTab),
-              dashboardService.getCategories(),
-            ]);
-            
-            // Check if this is still the current request
-            if (currentRequestId !== requestId) return;
-            
-            setBanners(bannersData);
-            // Only update templates if background updates are enabled
-            if (!disableBackgroundUpdates && !isSearching && selectedCategory === 'all') {
-              setTemplates(templatesData);
-            }
-            setCategories(categoriesData);
-          } catch (error) {
-            console.log('API call failed, using mock data:', error);
-          }
-        }, 100);
       } catch (error) {
-        console.log('Using mock data due to error:', error);
-        setBanners(mockBanners);
-        setTemplates(mockTemplates);
-        setCategories(mockCategories);
+        console.log('Error loading mock data:', error);
       } finally {
         setLoading(false);
       }
@@ -832,78 +410,38 @@ const HomeScreen: React.FC = React.memo(() => {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    const requestId = currentRequestId + 1;
-    setCurrentRequestId(requestId);
     
     try {
-      // Use mock data immediately for better performance
+      // Use mock data only
       setBanners(mockBanners);
       setTemplates(mockTemplates);
       setCategories(mockCategories);
-      
-      // Try API calls in background without blocking UI
-      setTimeout(async () => {
-        // Check if this is still the current request
-        if (currentRequestId !== requestId) return;
-        
-        try {
-          const [bannersData, templatesData, categoriesData] = await Promise.all([
-            dashboardService.getBanners(),
-            dashboardService.getTemplatesByTab(activeTab),
-            dashboardService.getCategories(),
-          ]);
-          
-          // Check if this is still the current request
-          if (currentRequestId !== requestId) return;
-          
-          setBanners(bannersData);
-          // Only update templates if background updates are enabled
-          if (!disableBackgroundUpdates && !isSearching && selectedCategory === 'all') {
-            setTemplates(templatesData);
-          }
-          setCategories(categoriesData);
-        } catch (error) {
-          console.log('API call failed, using mock data:', error);
-        }
-      }, 100);
     } catch (error) {
-      console.log('Using mock data due to error:', error);
-      setBanners(mockBanners);
-      setTemplates(mockTemplates);
-      setCategories(mockCategories);
+      console.log('Error refreshing mock data:', error);
     } finally {
       setRefreshing(false);
     }
-  }, [activeTab, mockBanners, mockTemplates, mockCategories, currentRequestId, disableBackgroundUpdates, isSearching, selectedCategory]);
+  }, [activeTab, mockBanners, mockTemplates, mockCategories]);
 
   const handleTabChange = useCallback(async (tab: string) => {
     setActiveTab(tab);
     setSelectedCategory('all'); // Reset category when changing tabs
     setIsSearching(false); // Reset search state
-    setDisableBackgroundUpdates(false); // Re-enable background updates
     
-    const requestId = currentRequestId + 1;
-    setCurrentRequestId(requestId);
-    
-    // Use mock data immediately for better performance
-    setTemplates(mockTemplates);
-    
-    // Try API call in background
-    setTimeout(async () => {
-      // Check if this is still the current request
-      if (currentRequestId !== requestId) return;
-      
-      try {
-        const templatesData = await dashboardService.getTemplatesByTab(tab);
-        // Only update if this is still the current request and we're on the same tab
-        if (currentRequestId === requestId && activeTab === tab) {
-          setTemplates(templatesData);
-        }
-      } catch (error) {
-        console.log('Using mock data for tab change:', error);
-      }
-    }, 100);
-  }, [mockTemplates, currentRequestId, activeTab]);
+    // Use mock data for different tabs
+    try {
+      // Filter mock templates based on tab
+      const filteredTemplates = mockTemplates.filter(template => {
+        if (tab === 'daily') return template.category.toLowerCase().includes('daily');
+        if (tab === 'festival') return template.category.toLowerCase().includes('festival');
+        if (tab === 'special') return template.category.toLowerCase().includes('special');
+        return true; // 'all' tab shows all templates
+      });
+      setTemplates(filteredTemplates);
+    } catch (error) {
+      console.log('Error filtering templates for tab:', tab, error);
+    }
+  }, [mockTemplates]);
 
   const handleLikeTemplate = useCallback(async (templateId: string) => {
     // Update local state immediately for better UX
@@ -1075,19 +613,9 @@ const HomeScreen: React.FC = React.memo(() => {
     }, 100);
   }, [activeTab, mockTemplates, currentRequestId, selectedCategory]);
 
-  const openImagePreviewModal = useCallback((imageData: {
-    uri: string;
-    title?: string;
-    description?: string;
-  }) => {
-    setSelectedImageData(imageData);
-    setIsImagePreviewModalVisible(true);
-  }, []);
+
 
   const handleTemplatePress = useCallback((template: Template) => {
-    // Set the selected template ID for language-specific images
-    setSelectedTemplateId(template.id);
-    
     // Check if this is a video template
     const isVideoTemplate = template.id.startsWith('video-');
     
@@ -1099,14 +627,14 @@ const HomeScreen: React.FC = React.memo(() => {
         relatedVideos: related,
       });
     } else {
-      // Open image preview modal for regular templates
-      openImagePreviewModal({
-        uri: template.thumbnail,
-        title: template.name,
-        description: template.category,
+      // Navigate to PosterPlayer screen for regular templates
+      const related = mockTemplates.filter(poster => poster.id !== template.id);
+      navigation.navigate('PosterPlayer', {
+        selectedPoster: template,
+        relatedPosters: related,
       });
     }
-  }, [openImagePreviewModal, mockVideoTemplates, navigation]);
+  }, [mockVideoTemplates, mockTemplates, navigation]);
 
   const closeModal = useCallback(() => {
     setIsModalVisible(false);
@@ -1121,69 +649,7 @@ const HomeScreen: React.FC = React.memo(() => {
     setIsUpcomingEventsModalVisible(false);
   }, []);
 
-  const closeImagePreviewModal = useCallback(() => {
-    setIsImagePreviewModalVisible(false);
-    setSelectedImageData(null);
-    setSelectedLanguage('');
-    setSelectedTemplateId('');
-  }, []);
 
-
-
-  const handleLanguageSelect = useCallback((languageId: string) => {
-    setSelectedLanguage(languageId);
-    
-    // Update the displayed media based on selected language
-    if (selectedTemplateId && selectedImageData) {
-      const isVideoTemplate = selectedTemplateId.startsWith('video-');
-      if (isVideoTemplate) {
-        const videoMap = languageSpecificVideos[selectedTemplateId as keyof typeof languageSpecificVideos];
-        const newVideoUri = videoMap && videoMap[languageId as keyof typeof videoMap];
-        if (newVideoUri) {
-          setSelectedImageData({
-            ...selectedImageData,
-            uri: newVideoUri,
-          });
-        }
-      } else {
-        const languageImages = languageSpecificImages[selectedTemplateId as keyof typeof languageSpecificImages];
-        const newImageUri = languageImages && languageImages[languageId as keyof typeof languageImages];
-        if (newImageUri) {
-          setSelectedImageData({
-            ...selectedImageData,
-            uri: newImageUri,
-          });
-        }
-      }
-    }
-  }, [selectedTemplateId, selectedImageData, languageSpecificImages, languageSpecificVideos]);
-
-  const handleNextButton = useCallback(() => {
-    if (selectedLanguage && selectedImageData) {
-      console.log('Selected language:', selectedLanguage);
-      console.log('Selected image:', selectedImageData);
-      closeImagePreviewModal();
-      
-      // Check if this is a video template
-      const isVideoTemplate = selectedTemplateId.startsWith('video-');
-      
-      if (isVideoTemplate) {
-        // Navigate to VideoEditor with selected data
-        navigation.navigate('VideoEditor', {
-          selectedVideo: selectedImageData,
-          selectedLanguage: selectedLanguage,
-          selectedTemplateId: selectedTemplateId,
-        });
-      } else {
-        // Navigate to PosterEditor with selected data
-        navigation.navigate('PosterEditor', {
-          selectedImage: selectedImageData,
-          selectedLanguage: selectedLanguage,
-          selectedTemplateId: selectedTemplateId,
-        });
-      }
-    }
-  }, [selectedLanguage, selectedImageData, selectedTemplateId, closeImagePreviewModal, navigation]);
 
   // Memoized render functions to prevent unnecessary re-renders
   const renderBanner = useCallback(({ item }: { item: Banner }) => {
@@ -1192,11 +658,20 @@ const HomeScreen: React.FC = React.memo(() => {
         activeOpacity={0.8}
         style={styles.bannerContainerWrapper}
         onPress={() => {
-          setSelectedTemplateId('1'); // Use template 1 for banners
-          openImagePreviewModal({
-            uri: item.imageUrl,
-            title: item.title,
-            description: 'Featured Banner',
+          // Create a mock template for the banner
+          const bannerTemplate: Template = {
+            id: 'banner-template',
+            name: item.title,
+            thumbnail: item.imageUrl,
+            category: 'Featured Banner',
+            likes: 0,
+            downloads: 0,
+            isLiked: false,
+            isDownloaded: false,
+          };
+          navigation.navigate('PosterPlayer', {
+            selectedPoster: bannerTemplate,
+            relatedPosters: mockTemplates.slice(0, 6), // Show first 6 templates as related
           });
         }}
       >
@@ -1211,11 +686,20 @@ const HomeScreen: React.FC = React.memo(() => {
              <TouchableOpacity 
                style={[styles.bannerButton, { backgroundColor: theme.colors.cardBackground }]}
                onPress={() => {
-                 setSelectedTemplateId('1'); // Use template 1 for banners
-                 openImagePreviewModal({
-                   uri: item.imageUrl,
-                   title: item.title,
-                   description: 'Featured Banner',
+                 // Create a mock template for the banner
+                 const bannerTemplate: Template = {
+                   id: 'banner-template',
+                   name: item.title,
+                   thumbnail: item.imageUrl,
+                   category: 'Featured Banner',
+                   likes: 0,
+                   downloads: 0,
+                   isLiked: false,
+                   isDownloaded: false,
+                 };
+                 navigation.navigate('PosterPlayer', {
+                   selectedPoster: bannerTemplate,
+                   relatedPosters: mockTemplates.slice(0, 6), // Show first 6 templates as related
                  });
                }}
              >
@@ -1225,7 +709,7 @@ const HomeScreen: React.FC = React.memo(() => {
          </View>
       </TouchableOpacity>
     );
-  }, [theme, navigation, openImagePreviewModal]);
+  }, [theme, navigation, mockTemplates]);
 
                                        
 
@@ -1396,6 +880,8 @@ const HomeScreen: React.FC = React.memo(() => {
   // Memoized key extractors
   const keyExtractor = useCallback((item: any) => item.id, []);
 
+
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -1556,11 +1042,20 @@ const HomeScreen: React.FC = React.memo(() => {
                     activeOpacity={0.8}
                     style={styles.upcomingEventCard}
                     onPress={() => {
-                      setSelectedTemplateId('2'); // Use template 2 for upcoming events
-                      openImagePreviewModal({
-                        uri: event.imageUrl,
-                        title: event.title,
-                        description: `${event.category} • ${event.date} • ${event.location}`,
+                      // Create a mock template for the upcoming event
+                      const eventTemplate: Template = {
+                        id: `event-${event.id}`,
+                        name: event.title,
+                        thumbnail: event.imageUrl,
+                        category: `${event.category} • ${event.date} • ${event.location}`,
+                        likes: 0,
+                        downloads: 0,
+                        isLiked: false,
+                        isDownloaded: false,
+                      };
+                      navigation.navigate('PosterPlayer', {
+                        selectedPoster: eventTemplate,
+                        relatedPosters: mockTemplates.slice(0, 6), // Show first 6 templates as related
                       });
                     }}
                   >
@@ -1612,7 +1107,7 @@ const HomeScreen: React.FC = React.memo(() => {
               removeClippedSubviews={true}
               maxToRenderPerBatch={6}
               windowSize={10}
-              contentContainerStyle={{ paddingBottom: 40 }}
+              contentContainerStyle={{ paddingBottom: responsiveSpacing.xl }}
             />
           </View>
 
@@ -1631,7 +1126,7 @@ const HomeScreen: React.FC = React.memo(() => {
               removeClippedSubviews={true}
               maxToRenderPerBatch={6}
               windowSize={10}
-              contentContainerStyle={{ paddingBottom: 40 }}
+              contentContainerStyle={{ paddingBottom: responsiveSpacing.xl }}
             />
           </View>
                  </ScrollView>
@@ -1755,11 +1250,20 @@ const HomeScreen: React.FC = React.memo(() => {
                       activeOpacity={0.8}
                       style={styles.upcomingEventModalCard}
                       onPress={() => {
-                        setSelectedTemplateId('2'); // Use template 2 for upcoming events
-                        openImagePreviewModal({
-                          uri: event.imageUrl,
-                          title: event.title,
-                          description: `${event.category} • ${event.date} • ${event.location}`,
+                        // Create a mock template for the upcoming event
+                        const eventTemplate: Template = {
+                          id: `event-${event.id}`,
+                          name: event.title,
+                          thumbnail: event.imageUrl,
+                          category: `${event.category} • ${event.date} • ${event.location}`,
+                          likes: 0,
+                          downloads: 0,
+                          isLiked: false,
+                          isDownloaded: false,
+                        };
+                        navigation.navigate('PosterPlayer', {
+                          selectedPoster: eventTemplate,
+                          relatedPosters: mockTemplates.slice(0, 6), // Show first 6 templates as related
                         });
                       }}
                     >
@@ -1781,176 +1285,7 @@ const HomeScreen: React.FC = React.memo(() => {
           </View>
         </Modal>
 
-        {/* Image Preview Modal */}
-        <Modal
-          visible={isImagePreviewModalVisible}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={closeImagePreviewModal}
-        >
-          <View style={themeStyles.imagePreviewModalOverlay}>
-            <TouchableOpacity 
-              style={themeStyles.imagePreviewModalBackdrop} 
-              activeOpacity={1} 
-              onPress={closeImagePreviewModal}
-            />
-            
-            <View style={themeStyles.imagePreviewModalContent}>
-              {/* Modal Header */}
-              <View style={themeStyles.imagePreviewModalHeader}>
-                <View style={themeStyles.imagePreviewModalHeaderLeft}>
-                  <Text style={themeStyles.imagePreviewModalTitle}>
-                    {selectedImageData?.title || 'Image Preview'}
-                  </Text>
-                  {selectedImageData?.description && (
-                    <Text style={themeStyles.imagePreviewModalSubtitle}>
-                      {selectedImageData.description}
-                    </Text>
-                  )}
-                </View>
-                <TouchableOpacity 
-                  style={themeStyles.imagePreviewModalCloseButton}
-                  onPress={closeImagePreviewModal}
-                  activeOpacity={0.7}
-                >
-                  <Icon name="close" size={24} color={theme?.colors?.text || "#333333"} />
-                </TouchableOpacity>
-              </View>
 
-              {/* Image/Video Section */}
-              <View style={themeStyles.imagePreviewModalImageContainer}>
-                {selectedImageData && (
-                  <>
-                    {selectedLanguage && !selectedTemplateId.startsWith('video-') ? (
-                      // Show language-specific images grid
-                      <View style={themeStyles.languageImagesGrid}>
-                        {languages.map((language) => {
-                          const languageImages = languageSpecificImages[selectedTemplateId as keyof typeof languageSpecificImages];
-                          const imageUri = languageImages ? languageImages[language.id as keyof typeof languageImages] : selectedImageData.uri;
-                          return (
-                            <TouchableOpacity
-                              key={language.id}
-                              style={[
-                                themeStyles.languageImageContainer,
-                                selectedLanguage === language.id && themeStyles.languageImageContainerSelected
-                              ]}
-                              onPress={() => handleLanguageSelect(language.id)}
-                              activeOpacity={0.8}
-                            >
-                              <Image
-                                source={{ 
-                                  uri: imageUri,
-                                  cache: 'force-cache'
-                                }}
-                                style={themeStyles.languageImage}
-                                resizeMode="cover"
-                              />
-                              <View style={themeStyles.languageImageOverlay}>
-                                <Text style={themeStyles.languageImageLabel}>{language.name}</Text>
-                              </View>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-                    ) : !selectedTemplateId.startsWith('video-') ? (
-                      // Show single image or video when no language is selected
-                      <>
-                        {selectedTemplateId.startsWith('video-') && selectedImageData.uri.includes('.mp4') ? (
-                          // Show video player for video templates
-                          <Video
-                            source={{ uri: selectedImageData.uri }}
-                            style={themeStyles.imagePreviewModalImage}
-                            resizeMode="contain"
-                            repeat={true}
-                            paused={false}
-                            muted={true}
-                          />
-                        ) : (
-                          // Show image for image templates
-                          <Image
-                            source={{ 
-                              uri: selectedImageData.uri,
-                              cache: 'force-cache'
-                            }}
-                            style={themeStyles.imagePreviewModalImage}
-                            resizeMode="contain"
-                          />
-                        )}
-                      </>
-                    ) : (
-                      <Video
-                        source={{ uri: selectedImageData.uri }}
-                        style={themeStyles.imagePreviewModalImage}
-                        resizeMode="contain"
-                        repeat={true}
-                        paused={false}
-                        muted={true}
-                      />
-                    )}
-                  </>
-                )}
-              </View>
-
-              {/* Language Selection Buttons */}
-              <View style={themeStyles.languageSelectionContainer}>
-                <Text style={themeStyles.languageSelectionTitle}>
-                  {selectedLanguage ? 'Language Variants' : 'Select Language'}
-                </Text>
-                <Text style={themeStyles.languageSelectionSubtitle}>
-                  {selectedLanguage 
-                    ? 'Tap on any language to switch between variants' 
-                    : selectedTemplateId.startsWith('video-') 
-                      ? 'Choose a language to see different video variants'
-                      : 'Choose a language to see different image variants'
-                  }
-                </Text>
-                <View style={themeStyles.languageButtonsContainer}>
-                  {languages.map((language) => (
-                    <TouchableOpacity
-                      key={language.id}
-                      style={[
-                        themeStyles.languageButton,
-                        selectedLanguage === language.id && themeStyles.languageButtonSelected
-                      ]}
-                      onPress={() => handleLanguageSelect(language.id)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[
-                        themeStyles.languageButtonText,
-                        selectedLanguage === language.id && themeStyles.languageButtonTextSelected
-                      ]}>
-                        {language.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              {/* Next Button */}
-              <View style={themeStyles.nextButtonContainer}>
-                <TouchableOpacity 
-                  style={[
-                    themeStyles.nextButton,
-                    !selectedLanguage && themeStyles.nextButtonDisabled
-                  ]}
-                  onPress={handleNextButton}
-                  disabled={!selectedLanguage}
-                  activeOpacity={0.7}
-                >
-                  <LinearGradient
-                    colors={selectedLanguage ? ['#667eea', '#764ba2'] : ['#cccccc', '#999999']}
-                    style={themeStyles.nextButtonGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                  >
-                    <Icon name="arrow-forward" size={18} color="#ffffff" />
-                    <Text style={themeStyles.nextButtonText}>Next</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
 
 
       </SafeAreaView>
@@ -2141,22 +1476,19 @@ const styles = StyleSheet.create({
       paddingHorizontal: screenWidth * 0.05,
     },
                    upcomingEventCard: {
-        width: (screenWidth - screenWidth * 0.2) / 3,
-        marginRight: screenWidth * 0.03,
+        width: (screenWidth - responsiveSpacing.lg * 2 - responsiveSpacing.sm * 2) / 3, // Always 3 columns
+        marginRight: responsiveSpacing.sm,
         backgroundColor: 'rgba(255,255,255,0.1)',
-        borderRadius: 15,
+        borderRadius: responsiveSize.cardBorderRadius,
         overflow: 'hidden',
-        shadowColor: '#000',
-        shadowOffset: {
-          width: 0,
-          height: 4,
-        },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 6,
+        ...responsiveShadow.medium,
       },
    upcomingEventImageContainer: {
-     height: screenHeight * 0.12,
+     height: isTablet 
+       ? screenHeight * 0.15  // Taller on tablet for better proportions
+       : isLandscape 
+         ? screenHeight * 0.18  // Taller in landscape
+         : screenHeight * 0.12, // Default height on phone
      position: 'relative',
    },
    upcomingEventImage: {
@@ -2209,28 +1541,26 @@ const styles = StyleSheet.create({
     paddingBottom: screenHeight * 0.05,
   },
   templateRow: {
-    justifyContent: 'space-between',
-    paddingHorizontal: screenWidth * 0.03,
+    justifyContent: 'flex-start',
+    paddingHorizontal: responsiveSpacing.md,
+    gap: responsiveSpacing.sm,
   },
   templateCardWrapper: {
-    width: (screenWidth - screenWidth * 0.2) / 3,
-    marginBottom: screenHeight * 0.02,
+    width: (screenWidth - responsiveSpacing.lg * 2 - responsiveSpacing.sm * 2) / 3, // Always 3 columns
+    marginBottom: responsiveSpacing.md,
   },
   templateCard: {
     width: '100%',
-    borderRadius: 15,
+    borderRadius: responsiveSize.cardBorderRadius,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 6,
+    ...responsiveShadow.medium,
   },
   templateImageContainer: {
-    height: screenHeight * 0.15,
+    height: isTablet 
+      ? screenHeight * 0.18  // Taller on tablet for better proportions
+      : isLandscape 
+        ? screenHeight * 0.20  // Taller in landscape
+        : screenHeight * 0.15, // Default height on phone
     position: 'relative',
   },
   templateImage: {
@@ -2281,9 +1611,9 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     borderRadius: responsiveSize.buttonBorderRadius,
-    paddingHorizontal: Math.max(6, screenWidth * 0.015),
-    paddingVertical: Math.max(4, screenHeight * 0.005),
-    marginLeft: Math.max(4, screenWidth * 0.01),
+    paddingHorizontal: responsiveSpacing.xs,
+    paddingVertical: responsiveSpacing.xs / 2,
+    marginLeft: responsiveSpacing.xs,
     ...responsiveShadow.small,
   },
   actionButtonText: {
@@ -2294,20 +1624,20 @@ const styles = StyleSheet.create({
     padding: screenWidth * 0.03,
   },
   templateName: {
-    fontSize: Math.min(screenWidth * 0.032, 13),
+    fontSize: responsiveFontSize.sm,
     fontWeight: 'bold',
-    marginBottom: 4,
+    marginBottom: responsiveSpacing.xs,
   },
   templateCategory: {
-    fontSize: Math.min(screenWidth * 0.028, 11),
-    marginBottom: 6,
+    fontSize: responsiveFontSize.xs,
+    marginBottom: responsiveSpacing.xs,
   },
   templateStats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
      templateStat: {
-     fontSize: Math.min(screenWidth * 0.023, 9),
+     fontSize: responsiveFontSize.xs,
    },
    modalOverlay: {
      flex: 1,
@@ -2495,27 +1825,25 @@ const styles = StyleSheet.create({
       paddingBottom: screenHeight * 0.05,
     },
     upcomingEventModalRow: {
-      justifyContent: 'space-between',
-      marginBottom: screenHeight * 0.025,
+      justifyContent: 'flex-start',
+      marginBottom: responsiveSpacing.md,
+      gap: responsiveSpacing.sm,
     },
     upcomingEventModalCard: {
-      width: (screenWidth * 0.85 - screenWidth * 0.06) / 3,
+      width: (screenWidth * 0.85 - responsiveSpacing.lg * 2 - responsiveSpacing.sm * 2) / 3, // Always 3 columns
       backgroundColor: '#ffffff',
-      borderRadius: 18,
-      shadowColor: '#000',
-      shadowOffset: {
-        width: 0,
-        height: 4,
-      },
-      shadowOpacity: 0.15,
-      shadowRadius: 8,
-      elevation: 6,
+      borderRadius: responsiveSize.cardBorderRadius,
+      ...responsiveShadow.medium,
       overflow: 'hidden',
       borderWidth: 1,
       borderColor: 'rgba(0,0,0,0.05)',
     },
     upcomingEventModalImageContainer: {
-      height: screenHeight * 0.12,
+      height: isTablet 
+        ? screenHeight * 0.15  // Taller on tablet for better proportions
+        : isLandscape 
+          ? screenHeight * 0.18  // Taller in landscape
+          : screenHeight * 0.12, // Default height on phone
       position: 'relative',
     },
     upcomingEventModalImage: {

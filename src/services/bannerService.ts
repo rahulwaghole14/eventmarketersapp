@@ -1,208 +1,255 @@
-import api from './api';
-
-export interface Template {
-  id: string;
-  name: string;
-  type: 'daily' | 'festival' | 'special';
-  thumbnail: string;
-  preview: string;
-  category: string;
-  tags: string[];
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+import templatesService from './templates';
 
 export interface Banner {
   id: string;
-  name: string;
+  title: string;
+  description?: string;
   templateId: string;
-  template: Template;
-  customizations: {
-    text: string;
-    colors: string[];
-    fonts: string;
-    images: string[];
-    layout: string;
-  };
-  status: 'draft' | 'published' | 'archived';
+  template: any;
+  customizations: any;
   imageUrl: string;
+  status: 'draft' | 'published' | 'archived';
   createdAt: string;
   updatedAt: string;
 }
 
-export interface CreateBannerData {
-  name: string;
+export interface CreateBannerRequest {
   templateId: string;
-  customizations: {
-    text: string;
-    colors: string[];
-    fonts: string;
-    images: string[];
-    layout: string;
-  };
+  title: string;
+  description?: string;
+  customizations: any;
+}
+
+export interface UpdateBannerRequest {
+  title?: string;
+  description?: string;
+  customizations?: any;
+  status?: 'draft' | 'published' | 'archived';
 }
 
 class BannerService {
-  // Get all templates
-  async getTemplates(type?: 'daily' | 'festival' | 'special'): Promise<Template[]> {
-    try {
-      const params = type ? `?type=${type}` : '';
-      const response = await api.get(`/templates${params}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching templates:', error);
-      // Return mock data as fallback
-      return this.getMockTemplates();
-    }
+  private cache: { [key: string]: { data: any; timestamp: number } } = {};
+  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+  private isCacheValid(key: string): boolean {
+    const cached = this.cache[key];
+    return cached && (Date.now() - cached.timestamp) < this.CACHE_DURATION;
   }
 
-  // Get single template
-  async getTemplate(id: string): Promise<Template> {
+  // Create a new banner (mock implementation)
+  async createBanner(bannerData: CreateBannerRequest): Promise<Banner> {
+    const mockBanner: Banner = {
+      id: 'banner-' + Date.now(),
+      title: bannerData.title,
+      description: bannerData.description,
+      templateId: bannerData.templateId,
+      template: { id: bannerData.templateId, title: 'Mock Template', description: '', imageUrl: '', category: 'free', language: 'English', tags: [], type: 'daily', createdAt: '', updatedAt: '' },
+      customizations: bannerData.customizations,
+      imageUrl: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=200&fit=crop',
+      status: 'draft',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    
+    return mockBanner;
+  }
+
+  // Update banner (mock implementation)
+  async updateBanner(bannerId: string, updates: UpdateBannerRequest): Promise<Banner> {
+    const mockBanner: Banner = {
+      id: bannerId,
+      title: updates.title || 'Updated Banner',
+      description: updates.description,
+      templateId: '1',
+      template: { id: '1', title: 'Mock Template', description: '', imageUrl: '', category: 'free', language: 'English', tags: [], type: 'daily', createdAt: '', updatedAt: '' },
+      customizations: updates.customizations || {},
+      imageUrl: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=200&fit=crop',
+      status: updates.status || 'draft',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    
+    return mockBanner;
+  }
+
+  // Get user's banners (mock data)
+  async getUserBanners(): Promise<Banner[]> {
+    return [];
+  }
+
+  // Get banner by ID (mock data)
+  async getBannerById(bannerId: string): Promise<Banner | null> {
+    return null;
+  }
+
+  // Delete banner (mock implementation)
+  async deleteBanner(bannerId: string): Promise<void> {
+    console.log('Mock banner deleted:', bannerId);
+  }
+
+  // Get banner image URL (mock data)
+  async getBannerImage(bannerId: string): Promise<string | null> {
+    return 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=200&fit=crop';
+  }
+
+  // Publish banner (mock implementation)
+  async publishBanner(bannerId: string): Promise<Banner> {
+    const mockBanner: Banner = {
+      id: bannerId,
+      title: 'Published Banner',
+      description: 'Mock published banner',
+      templateId: '1',
+      template: { id: '1', title: 'Mock Template', description: '', imageUrl: '', category: 'free', language: 'English', tags: [], type: 'daily', createdAt: '', updatedAt: '' },
+      customizations: {},
+      imageUrl: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=200&fit=crop',
+      status: 'published',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    
+    return mockBanner;
+  }
+
+  // Archive banner (mock implementation)
+  async archiveBanner(bannerId: string): Promise<Banner> {
+    const mockBanner: Banner = {
+      id: bannerId,
+      title: 'Archived Banner',
+      description: 'Mock archived banner',
+      templateId: '1',
+      template: { id: '1', title: 'Mock Template', description: '', imageUrl: '', category: 'free', language: 'English', tags: [], type: 'daily', createdAt: '', updatedAt: '' },
+      customizations: {},
+      imageUrl: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=200&fit=crop',
+      status: 'archived',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    
+    return mockBanner;
+  }
+
+  // Duplicate banner
+  async duplicateBanner(bannerId: string, newTitle?: string): Promise<Banner> {
     try {
-      const response = await api.get(`/template/${id}`);
-      return response.data;
+      const originalBanner = await this.getBannerById(bannerId);
+      if (!originalBanner) {
+        throw new Error('Banner not found');
+      }
+
+      const newBannerData: CreateBannerRequest = {
+        templateId: originalBanner.templateId,
+        title: newTitle || `${originalBanner.title} (Copy)`,
+        description: originalBanner.description,
+        customizations: originalBanner.customizations,
+      };
+
+      return await this.createBanner(newBannerData);
     } catch (error) {
-      console.error('Error fetching template:', error);
+      console.error('Error duplicating banner:', error);
       throw error;
     }
   }
 
-  // Create new banner
-  async createBanner(data: CreateBannerData): Promise<Banner> {
+  // Get banners by status
+  async getBannersByStatus(status: 'draft' | 'published' | 'archived'): Promise<Banner[]> {
     try {
-      const response = await api.post('/banner/create', data);
-      return response.data;
+      const allBanners = await this.getUserBanners();
+      return allBanners.filter(banner => banner.status === status);
     } catch (error) {
-      console.error('Error creating banner:', error);
+      console.error('Error fetching banners by status:', error);
+      return [];
+    }
+  }
+
+  // Search banners by title or description
+  async searchBanners(searchTerm: string): Promise<Banner[]> {
+    try {
+      const allBanners = await this.getUserBanners();
+      const term = searchTerm.toLowerCase();
+      
+      return allBanners.filter(banner => 
+        banner.title.toLowerCase().includes(term) ||
+        (banner.description && banner.description.toLowerCase().includes(term))
+      );
+    } catch (error) {
+      console.error('Error searching banners:', error);
+      return [];
+    }
+  }
+
+  // Get banner statistics
+  async getBannerStats(): Promise<{
+    total: number;
+    drafts: number;
+    published: number;
+    archived: number;
+  }> {
+    try {
+      const allBanners = await this.getUserBanners();
+      
+      return {
+        total: allBanners.length,
+        drafts: allBanners.filter(b => b.status === 'draft').length,
+        published: allBanners.filter(b => b.status === 'published').length,
+        archived: allBanners.filter(b => b.status === 'archived').length,
+      };
+    } catch (error) {
+      console.error('Error getting banner stats:', error);
+      return {
+        total: 0,
+        drafts: 0,
+        published: 0,
+        archived: 0,
+      };
+    }
+  }
+
+  // Create banner from template with customizations
+  async createBannerFromTemplate(
+    templateId: string,
+    customizations: any,
+    title?: string
+  ): Promise<Banner> {
+    try {
+      // Get template details
+      const template = await templatesService.getTemplateById(templateId);
+      if (!template) {
+        throw new Error('Template not found');
+      }
+
+      const bannerData: CreateBannerRequest = {
+        templateId,
+        title: title || template.title,
+        description: template.description,
+        customizations,
+      };
+
+      return await this.createBanner(bannerData);
+    } catch (error) {
+      console.error('Error creating banner from template:', error);
       throw error;
     }
   }
 
-  // Update banner
-  async updateBanner(id: string, data: Partial<CreateBannerData>): Promise<Banner> {
-    try {
-      const response = await api.put(`/banner/${id}/update`, data);
-      return response.data;
-    } catch (error) {
-      console.error('Error updating banner:', error);
-      throw error;
-    }
+  // Export banner as image (mock implementation)
+  async exportBannerAsImage(bannerId: string, format: 'png' | 'jpg' | 'pdf' = 'png'): Promise<string> {
+    return 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=200&fit=crop';
   }
 
-  // Get user's banners
-  async getMyBanners(): Promise<Banner[]> {
-    try {
-      const response = await api.get('/banner/mine');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching user banners:', error);
-      // Return mock data as fallback
-      return this.getMockBanners();
-    }
+  // Share banner (mock implementation)
+  async shareBanner(bannerId: string, shareOptions: {
+    platform?: 'social' | 'email' | 'link';
+    message?: string;
+  }): Promise<{ shareUrl: string; success: boolean }> {
+    return {
+      shareUrl: 'https://example.com/share/banner-' + bannerId,
+      success: true
+    };
   }
 
-  // Get banner details
-  async getBanner(id: string): Promise<Banner> {
-    try {
-      const response = await api.get(`/banner/${id}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching banner:', error);
-      throw error;
-    }
-  }
-
-  // Delete banner
-  async deleteBanner(id: string): Promise<void> {
-    try {
-      await api.delete(`/banner/${id}`);
-    } catch (error) {
-      console.error('Error deleting banner:', error);
-      throw error;
-    }
-  }
-
-  // Get mock templates for development
-  private getMockTemplates(): Template[] {
-    return [
-      {
-        id: '1',
-        name: 'Modern Business Card',
-        type: 'daily',
-        thumbnail: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=300&h=200&fit=crop',
-        preview: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=600&h=400&fit=crop',
-        category: 'Business',
-        tags: ['professional', 'modern', 'clean'],
-        isActive: true,
-        createdAt: '2024-01-15T10:00:00Z',
-        updatedAt: '2024-01-20T14:30:00Z',
-      },
-      {
-        id: '2',
-        name: 'Festive Celebration',
-        type: 'festival',
-        thumbnail: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=300&h=200&fit=crop',
-        preview: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=600&h=400&fit=crop',
-        category: 'Celebration',
-        tags: ['festive', 'colorful', 'party'],
-        isActive: true,
-        createdAt: '2024-01-10T09:00:00Z',
-        updatedAt: '2024-01-18T16:45:00Z',
-      },
-      {
-        id: '3',
-        name: 'Special Offer',
-        type: 'special',
-        thumbnail: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=300&h=200&fit=crop',
-        preview: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=600&h=400&fit=crop',
-        category: 'Marketing',
-        tags: ['offer', 'discount', 'promotion'],
-        isActive: true,
-        createdAt: '2024-01-05T12:00:00Z',
-        updatedAt: '2024-01-22T11:20:00Z',
-      },
-    ];
-  }
-
-  // Get mock banners for development
-  private getMockBanners(): Banner[] {
-    return [
-      {
-        id: '1',
-        name: 'My Business Card',
-        templateId: '1',
-        template: this.getMockTemplates()[0],
-        customizations: {
-          text: 'Tech Solutions Inc.',
-          colors: ['#667eea', '#764ba2'],
-          fonts: 'Arial',
-          images: [],
-          layout: 'centered',
-        },
-        status: 'published',
-        imageUrl: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=600&h=400&fit=crop',
-        createdAt: '2024-01-15T10:00:00Z',
-        updatedAt: '2024-01-20T14:30:00Z',
-      },
-      {
-        id: '2',
-        name: 'Holiday Greeting',
-        templateId: '2',
-        template: this.getMockTemplates()[1],
-        customizations: {
-          text: 'Happy Holidays!',
-          colors: ['#ff6b6b', '#4ecdc4'],
-          fonts: 'Comic Sans',
-          images: [],
-          layout: 'centered',
-        },
-        status: 'draft',
-        imageUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=600&h=400&fit=crop',
-        createdAt: '2024-01-10T09:00:00Z',
-        updatedAt: '2024-01-18T16:45:00Z',
-      },
-    ];
+  // Clear cache method
+  clearCache(): void {
+    this.cache = {};
   }
 }
 

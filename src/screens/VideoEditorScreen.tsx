@@ -37,36 +37,28 @@ import videoProcessingService, { VideoLayer } from '../services/videoProcessingS
 import { useTheme } from '../context/ThemeContext';
 import ViewShot from 'react-native-view-shot';
 import VideoProcessor from '../components/VideoProcessor';
+import responsiveUtils, { 
+  responsiveSpacing as responsiveSpacingUtils, 
+  responsiveFontSize as responsiveFontSizeUtils, 
+  responsiveSize, 
+  responsiveLayout, 
+  responsiveShadow, 
+  responsiveText, 
+  responsiveGrid, 
+  responsiveButton, 
+  responsiveInput, 
+  responsiveCard,
+  isTablet,
+  isLandscape 
+} from '../utils/responsiveUtils';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-// Calculate video canvas dimensions
-const videoCanvasWidth = screenWidth - 40; // screenWidth - (margin * 2)
-const videoCanvasHeight = screenHeight - 300; // Less conservative height calculation to ensure footer is visible
+// Calculate video canvas dimensions - optimized for no scrolling
+const videoCanvasWidth = Math.min(screenWidth - 32, screenWidth * 0.88); // Slightly wider for better fit
+const videoCanvasHeight = Math.min(screenHeight - 280, screenHeight * 0.4); // Reduced height to fit all controls
 
-// Responsive design helpers
-const isSmallScreen = screenWidth < 375;
-const isMediumScreen = screenWidth >= 375 && screenWidth < 414;
-const isLargeScreen = screenWidth >= 414;
-
-// Responsive spacing and sizing
-const responsiveSpacing = {
-  xs: isSmallScreen ? 8 : isMediumScreen ? 12 : 16,
-  sm: isSmallScreen ? 12 : isMediumScreen ? 16 : 20,
-  md: isSmallScreen ? 16 : isMediumScreen ? 20 : 24,
-  lg: isSmallScreen ? 20 : isMediumScreen ? 24 : 32,
-  xl: isSmallScreen ? 24 : isMediumScreen ? 32 : 40,
-};
-
-const responsiveFontSize = {
-  xs: isSmallScreen ? 10 : isMediumScreen ? 12 : 14,
-  sm: isSmallScreen ? 12 : isMediumScreen ? 14 : 16,
-  md: isSmallScreen ? 14 : isMediumScreen ? 16 : 18,
-  lg: isSmallScreen ? 16 : isMediumScreen ? 18 : 20,
-  xl: isSmallScreen ? 18 : isMediumScreen ? 20 : 22,
-  xxl: isSmallScreen ? 20 : isMediumScreen ? 22 : 24,
-  xxxl: isSmallScreen ? 24 : isMediumScreen ? 28 : 32,
-};
+// Responsive design helpers - using centralized utilities
 
 interface VideoEditorScreenProps {
   route: {
@@ -364,9 +356,9 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         });
       }
 
-      // Create professional footer with contact information
-      const footerHeight = 120; // Fixed footer height for better visibility
-      const footerY = videoCanvasHeight - footerHeight - 250; // Move footer higher to avoid bottom clipping
+      // Create professional footer with contact information - always at bottom
+      const footerHeight = Math.max(120, videoCanvasHeight * 0.15); // Responsive footer height
+      const footerY = videoCanvasHeight - footerHeight - Math.max(10, videoCanvasHeight * 0.02); // Always at bottom with small margin
       
       console.log('Footer positioning debug:', {
         screenHeight,
@@ -546,9 +538,9 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         fieldType: 'companyName',
       });
 
-      // Create professional footer with contact information (default)
-      const footerHeight = 120; // Fixed footer height for better visibility
-      const footerY = videoCanvasHeight - footerHeight - 20; // Position at bottom with 20px margin
+      // Create professional footer with contact information (default) - always at bottom
+      const footerHeight = Math.max(120, videoCanvasHeight * 0.15); // Responsive footer height
+      const footerY = videoCanvasHeight - footerHeight - Math.max(10, videoCanvasHeight * 0.02); // Always at bottom with small margin
       
 
       
@@ -1005,9 +997,11 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
       <LinearGradient
         colors={['#667eea', '#764ba2']}
         style={styles.gradientBackground}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
       >
         {/* Header */}
-        <View style={[styles.header, { paddingTop: insets.top + responsiveSpacing.sm }]}>
+        <View style={[styles.header, { paddingTop: insets.top + responsiveSpacingUtils.sm }]}>
           <TouchableOpacity style={styles.backButton} onPress={handleBack}>
             <Icon name="arrow-back" size={24} color="#ffffff" />
           </TouchableOpacity>
@@ -1039,17 +1033,18 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
           </View>
         </View>
 
-        {/* Video Canvas */}
-        <ViewShot
-          ref={canvasRef}
-          style={styles.videoCanvas}
-          options={{
-            format: 'jpg',
-            quality: 0.9,
-            width: videoCanvasWidth,
-            height: videoCanvasHeight,
-          }}
-        >
+        {/* Video Canvas Container */}
+        <View style={styles.videoCanvasContainer}>
+          <ViewShot
+            ref={canvasRef}
+            style={styles.videoCanvas}
+            options={{
+              format: 'jpg',
+              quality: 0.9,
+              width: videoCanvasWidth,
+              height: videoCanvasHeight,
+            }}
+          >
           <Video
             ref={videoRef}
             source={{ uri: selectedVideo.uri }}
@@ -1117,6 +1112,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
             </View>
           )}
         </ViewShot>
+        </View>
 
         {/* Video Controls */}
         <View style={styles.videoControls}>
@@ -1135,24 +1131,26 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
 
 
         {/* Controls Container */}
-        <View style={[
-          styles.controlsContainer, 
-          { 
-            paddingBottom: Math.max(insets.bottom + responsiveSpacing.md, responsiveSpacing.lg)
-          }
-        ]}>
+        <ScrollView 
+          style={[
+            styles.controlsContainer, 
+            { 
+              paddingBottom: Math.max(insets.bottom + responsiveSpacingUtils.md, responsiveSpacingUtils.lg)
+            }
+          ]}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ flexGrow: 1 }}
+        >
         
         {/* Field Toggle Buttons */}
         <View style={styles.fieldToggleSection}>
           <View style={styles.fieldToggleHeader}>
-            <Text style={styles.fieldToggleTitle}>Toggle Fields</Text>
-            <Text style={styles.fieldToggleSubtitle}>Click to show/hide elements</Text>
+            <Text style={styles.fieldToggleTitle}>Toggle Elements</Text>
+            <Text style={styles.fieldToggleSubtitle}>Show or hide video elements</Text>
           </View>
           <ScrollView 
-            style={styles.fieldToggleContent} 
-            horizontal={true}
+            horizontal
             showsHorizontalScrollIndicator={false}
-            showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.fieldToggleScrollContent}
           >
             <TouchableOpacity
@@ -1260,16 +1258,13 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         {/* Templates Section */}
         <View style={styles.templatesSection}>
           <View style={styles.templatesHeader}>
-            <Text style={styles.templatesTitle}>Templates</Text>
-            <Text style={styles.templatesSubtitle}>Choose a video template design</Text>
+            <Text style={styles.templatesTitle}>Video Templates</Text>
+            <Text style={styles.templatesSubtitle}>Choose a professional template design</Text>
           </View>
-          <ScrollView 
-            style={styles.templatesContent} 
-            horizontal={true}
-            showsHorizontalScrollIndicator={false}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.templatesScrollContent}
+          <View 
+            style={styles.templatesContent}
           >
+            <View style={styles.templatesScrollContent}>
             <TouchableOpacity
               style={[styles.templateButton, selectedTemplate === 'business' && styles.templateButtonActive]}
               onPress={() => applyTemplate('business')}
@@ -1325,9 +1320,10 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
                 Fashion
               </Text>
             </TouchableOpacity>
-          </ScrollView>
+            </View>
+          </View>
         </View>
-        </View>
+        </ScrollView>
       </LinearGradient>
       {/* Frame Selector */}
       {showFrameSelector && (
@@ -1569,27 +1565,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 20,
+    paddingHorizontal: Math.max(16, screenWidth * 0.04),
+    paddingTop: Math.max(40, screenHeight * 0.05),
+    paddingBottom: Math.max(16, screenHeight * 0.02),
+    marginBottom: Math.max(8, screenHeight * 0.01),
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: Math.max(12, screenWidth * 0.03),
+    marginHorizontal: Math.max(8, screenWidth * 0.02),
   },
   backButton: {
-    padding: 10,
+    padding: Math.max(12, screenWidth * 0.03),
+    marginRight: Math.max(8, screenWidth * 0.02),
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: responsiveText.subheading,
     fontWeight: 'bold',
     color: '#ffffff',
   },
   nextButton: {
     backgroundColor: '#ffffff',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: Math.max(20, screenWidth * 0.05),
+    paddingVertical: Math.max(10, screenHeight * 0.012),
+    borderRadius: Math.max(20, screenWidth * 0.05),
+    marginLeft: Math.max(12, screenWidth * 0.03),
+    borderWidth: Math.max(1, screenWidth * 0.002),
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    ...responsiveShadow.medium,
   },
   nextButtonText: {
     color: '#667eea',
     fontWeight: 'bold',
+    fontSize: responsiveText.caption,
   },
   nextButtonDisabled: {
     opacity: 0.6,
@@ -1604,12 +1610,24 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 12,
   },
+  videoCanvasContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Math.max(2, screenHeight * 0.002),
+    flex: 0,
+  },
   videoCanvas: {
-    flex: 1,
-    margin: 20,
-    borderRadius: 10,
+    width: videoCanvasWidth,
+    height: videoCanvasHeight,
+    alignSelf: 'center',
+    marginVertical: Math.max(4, screenHeight * 0.005),
+    marginHorizontal: Math.max(12, screenWidth * 0.03),
+    borderRadius: Math.max(16, screenWidth * 0.04),
     overflow: 'hidden',
     backgroundColor: '#000000',
+    borderWidth: Math.max(2, screenWidth * 0.005),
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    ...responsiveShadow.large,
   },
   video: {
     width: '100%',
@@ -1619,24 +1637,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: Math.max(12, screenWidth * 0.03),
+    paddingVertical: Math.max(4, screenHeight * 0.005),
+    marginBottom: Math.max(4, screenHeight * 0.005),
+    marginTop: Math.max(2, screenHeight * 0.002),
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: Math.max(16, screenWidth * 0.04),
+    marginHorizontal: Math.max(12, screenWidth * 0.03),
   },
   playButton: {
     backgroundColor: 'rgba(255,255,255,0.2)',
-    padding: 15,
-    borderRadius: 25,
-    marginRight: 20,
+    padding: Math.max(10, screenWidth * 0.025),
+    borderRadius: Math.max(18, screenWidth * 0.045),
+    marginRight: Math.max(12, screenWidth * 0.03),
   },
   timeText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: responsiveText.body,
   },
   toolbar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingHorizontal: Math.max(20, screenWidth * 0.05),
+    paddingVertical: Math.max(15, screenHeight * 0.018),
     backgroundColor: 'rgba(255,255,255,0.1)',
   },
   toolbarButton: {
@@ -1644,18 +1667,18 @@ const styles = StyleSheet.create({
   },
   toolbarButtonText: {
     color: '#ffffff',
-    fontSize: 12,
-    marginTop: 5,
+    fontSize: responsiveText.caption,
+    marginTop: Math.max(5, screenHeight * 0.006),
   },
   layer: {
     position: 'absolute',
   },
   selectedLayer: {
-    borderWidth: 2,
+    borderWidth: Math.max(2, screenWidth * 0.005),
     borderColor: '#667eea',
   },
   layerText: {
-    fontSize: 20,
+    fontSize: responsiveText.subheading,
     color: '#ffffff',
   },
   layerImage: {
@@ -1833,70 +1856,73 @@ const styles = StyleSheet.create({
   },
   // Controls Container
   controlsContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 20,
-    paddingHorizontal: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    borderTopLeftRadius: Math.max(20, screenWidth * 0.05),
+    borderTopRightRadius: Math.max(20, screenWidth * 0.05),
+    paddingTop: Math.max(8, screenHeight * 0.01),
+    paddingHorizontal: Math.max(8, screenWidth * 0.02),
+    paddingBottom: Math.max(8, screenHeight * 0.01),
+    borderTopWidth: Math.max(1, screenWidth * 0.002),
+    borderTopColor: 'rgba(0, 0, 0, 0.1)',
+    ...responsiveShadow.large,
+    flex: 1,
   },
   // Field Toggle Section
   fieldToggleSection: {
     width: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 16,
-    padding: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    marginBottom: 15,
-    marginHorizontal: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: Math.max(12, screenWidth * 0.03),
+    padding: Math.max(8, screenWidth * 0.02),
+    ...responsiveShadow.medium,
+    borderWidth: Math.max(1, screenWidth * 0.002),
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    marginBottom: Math.max(8, screenHeight * 0.01),
+    marginHorizontal: Math.max(2, screenWidth * 0.005),
   },
   fieldToggleHeader: {
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: Math.max(4, screenHeight * 0.005),
   },
   fieldToggleTitle: {
-    fontSize: 14,
+    fontSize: Math.max(10, screenWidth * 0.025),
     fontWeight: '700',
     color: '#333333',
   },
   fieldToggleSubtitle: {
-    fontSize: 10,
+    fontSize: Math.max(8, screenWidth * 0.02),
     color: '#666666',
-    marginTop: 1,
+    marginTop: Math.max(1, screenHeight * 0.001),
   },
   fieldToggleContent: {
-    maxHeight: 100,
+    // Removed maxHeight and flexWrap for horizontal scrolling
   },
   fieldToggleScrollContent: {
-    paddingHorizontal: 5,
+    paddingHorizontal: Math.max(8, screenWidth * 0.02),
     alignItems: 'center',
+    gap: Math.max(8, screenWidth * 0.02),
+    flexDirection: 'row',
   },
   fieldToggleButton: {
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 16,
-    backgroundColor: '#e9ecef',
-    marginHorizontal: 4,
+    paddingVertical: Math.max(4, screenHeight * 0.005),
+    paddingHorizontal: Math.max(6, screenWidth * 0.015),
+    borderRadius: Math.max(8, screenWidth * 0.02),
+    backgroundColor: '#f8f9fa',
+    marginHorizontal: Math.max(1, screenWidth * 0.002),
+    marginVertical: Math.max(1, screenHeight * 0.001),
     flexDirection: 'row',
-    minWidth: 85,
+    minWidth: Math.max(50, screenWidth * 0.1),
     justifyContent: 'center',
+    borderWidth: Math.max(1, screenWidth * 0.002),
+    borderColor: 'rgba(0, 0, 0, 0.05)',
   },
   fieldToggleButtonActive: {
     backgroundColor: '#667eea',
   },
   fieldToggleButtonText: {
-    fontSize: 12,
+    fontSize: Math.max(8, screenWidth * 0.02),
     color: '#666666',
-    marginLeft: 6,
+    marginLeft: Math.max(2, screenWidth * 0.005),
     fontWeight: '500',
   },
   fieldToggleButtonTextActive: {
@@ -1905,64 +1931,63 @@ const styles = StyleSheet.create({
   // Templates Section
   templatesSection: {
     width: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 16,
-    padding: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    marginBottom: 15,
-    marginHorizontal: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: Math.max(12, screenWidth * 0.03),
+    padding: Math.max(8, screenWidth * 0.02),
+    ...responsiveShadow.medium,
+    borderWidth: Math.max(1, screenWidth * 0.002),
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    marginBottom: Math.max(8, screenHeight * 0.01),
+    marginHorizontal: Math.max(2, screenWidth * 0.005),
   },
   templatesHeader: {
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: Math.max(4, screenHeight * 0.005),
   },
   templatesTitle: {
-    fontSize: 14,
+    fontSize: Math.max(10, screenWidth * 0.025),
     fontWeight: '700',
     color: '#333333',
   },
   templatesSubtitle: {
-    fontSize: 10,
+    fontSize: Math.max(8, screenWidth * 0.02),
     color: '#666666',
-    marginTop: 1,
+    marginTop: Math.max(1, screenHeight * 0.001),
   },
   templatesContent: {
-    maxHeight: 120,
+    maxHeight: Math.max(80, screenHeight * 0.1),
+    flexWrap: 'wrap',
   },
   templatesScrollContent: {
-    paddingHorizontal: 5,
+    paddingHorizontal: Math.max(8, screenWidth * 0.02),
     alignItems: 'center',
+    gap: Math.max(8, screenWidth * 0.02),
+    flexWrap: 'wrap',
+    justifyContent: 'center',
   },
   templateButton: {
     alignItems: 'center',
-    marginHorizontal: 8,
-    minWidth: 80,
+    marginHorizontal: Math.max(2, screenWidth * 0.005),
+    marginVertical: Math.max(1, screenHeight * 0.001),
+    minWidth: Math.max(60, screenWidth * 0.12),
   },
   templateButtonActive: {
     backgroundColor: 'rgba(102, 126, 234, 0.1)',
-    borderRadius: 12,
-    padding: 8,
+    borderRadius: Math.max(12, screenWidth * 0.03),
+    padding: Math.max(8, screenWidth * 0.02),
   },
   templatePreview: {
-    width: 70,
-    height: 70,
-    borderRadius: 8,
+    width: Math.max(50, screenWidth * 0.12),
+    height: Math.max(50, screenWidth * 0.12),
+    borderRadius: Math.max(8, screenWidth * 0.02),
     backgroundColor: '#f8f9fa',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
-    borderWidth: 2,
-    borderColor: '#e9ecef',
+    marginBottom: Math.max(4, screenHeight * 0.005),
+    borderWidth: Math.max(2, screenWidth * 0.005),
+    borderColor: 'rgba(0, 0, 0, 0.1)',
     overflow: 'hidden',
+    ...responsiveShadow.small,
   },
   templatePreviewContent: {
     width: '100%',
@@ -1978,11 +2003,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   templateText: {
-    fontSize: 10,
+    fontSize: Math.max(8, screenWidth * 0.02),
     color: '#666666',
     fontWeight: '600',
     textAlign: 'center',
-    lineHeight: 12,
+    lineHeight: Math.max(8, screenHeight * 0.01),
   },
   templateTextActive: {
     color: '#667eea',
@@ -2023,20 +2048,22 @@ const styles = StyleSheet.create({
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: Math.max(16, screenWidth * 0.04),
   },
   profileButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
-    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: Math.max(14, screenWidth * 0.035),
+    paddingVertical: Math.max(8, screenHeight * 0.01),
+    borderRadius: Math.max(18, screenWidth * 0.045),
+    gap: Math.max(6, screenWidth * 0.015),
+    borderWidth: Math.max(1, screenWidth * 0.002),
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   profileButtonText: {
     color: '#ffffff',
-    fontSize: 12,
+    fontSize: responsiveText.caption,
     fontWeight: '500',
   },
 

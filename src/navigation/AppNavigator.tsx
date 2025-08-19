@@ -28,6 +28,10 @@ export type MainStackParamList = {
     selectedLanguage: string;
     selectedTemplateId: string;
   };
+  PosterPlayer: {
+    selectedPoster: any;
+    relatedPosters: any[];
+  };
   PosterPreview: {
     capturedImageUri: string;
     selectedImage: {
@@ -103,6 +107,7 @@ import PosterEditorScreen from '../screens/PosterEditorScreen';
 import PosterPreviewScreen from '../screens/PosterPreviewScreen';
 import VideoEditorScreen from '../screens/VideoEditorScreen';
 import VideoPlayerScreen from '../screens/VideoPlayerScreen';
+import PosterPlayerScreen from '../screens/PosterPlayerScreen';
 import VideoPreviewScreen from '../screens/VideoPreviewScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import TransactionHistoryScreen from '../screens/TransactionHistoryScreen';
@@ -129,6 +134,11 @@ const TabNavigator = () => {
       <MainStack.Screen 
         name="PosterEditor" 
         component={PosterEditorScreen}
+        options={{ headerShown: false }}
+      />
+      <MainStack.Screen 
+        name="PosterPlayer" 
+        component={PosterPlayerScreen}
         options={{ headerShown: false }}
       />
       <MainStack.Screen 

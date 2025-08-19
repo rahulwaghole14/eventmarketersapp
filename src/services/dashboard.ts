@@ -1,4 +1,4 @@
-import api from './api';
+
 
 export interface Banner {
   id: string;
@@ -32,80 +32,39 @@ export interface DashboardData {
 }
 
 class DashboardService {
-  // Get all banners with timeout handling
+  // Get all banners (mock data only)
   async getBanners(): Promise<Banner[]> {
-    try {
-      const response = await api.get('/banners');
-      return response.data;
-    } catch (error) {
-      console.log('Using mock banners due to API error:', error);
-      return this.getMockBanners();
-    }
+    return this.getMockBanners();
   }
 
-  // Get templates by tab with timeout handling
+  // Get templates by tab (mock data only)
   async getTemplatesByTab(tab: string): Promise<Template[]> {
-    try {
-      const response = await api.get(`/templates?tab=${tab}`);
-      return response.data;
-    } catch (error) {
-      console.log('Using mock templates due to API error:', error);
-      return this.getMockTemplates();
-    }
+    return this.getMockTemplates();
   }
 
-  // Get all categories with timeout handling
+  // Get all categories (mock data only)
   async getCategories(): Promise<Category[]> {
-    try {
-      const response = await api.get('/categories');
-      return response.data;
-    } catch (error) {
-      console.log('Using mock categories due to API error:', error);
-      return this.getMockCategories();
-    }
+    return this.getMockCategories();
   }
 
-  // Search templates with timeout handling
+  // Search templates (mock data only)
   async searchTemplates(query: string): Promise<Template[]> {
-    try {
-      const response = await api.get(`/templates/search?q=${query}`);
-      return response.data;
-    } catch (error) {
-      console.log('Using local search due to API error:', error);
-      // Return empty array to trigger local search
-      return [];
-    }
+    return [];
   }
 
-  // Get templates by category with timeout handling
+  // Get templates by category (mock data only)
   async getTemplatesByCategory(category: string): Promise<Template[]> {
-    try {
-      const response = await api.get(`/templates?category=${category}`);
-      return response.data;
-    } catch (error) {
-      console.log('Using mock templates due to API error:', error);
-      return this.getMockTemplates().filter(t => t.category.toLowerCase() === category.toLowerCase());
-    }
+    return this.getMockTemplates().filter(t => t.category.toLowerCase() === category.toLowerCase());
   }
 
-  // Like template with timeout handling
+  // Like template (mock implementation)
   async likeTemplate(templateId: string): Promise<void> {
-    try {
-      await api.post(`/templates/${templateId}/like`);
-    } catch (error) {
-      console.log('Like action failed, but UI updated:', error);
-      // Don't throw error to prevent UI from reverting
-    }
+    console.log('Mock like template:', templateId);
   }
 
-  // Download template with timeout handling
+  // Download template (mock implementation)
   async downloadTemplate(templateId: string): Promise<void> {
-    try {
-      await api.post(`/templates/${templateId}/download`);
-    } catch (error) {
-      console.log('Download action failed, but UI updated:', error);
-      // Don't throw error to prevent UI from reverting
-    }
+    console.log('Mock download template:', templateId);
   }
 
   // Get dashboard data with timeout handling
