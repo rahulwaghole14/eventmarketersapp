@@ -1,3 +1,4 @@
+// HomeScreen comprehensively optimized for all device sizes with ultra-compact header, search bar, and content sizing
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
@@ -956,8 +957,8 @@ const HomeScreen: React.FC = React.memo(() => {
             </View>
           </View>
 
-          {/* Tabs */}
-          <View style={styles.tabsContainer}>
+          {/* Tabs - All tabs commented out */}
+          {/* <View style={styles.tabsContainer}>
             <TouchableOpacity
               style={[
                 styles.tab,
@@ -1000,7 +1001,7 @@ const HomeScreen: React.FC = React.memo(() => {
                 VIDEO
               </Text>
             </TouchableOpacity>
-          </View>
+          </View> */}
 
           {/* Banner Carousel */}
           <View style={styles.bannerSection}>
@@ -1314,8 +1315,8 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingTop: 0,
-    paddingHorizontal: responsiveSpacing.md,
-    paddingBottom: responsiveSpacing.sm,
+    paddingHorizontal: screenWidth < 480 ? 8 : screenWidth < 768 ? 12 : responsiveSpacing.md,
+    paddingBottom: screenWidth < 480 ? 6 : screenWidth < 768 ? 8 : responsiveSpacing.sm,
   },
   headerTop: {
     flexDirection: 'row',
@@ -1324,12 +1325,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   greetingText: {
-    fontSize: responsiveFontSize.sm,
+    fontSize: screenWidth < 480 ? 10 : screenWidth < 768 ? 12 : responsiveFontSize.sm,
     color: 'rgba(255,255,255,0.8)',
-    marginBottom: responsiveSpacing.xs,
+    marginBottom: screenWidth < 480 ? 2 : screenWidth < 768 ? 4 : responsiveSpacing.xs,
   },
   userName: {
-    fontSize: responsiveFontSize.xl,
+    fontSize: screenWidth < 480 ? 16 : screenWidth < 768 ? 18 : responsiveFontSize.xl,
     fontWeight: 'bold',
     color: '#ffffff',
   },
@@ -1340,37 +1341,37 @@ const styles = StyleSheet.create({
     paddingBottom: 100, // Fixed padding for tab bar
   },
   searchContainer: {
-    paddingHorizontal: responsiveSpacing.md,
-    marginBottom: responsiveSpacing.sm,
+    paddingHorizontal: 16,
+    marginBottom: screenWidth < 480 ? 6 : screenWidth < 768 ? 8 : responsiveSpacing.sm,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 25,
-    paddingHorizontal: screenWidth * 0.05,
-    paddingVertical: screenHeight * 0.015,
+    borderRadius: screenWidth < 480 ? 16 : screenWidth < 768 ? 20 : 25,
+    paddingHorizontal: screenWidth < 480 ? 10 : screenWidth < 768 ? 12 : screenWidth * 0.05,
+    paddingVertical: screenWidth < 480 ? 6 : screenWidth < 768 ? 8 : screenHeight * 0.015,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 2,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 4,
   },
   searchIcon: {
-    fontSize: Math.min(screenWidth * 0.035, 14),
-    marginRight: screenWidth * 0.03,
+    fontSize: screenWidth < 480 ? 10 : screenWidth < 768 ? 12 : Math.min(screenWidth * 0.035, 14),
+    marginRight: screenWidth < 480 ? 6 : screenWidth < 768 ? 8 : screenWidth * 0.03,
     fontWeight: '600',
   },
   searchInput: {
     flex: 1,
-    fontSize: Math.min(screenWidth * 0.04, 16),
+    fontSize: screenWidth < 480 ? 12 : screenWidth < 768 ? 14 : Math.min(screenWidth * 0.04, 16),
     fontWeight: '500',
   },
   clearIcon: {
-    fontSize: Math.min(screenWidth * 0.035, 14),
-    padding: 5,
+    fontSize: screenWidth < 480 ? 10 : screenWidth < 768 ? 12 : Math.min(screenWidth * 0.035, 14),
+    padding: screenWidth < 480 ? 2 : screenWidth < 768 ? 3 : 5,
     fontWeight: '600',
   },
   tabsContainer: {
@@ -1396,25 +1397,26 @@ const styles = StyleSheet.create({
   },
   bannerSection: {
     marginBottom: screenHeight * 0.03,
+    paddingHorizontal: 16,
   },
   sectionTitle: {
-    fontSize: Math.min(screenWidth * 0.045, 18),
+    fontSize: screenWidth < 480 ? 14 : screenWidth < 768 ? 16 : Math.min(screenWidth * 0.045, 18),
     fontWeight: 'bold',
     color: '#ffffff',
-    marginBottom: screenHeight * 0.015,
-    paddingHorizontal: screenWidth * 0.05,
+    marginBottom: screenWidth < 480 ? 6 : screenWidth < 768 ? 8 : screenHeight * 0.015,
+    paddingHorizontal: screenWidth < 480 ? 8 : screenWidth < 768 ? 12 : screenWidth * 0.05,
   },
   bannerList: {
-    paddingHorizontal: screenWidth * 0.05,
+    paddingHorizontal: screenWidth < 480 ? 8 : screenWidth < 768 ? 12 : screenWidth * 0.05,
   },
   bannerContainerWrapper: {
-    width: screenWidth * 0.8,
-    marginRight: screenWidth * 0.03,
+    width: screenWidth < 480 ? screenWidth * 0.80 : screenWidth < 768 ? screenWidth * 0.75 : screenWidth * 0.70,
+    marginRight: screenWidth < 480 ? 6 : screenWidth < 768 ? 8 : screenWidth * 0.03,
   },
   bannerContainer: {
     width: '100%',
-    height: screenHeight * 0.15,
-    borderRadius: 20,
+    height: screenWidth < 480 ? screenHeight * 0.14 : screenWidth < 768 ? screenHeight * 0.16 : screenHeight * 0.18,
+    borderRadius: screenWidth < 480 ? 14 : screenWidth < 768 ? 16 : 20,
     overflow: 'hidden',
     position: 'relative',
   },
@@ -1431,49 +1433,50 @@ const styles = StyleSheet.create({
   },
   bannerContent: {
     position: 'absolute',
-    bottom: 15,
-    left: 15,
-    right: 15,
+    bottom: screenWidth < 480 ? 8 : screenWidth < 768 ? 10 : 15,
+    left: screenWidth < 480 ? 8 : screenWidth < 768 ? 10 : 15,
+    right: screenWidth < 480 ? 8 : screenWidth < 768 ? 10 : 15,
   },
   bannerTitle: {
-    fontSize: Math.min(screenWidth * 0.04, 16),
+    fontSize: screenWidth < 480 ? 12 : screenWidth < 768 ? 14 : Math.min(screenWidth * 0.04, 16),
     fontWeight: 'bold',
     color: '#ffffff',
-    marginBottom: 8,
+    marginBottom: screenWidth < 480 ? 4 : screenWidth < 768 ? 6 : 8,
   },
   bannerButton: {
-    paddingHorizontal: screenWidth * 0.04,
-    paddingVertical: screenHeight * 0.006,
-    borderRadius: 15,
+    paddingHorizontal: screenWidth < 480 ? 8 : screenWidth < 768 ? 10 : screenWidth * 0.04,
+    paddingVertical: screenWidth < 480 ? 3 : screenWidth < 768 ? 4 : screenHeight * 0.006,
+    borderRadius: screenWidth < 480 ? 10 : screenWidth < 768 ? 12 : 15,
     alignSelf: 'flex-start',
   },
   bannerButtonText: {
-    fontSize: Math.min(screenWidth * 0.03, 12),
+    fontSize: screenWidth < 480 ? 9 : screenWidth < 768 ? 10 : Math.min(screenWidth * 0.03, 12),
     fontWeight: '600',
   },
      upcomingEventsSection: {
      marginBottom: screenHeight * 0.03,
+     paddingHorizontal: 16,
    },
    sectionHeader: {
      flexDirection: 'row',
      justifyContent: 'space-between',
      alignItems: 'center',
-     paddingHorizontal: screenWidth * 0.05,
-     marginBottom: screenHeight * 0.015,
+     paddingHorizontal: screenWidth < 480 ? 8 : screenWidth < 768 ? 12 : screenWidth * 0.05,
+     marginBottom: screenWidth < 480 ? 6 : screenWidth < 768 ? 8 : screenHeight * 0.015,
    },
    viewAllButton: {
-     paddingHorizontal: screenWidth * 0.04,
-     paddingVertical: screenHeight * 0.006,
+     paddingHorizontal: screenWidth < 480 ? 6 : screenWidth < 768 ? 8 : screenWidth * 0.04,
+     paddingVertical: screenWidth < 480 ? 3 : screenWidth < 768 ? 4 : screenHeight * 0.006,
      backgroundColor: 'rgba(255,255,255,0.2)',
-     borderRadius: 15,
+     borderRadius: screenWidth < 480 ? 10 : screenWidth < 768 ? 12 : 15,
    },
    viewAllButtonText: {
-     fontSize: Math.min(screenWidth * 0.03, 12),
+     fontSize: screenWidth < 480 ? 9 : screenWidth < 768 ? 10 : Math.min(screenWidth * 0.03, 12),
      color: '#ffffff',
      fontWeight: '600',
    },
        upcomingEventsList: {
-      paddingHorizontal: screenWidth * 0.05,
+      paddingHorizontal: screenWidth < 480 ? 8 : screenWidth < 768 ? 12 : screenWidth * 0.05,
     },
                    upcomingEventCard: {
         width: (screenWidth - responsiveSpacing.lg * 2 - responsiveSpacing.sm * 2) / 3, // Always 3 columns
@@ -1517,33 +1520,36 @@ const styles = StyleSheet.create({
      fontWeight: '600',
    },
   categoriesSection: {
-    marginBottom: screenHeight * 0.03,
+    marginBottom: screenWidth < 480 ? screenHeight * 0.015 : screenWidth < 768 ? screenHeight * 0.02 : screenHeight * 0.03,
+    paddingHorizontal: 16,
   },
   categoriesList: {
-    paddingHorizontal: screenWidth * 0.05,
+    paddingHorizontal: screenWidth < 480 ? 8 : screenWidth < 768 ? 12 : screenWidth * 0.05,
   },
   categoryChipWrapper: {
-    marginRight: screenWidth * 0.02,
+    marginRight: screenWidth < 480 ? 4 : screenWidth < 768 ? 6 : screenWidth * 0.02,
   },
   categoryChip: {
-    paddingHorizontal: screenWidth * 0.04,
-    paddingVertical: screenHeight * 0.008,
-    borderRadius: 20,
+    paddingHorizontal: screenWidth < 480 ? 8 : screenWidth < 768 ? 10 : screenWidth * 0.04,
+    paddingVertical: screenWidth < 480 ? 4 : screenWidth < 768 ? 6 : screenHeight * 0.008,
+    borderRadius: screenWidth < 480 ? 14 : screenWidth < 768 ? 16 : 20,
   },
   categoryChipText: {
-    fontSize: Math.min(screenWidth * 0.035, 14),
+    fontSize: screenWidth < 480 ? 10 : screenWidth < 768 ? 12 : Math.min(screenWidth * 0.035, 14),
     fontWeight: '500',
   },
   templatesSection: {
-    paddingBottom: screenHeight * 0.05,
+    paddingBottom: screenWidth < 480 ? screenHeight * 0.02 : screenWidth < 768 ? screenHeight * 0.03 : screenHeight * 0.05,
+    paddingHorizontal: 16,
   },
   videoSection: {
-    paddingBottom: screenHeight * 0.05,
+    paddingBottom: screenWidth < 480 ? screenHeight * 0.02 : screenWidth < 768 ? screenHeight * 0.03 : screenHeight * 0.05,
+    paddingHorizontal: 16,
   },
   templateRow: {
     justifyContent: 'flex-start',
-    paddingHorizontal: responsiveSpacing.md,
-    gap: responsiveSpacing.sm,
+    paddingHorizontal: screenWidth < 480 ? 8 : screenWidth < 768 ? 12 : responsiveSpacing.md,
+    gap: screenWidth < 480 ? 6 : screenWidth < 768 ? 8 : responsiveSpacing.sm,
   },
   templateCardWrapper: {
     width: (screenWidth - responsiveSpacing.lg * 2 - responsiveSpacing.sm * 2) / 3, // Always 3 columns
