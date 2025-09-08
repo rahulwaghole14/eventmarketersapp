@@ -25,6 +25,11 @@ export interface UserProfile {
   phoneNumber: string;
   logo?: string;
   photo?: string;
+  description?: string;
+  category?: string;
+  address?: string;
+  alternatePhone?: string;
+  website?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -34,6 +39,11 @@ export interface UpdateProfileRequest {
   phoneNumber?: string;
   logo?: string;
   photo?: string;
+  description?: string;
+  category?: string;
+  address?: string;
+  alternatePhone?: string;
+  website?: string;
 }
 
 export interface AuthResponse {

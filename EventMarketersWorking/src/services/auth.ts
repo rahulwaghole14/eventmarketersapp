@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { authApi, type RegisterRequest, type LoginRequest, type GoogleAuthRequest } from './authApi';
+import authApi, { type RegisterRequest, type LoginRequest, type GoogleAuthRequest } from './authApi';
 
 // Authentication service with real API integration
 class AuthService {

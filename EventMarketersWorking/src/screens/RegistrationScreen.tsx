@@ -13,6 +13,7 @@ import {
   Dimensions,
   Image,
   Modal,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -43,7 +44,9 @@ const FloatingInput = React.memo(({
   numberOfLines = 1,
   keyboardType = 'default',
   secureTextEntry = false,
-  autoCapitalize = 'words'
+  autoCapitalize = 'words',
+  validationError = '',
+  showValidationSummary = false
 }: {
   value: string;
   onChangeText: (text: string) => void;
@@ -57,17 +60,24 @@ const FloatingInput = React.memo(({
   keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'url';
   secureTextEntry?: boolean;
   autoCapitalize?: 'words' | 'none';
-}) => (
-  <View style={styles.inputContainer}>
+  validationError?: string;
+  showValidationSummary?: boolean;
+}) => {
+  const hasError = validationError && showValidationSummary;
+  const isFocused = focusedField === field;
+  
+  return (
+    <View style={styles.inputContainer}>
     <TextInput
       style={[
         styles.input,
         { 
           backgroundColor: theme.colors.inputBackground,
           color: theme.colors.text,
-          borderColor: theme.colors.border
+          borderColor: hasError ? theme.colors.error : theme.colors.border
         },
-        focusedField === field && [styles.inputFocused, { borderColor: theme.colors.primary }],
+        isFocused && [styles.inputFocused, { borderColor: hasError ? theme.colors.error : theme.colors.primary }],
+        hasError && styles.inputError,
         multiline && styles.multilineInput
       ]}
               value={value}
@@ -87,8 +97,17 @@ const FloatingInput = React.memo(({
         spellCheck={false}
         textContentType="none"
     />
+    {hasError && (
+      <View style={styles.errorMessageContainer}>
+        <Icon name="error-outline" size={16} color={theme.colors.error} />
+        <Text style={[styles.errorMessage, { color: theme.colors.error }]}>
+          {validationError}
+        </Text>
+      </View>
+    )}
   </View>
-));
+  );
+});
 
 const RegistrationScreen: React.FC = ({ navigation }: any) => {
   const { theme } = useTheme();
@@ -109,6 +128,11 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
   const [logoImage, setLogoImage] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [modalAnimation] = useState(new Animated.Value(0));
+  const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
+  const [showValidationSummary, setShowValidationSummary] = useState(false);
 
   const categories = [
     'Event Planners',
@@ -118,11 +142,114 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
     'Video Services',
   ];
 
+  // Modal animation functions
+  const showModal = () => {
+    setShowErrorModal(true);
+    Animated.spring(modalAnimation, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 100,
+      friction: 8,
+    }).start();
+  };
+
+  const hideModal = () => {
+    Animated.timing(modalAnimation, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      setShowErrorModal(false);
+    });
+  };
+
+  const showError = (message: string) => {
+    setErrorMessage(message);
+    showModal();
+  };
+
+  // Validation functions
+  const validateField = (field: string, value: string): string => {
+    switch (field) {
+      case 'name':
+        return !value.trim() ? 'Company name is required' : '';
+      case 'email':
+        if (!value.trim()) return 'Email is required';
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return !emailRegex.test(value) ? 'Please enter a valid email address' : '';
+      case 'phone':
+        if (!value.trim()) return 'Phone number is required';
+        const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+        return !phoneRegex.test(value.replace(/\s/g, '')) ? 'Please enter a valid phone number' : '';
+      case 'password':
+        if (!value) return 'Password is required';
+        return value.length < 6 ? 'Password must be at least 6 characters' : '';
+      case 'confirmPassword':
+        if (!value) return 'Please confirm your password';
+        return value !== formData.password ? 'Passwords do not match' : '';
+      case 'category':
+        return !value.trim() ? 'Business category is required' : '';
+      case 'address':
+        return !value.trim() ? 'Address is required' : '';
+      default:
+        return '';
+    }
+  };
+
+  const validateAllFields = (): boolean => {
+    const errors: {[key: string]: string} = {};
+    let hasErrors = false;
+
+    // Validate all required fields
+    const requiredFields = ['name', 'email', 'phone', 'password', 'confirmPassword', 'category', 'address'];
+    
+    requiredFields.forEach(field => {
+      const error = validateField(field, formData[field as keyof typeof formData]);
+      if (error) {
+        errors[field] = error;
+        hasErrors = true;
+      }
+    });
+
+    setValidationErrors(errors);
+    
+    if (hasErrors) {
+      setShowValidationSummary(true);
+      // Scroll to first error field
+      setTimeout(() => {
+        const firstErrorField = Object.keys(errors)[0];
+        if (firstErrorField) {
+          setFocusedField(firstErrorField);
+        }
+      }, 100);
+    }
+
+    return !hasErrors;
+  };
+
+  const clearFieldError = (field: string) => {
+    if (validationErrors[field]) {
+      const newErrors = { ...validationErrors };
+      delete newErrors[field];
+      setValidationErrors(newErrors);
+    }
+  };
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       [field]: value,
     }));
+
+    // Clear validation error when user starts typing
+    if (validationErrors[field]) {
+      clearFieldError(field);
+    }
+
+    // Hide validation summary when user starts correcting errors
+    if (showValidationSummary && Object.keys(validationErrors).length <= 1) {
+      setShowValidationSummary(false);
+    }
   };
 
 
@@ -175,53 +302,176 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
   };
 
   const handleRegister = async () => {
-    // Basic validation
+    // Validate basic field requirements first
+    const basicValidationErrors: {[key: string]: string} = {};
+    let hasBasicErrors = false;
+
+    // Check only basic required field validation
     if (!formData.name.trim()) {
-      Alert.alert('Error', 'Company name is required');
-      return;
-    }
-    if (!formData.category.trim()) {
-      Alert.alert('Error', 'Business category is required');
-      return;
-    }
-    if (!formData.address.trim()) {
-      Alert.alert('Error', 'Address is required');
-      return;
-    }
-    if (!formData.phone.trim()) {
-      Alert.alert('Error', 'Phone number is required');
-      return;
+      basicValidationErrors.name = 'Company name is required';
+      hasBasicErrors = true;
     }
     if (!formData.email.trim()) {
-      Alert.alert('Error', 'Email is required');
-      return;
+      basicValidationErrors.email = 'Email is required';
+      hasBasicErrors = true;
     }
-    if (!formData.password || !formData.confirmPassword) {
-      Alert.alert('Error', 'Password fields are required');
-      return;
+    if (!formData.phone.trim()) {
+      basicValidationErrors.phone = 'Phone number is required';
+      hasBasicErrors = true;
     }
-    if (formData.password !== formData.confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return;
+    if (!formData.password) {
+      basicValidationErrors.password = 'Password is required';
+      hasBasicErrors = true;
     }
-    if (formData.password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters long');
-      return;
+    if (!formData.confirmPassword) {
+      basicValidationErrors.confirmPassword = 'Please confirm your password';
+      hasBasicErrors = true;
+    }
+    if (!formData.category.trim()) {
+      basicValidationErrors.category = 'Business category is required';
+      hasBasicErrors = true;
+    }
+    if (!formData.address.trim()) {
+      basicValidationErrors.address = 'Address is required';
+      hasBasicErrors = true;
+    }
+
+    // Check password match
+    if (formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword) {
+      basicValidationErrors.confirmPassword = 'Passwords do not match';
+      hasBasicErrors = true;
+    }
+
+    // Check password length
+    if (formData.password && formData.password.length < 6) {
+      basicValidationErrors.password = 'Password must be at least 6 characters';
+      hasBasicErrors = true;
+    }
+
+    // Check email format
+    if (formData.email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        basicValidationErrors.email = 'Please enter a valid email address';
+        hasBasicErrors = true;
+      }
+    }
+
+    // Check phone format
+    if (formData.phone.trim()) {
+      const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+      if (!phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
+        basicValidationErrors.phone = 'Please enter a valid phone number';
+        hasBasicErrors = true;
+      }
+    }
+
+    // Set validation errors and show summary if there are basic errors
+    if (hasBasicErrors) {
+      setValidationErrors(basicValidationErrors);
+      setShowValidationSummary(true);
+      return; // Stop if basic validation fails
     }
 
     setIsLoading(true);
     try {
-      await authService.registerUser({
-        companyName: formData.name,
-        email: formData.email,
-        phone: formData.phone,
+      // Prepare registration data according to Backend API List
+      const registrationData = {
+        email: formData.email.trim(),
         password: formData.password,
-      });
-      Alert.alert('Success', 'Registration successful! Please sign in.');
-      navigation.navigate('Login');
-    } catch (error) {
+        companyName: formData.name.trim(),
+        phoneNumber: formData.phone.trim(),
+        // Additional fields for profile update after registration
+        additionalData: {
+          description: formData.description.trim(),
+          category: formData.category.trim(),
+          address: formData.address.trim(),
+          alternatePhone: formData.alternatePhone.trim(),
+          website: formData.website.trim(),
+          companyLogo: logoImage || formData.companyLogo,
+        }
+      };
+
+      console.log('Registering user with data:', registrationData);
+      
+      // Register user using the API
+      const result = await authService.registerUser(registrationData);
+      
+      if (result && result.user) {
+        // Update profile with additional information after successful registration
+        try {
+          await authService.updateUserProfile({
+            companyName: formData.name.trim(),
+            phoneNumber: formData.phone.trim(),
+            logo: logoImage || formData.companyLogo,
+            // Additional profile fields
+            description: formData.description.trim(),
+            category: formData.category.trim(),
+            address: formData.address.trim(),
+            alternatePhone: formData.alternatePhone.trim(),
+            website: formData.website.trim(),
+          });
+        } catch (profileError) {
+          console.warn('Profile update failed, but registration was successful:', profileError);
+        }
+
+        // Show success message and navigate
+        Alert.alert(
+          'Success', 
+          'Registration successful! You are now logged in.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Navigate to main app since user is now logged in
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'MainApp' }],
+                });
+              }
+            }
+          ]
+        );
+      } else {
+        throw new Error('Registration failed - no user data returned');
+      }
+    } catch (error: any) {
       console.error('Registration error:', error);
-      Alert.alert('Error', 'Registration failed. Please try again.');
+      
+      // Handle specific error messages
+      let errorMessage = 'Registration failed. Please try again.';
+      
+      if (error.message) {
+        if (error.message.includes('Email already registered') || 
+            error.message.includes('email already exists') ||
+            error.message.includes('already registered') ||
+            error.message.includes('User already exists') ||
+            error.message.includes('Email is already in use')) {
+          errorMessage = 'This email is already registered. Please use a different email or try logging in.';
+        } else if (error.message.includes('Invalid email')) {
+          errorMessage = 'Please enter a valid email address.';
+        } else if (error.message.includes('Password')) {
+          errorMessage = 'Password requirements not met. Please ensure your password is at least 6 characters long.';
+        } else if (error.message.includes('Phone')) {
+          errorMessage = 'Please enter a valid phone number.';
+        } else if (error.message.includes('Company name')) {
+          errorMessage = 'Please enter a valid company name.';
+        }
+      }
+      
+      // Also check for API response errors
+      if (error.response && error.response.data) {
+        const apiError = error.response.data;
+        if (apiError.error && apiError.error.message) {
+          if (apiError.error.message.includes('already registered') ||
+              apiError.error.message.includes('already exists') ||
+              apiError.error.message.includes('Email is already in use')) {
+            errorMessage = 'This email is already registered. Please use a different email or try logging in.';
+          }
+        }
+      }
+      
+      showError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -280,6 +530,8 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
                 focusedField={focusedField}
                 setFocusedField={setFocusedField}
                 theme={theme}
+                validationError={validationErrors.name}
+                showValidationSummary={showValidationSummary}
               />
 
               <FloatingInput
@@ -407,6 +659,8 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
                 focusedField={focusedField}
                 setFocusedField={setFocusedField}
                 theme={theme}
+                validationError={validationErrors.phone}
+                showValidationSummary={showValidationSummary}
               />
 
                 <FloatingInput
@@ -429,6 +683,8 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
                 focusedField={focusedField}
                 setFocusedField={setFocusedField}
                 theme={theme}
+                validationError={validationErrors.email}
+                showValidationSummary={showValidationSummary}
               />
 
               <FloatingInput
@@ -452,6 +708,8 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
                 focusedField={focusedField}
                 setFocusedField={setFocusedField}
                 theme={theme}
+                validationError={validationErrors.address}
+                showValidationSummary={showValidationSummary}
               />
             </View>
 
@@ -471,6 +729,8 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
                   setFocusedField={setFocusedField}
                   theme={theme}
                   autoCapitalize="none"
+                  validationError={validationErrors.password}
+                  showValidationSummary={showValidationSummary}
                 />
 
                 <FloatingInput
@@ -483,6 +743,8 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
                   setFocusedField={setFocusedField}
                   theme={theme}
                   autoCapitalize="none"
+                  validationError={validationErrors.confirmPassword}
+                  showValidationSummary={showValidationSummary}
                 />
             </View>
 
@@ -583,6 +845,83 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      {/* Professional Error Modal */}
+      <Modal
+        visible={showErrorModal}
+        transparent={true}
+        animationType="none"
+        onRequestClose={hideModal}
+      >
+        <View style={styles.modalOverlay}>
+          <Animated.View 
+            style={[
+              styles.errorModalContainer,
+              { 
+                backgroundColor: theme.colors.surface,
+                transform: [
+                  {
+                    scale: modalAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.8, 1],
+                    }),
+                  },
+                  {
+                    translateY: modalAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [50, 0],
+                    }),
+                  },
+                ],
+                opacity: modalAnimation,
+              }
+            ]}
+          >
+            {/* Modal Header */}
+            <View style={styles.errorModalHeader}>
+              <View style={[styles.errorIconContainer, { backgroundColor: theme.colors.error + '20' }]}>
+                <Icon name="error-outline" size={32} color={theme.colors.error} />
+              </View>
+              <Text style={[styles.errorModalTitle, { color: theme.colors.text }]}>
+                Registration Error
+              </Text>
+            </View>
+
+            {/* Modal Content */}
+            <View style={styles.errorModalContent}>
+              <Text style={[styles.errorModalMessage, { color: theme.colors.textSecondary }]}>
+                {errorMessage}
+              </Text>
+            </View>
+
+            {/* Modal Actions */}
+            <View style={styles.errorModalActions}>
+              <TouchableOpacity
+                style={[styles.errorModalButton, { backgroundColor: theme.colors.primary }]}
+                onPress={hideModal}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.errorModalButtonText}>Try Again</Text>
+              </TouchableOpacity>
+              
+              {errorMessage.includes('already registered') && (
+                <TouchableOpacity
+                  style={[styles.errorModalSecondaryButton, { borderColor: theme.colors.primary }]}
+                  onPress={() => {
+                    hideModal();
+                    navigation.navigate('Login');
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.errorModalSecondaryButtonText, { color: theme.colors.primary }]}>
+                    Go to Login
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
       </SafeAreaView>
   );
 };
@@ -672,6 +1011,21 @@ const styles = StyleSheet.create({
   },
   inputFocused: {
     borderWidth: 2,
+  },
+  inputError: {
+    borderWidth: 2,
+    shadowColor: '#ff0000',
+    shadowOpacity: 0.2,
+  },
+  errorMessageContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 6,
+  },
+  errorMessage: {
+    fontSize: Math.min(screenWidth * 0.035, 14),
+    flex: 1,
   },
   multilineInput: {
     minHeight: isTablet ? screenHeight * 0.06 : screenHeight * 0.08,
@@ -991,6 +1345,74 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: isTablet ? screenHeight * 0.04 : screenHeight * 0.06,
+  },
+
+  // Error Modal Styles
+  errorModalContainer: {
+    width: '100%',
+    maxWidth: isTablet ? 500 : 400,
+    borderRadius: isTablet ? 24 : 20,
+    padding: isTablet ? 32 : 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  errorModalHeader: {
+    alignItems: 'center',
+    marginBottom: isTablet ? 24 : 20,
+  },
+  errorIconContainer: {
+    width: isTablet ? 80 : 64,
+    height: isTablet ? 80 : 64,
+    borderRadius: isTablet ? 40 : 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: isTablet ? 16 : 12,
+  },
+  errorModalTitle: {
+    fontSize: isTablet ? 24 : Math.min(screenWidth * 0.06, 20),
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  errorModalContent: {
+    marginBottom: isTablet ? 32 : 24,
+  },
+  errorModalMessage: {
+    fontSize: isTablet ? 18 : Math.min(screenWidth * 0.045, 16),
+    lineHeight: isTablet ? 26 : Math.min(screenWidth * 0.065, 22),
+    textAlign: 'center',
+  },
+  errorModalActions: {
+    gap: isTablet ? 16 : 12,
+  },
+  errorModalButton: {
+    borderRadius: isTablet ? 16 : 12,
+    paddingVertical: isTablet ? 16 : 14,
+    paddingHorizontal: isTablet ? 24 : 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorModalButtonText: {
+    color: '#FFFFFF',
+    fontSize: isTablet ? 18 : Math.min(screenWidth * 0.045, 16),
+    fontWeight: '600',
+  },
+  errorModalSecondaryButton: {
+    borderRadius: isTablet ? 16 : 12,
+    paddingVertical: isTablet ? 16 : 14,
+    paddingHorizontal: isTablet ? 24 : 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+  },
+  errorModalSecondaryButtonText: {
+    fontSize: isTablet ? 18 : Math.min(screenWidth * 0.045, 16),
+    fontWeight: '600',
   },
 });
 
