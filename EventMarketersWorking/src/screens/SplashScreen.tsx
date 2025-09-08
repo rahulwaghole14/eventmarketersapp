@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Video from 'react-native-video';
 import { useTheme } from '../context/ThemeContext';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -45,6 +46,32 @@ const SplashScreen: React.FC = () => {
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
+  const videoOpacity = useRef(new Animated.Value(1)).current;
+  
+  // Video state
+  const [showVideo, setShowVideo] = React.useState(true);
+  const [videoEnded, setVideoEnded] = React.useState(false);
+
+  // Video event handlers
+  const onVideoEnd = () => {
+    setVideoEnded(true);
+    // Fade out video
+    Animated.timing(videoOpacity, {
+      toValue: 0,
+      duration: 500,
+      useNativeDriver: true,
+    }).start(() => {
+      setShowVideo(false);
+      startAnimations();
+    });
+  };
+
+  const onVideoError = (error: any) => {
+    console.log('Video error:', error);
+    // If video fails to load, show regular splash screen
+    setShowVideo(false);
+    startAnimations();
+  };
 
   // Memoized animation sequence
   const startAnimations = useMemo(() => () => {
@@ -81,8 +108,11 @@ const SplashScreen: React.FC = () => {
   }, [fadeAnim, scaleAnim, slideAnim, rotateAnim]);
 
   useEffect(() => {
-    startAnimations();
-  }, [startAnimations]);
+    // Start animations only if video is not showing or has ended
+    if (!showVideo) {
+      startAnimations();
+    }
+  }, [startAnimations, showVideo]);
 
   const spin = rotateAnim.interpolate({
     inputRange: [0, 1],
@@ -99,6 +129,22 @@ const SplashScreen: React.FC = () => {
         backgroundColor="transparent" 
         translucent={true}
       />
+      
+      {/* Video Background */}
+      {showVideo && (
+        <Animated.View style={[styles.videoContainer, { opacity: videoOpacity }]}>
+          <Video
+            source={{ uri: 'file:///android_asset/intro.mp4' }}
+            style={styles.video}
+            resizeMode="cover"
+            onEnd={onVideoEnd}
+            onError={onVideoError}
+            repeat={false}
+            muted={false}
+            volume={1.0}
+          />
+        </Animated.View>
+      )}
       
       <LinearGradient
         colors={theme.colors.gradient}
@@ -175,6 +221,18 @@ const SplashScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  videoContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1,
+  },
+  video: {
+    width: '100%',
+    height: '100%',
   },
   gradientBackground: {
     flex: 1,
