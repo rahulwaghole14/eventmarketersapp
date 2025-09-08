@@ -1,5 +1,8 @@
 
 
+import { templatesBannersApi, type Template as ApiTemplate, type TemplateFilters as ApiTemplateFilters } from './templatesBannersApi';
+
+
 export interface Template {
   id: string;
   title: string;
@@ -56,20 +59,95 @@ class TemplateService {
     return cached && (Date.now() - cached.timestamp) < this.CACHE_DURATION;
   }
 
-  // Fetch all templates with optional filtering (mock data only)
+  // Fetch all templates with optional filtering (API first, mock fallback)
   async getTemplates(filters?: TemplateFilters): Promise<Template[]> {
-    return this.getMockTemplates(filters);
+    try {
+      // Try API first
+      const apiFilters: ApiTemplateFilters = {
+        type: filters?.type,
+        category: filters?.category,
+        language: filters?.language,
+        search: filters?.search,
+      };
+      
+      const response = await templatesBannersApi.getTemplates(apiFilters);
+      
+      if (response.success) {
+        // Convert API templates to local format
+        const templates: Template[] = response.data.templates.map((apiTemplate: ApiTemplate) => ({
+          id: apiTemplate.id,
+          title: apiTemplate.name,
+          description: apiTemplate.description,
+          imageUrl: apiTemplate.imageUrl,
+          category: apiTemplate.category,
+          language: apiTemplate.language,
+          tags: apiTemplate.tags,
+          type: apiTemplate.type,
+          createdAt: apiTemplate.createdAt,
+          updatedAt: apiTemplate.createdAt, // API doesn't have updatedAt
+        }));
+        
+        return templates;
+      } else {
+        throw new Error('Failed to fetch templates from API');
+      }
+    } catch (error) {
+      console.error('API get templates failed, falling back to mock:', error);
+      // Fallback to mock data
+      return this.getMockTemplates(filters);
+    }
   }
 
-  // Get template by ID (mock data)
+  // Get template by ID (API first, mock fallback)
   async getTemplateById(id: string): Promise<Template | null> {
-    const mockTemplates = this.getMockTemplates();
-    return mockTemplates.find(template => template.id === id) || null;
+    try {
+      // Try API first
+      const response = await templatesBannersApi.getTemplateById(id);
+      
+      if (response.success) {
+        // Convert API template to local format
+        const apiTemplate = response.data;
+        const template: Template = {
+          id: apiTemplate.id,
+          title: apiTemplate.name,
+          description: apiTemplate.description,
+          imageUrl: apiTemplate.imageUrl,
+          category: apiTemplate.category,
+          language: apiTemplate.language,
+          tags: apiTemplate.tags,
+          type: apiTemplate.type,
+          createdAt: apiTemplate.createdAt,
+          updatedAt: apiTemplate.createdAt, // API doesn't have updatedAt
+        };
+        
+        return template;
+      } else {
+        throw new Error('Failed to fetch template from API');
+      }
+    } catch (error) {
+      console.error('API get template by ID failed, falling back to mock:', error);
+      // Fallback to mock data
+      const mockTemplates = this.getMockTemplates();
+      return mockTemplates.find(template => template.id === id) || null;
+    }
   }
 
-  // Get available languages for filtering (mock data)
+  // Get available languages for filtering (API first, mock fallback)
   async getAvailableLanguages(): Promise<string[]> {
-    return ['English', 'Spanish', 'French', 'German', 'Italian'];
+    try {
+      // Try API first
+      const response = await templatesBannersApi.getLanguages();
+      
+      if (response.success) {
+        return response.data.map(lang => lang.name);
+      } else {
+        throw new Error('Failed to fetch languages from API');
+      }
+    } catch (error) {
+      console.error('API get languages failed, falling back to mock:', error);
+      // Fallback to mock data
+      return ['English', 'Spanish', 'French', 'German', 'Italian'];
+    }
   }
 
   // Create a new banner (mock implementation)

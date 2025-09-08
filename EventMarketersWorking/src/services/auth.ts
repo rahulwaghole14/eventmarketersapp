@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { authApi, type RegisterRequest, type LoginRequest, type GoogleAuthRequest } from './authApi';
 
 // Authentication service with real API integration
 class AuthService {
@@ -66,14 +67,36 @@ class AuthService {
     }
   }
 
-  // Register new user (local only)
+  // Register new user (API first, local fallback)
   async registerUser(userData: any): Promise<any> {
     try {
-      console.log('Registering new user locally...');
-      return this.registerUserLocal(userData);
+      console.log('Registering new user with API...');
+      
+      // Try API registration first
+      const registerData: RegisterRequest = {
+        email: userData.email,
+        password: userData.password,
+        companyName: userData.companyName,
+        phoneNumber: userData.phoneNumber,
+      };
+      
+      const response = await authApi.register(registerData);
+      
+      if (response.success) {
+        // Save user and token
+        this.currentUser = response.data.user;
+        await this.saveUserToStorage(response.data.user, response.data.token);
+        this.notifyAuthStateListeners(this.currentUser);
+        
+        console.log('User registration successful via API:', response.data.user.id);
+        return { user: response.data.user };
+      } else {
+        throw new Error('Registration failed');
+      }
     } catch (error) {
-      console.error('User registration error:', error);
-      throw error;
+      console.error('API registration failed, falling back to local:', error);
+      // Fallback to local registration
+      return this.registerUserLocal(userData);
     }
   }
 
@@ -123,14 +146,34 @@ class AuthService {
     }
   }
 
-  // Email/Password sign-in (local only)
+  // Email/Password sign-in (API first, local fallback)
   async signInWithEmail(email: string, password: string): Promise<any> {
     try {
-      console.log('Email sign-in locally...');
-      return this.signInWithEmailLocal(email, password);
+      console.log('Email sign-in with API...');
+      
+      // Try API sign-in first
+      const loginData: LoginRequest = {
+        email,
+        password,
+      };
+      
+      const response = await authApi.login(loginData);
+      
+      if (response.success) {
+        // Save user and token
+        this.currentUser = response.data.user;
+        await this.saveUserToStorage(response.data.user, response.data.token);
+        this.notifyAuthStateListeners(this.currentUser);
+        
+        console.log('Email sign-in successful via API:', response.data.user.id);
+        return { user: response.data.user };
+      } else {
+        throw new Error('Login failed');
+      }
     } catch (error) {
-      console.error('Email sign-in error:', error);
-      throw error;
+      console.error('API sign-in failed, falling back to local:', error);
+      // Fallback to local sign-in
+      return this.signInWithEmailLocal(email, password);
     }
   }
 
@@ -161,7 +204,7 @@ class AuthService {
     }
   }
 
-  // Google Sign-In implementation (local only)
+  // Google Sign-In implementation (API first, local fallback)
   async signInWithGoogle(): Promise<any> {
     try {
       console.log('Google Sign-In started...');
@@ -174,8 +217,31 @@ class AuthService {
       
       console.log('Google Sign-In user info:', userInfo);
       
-      // Use local storage only
-      return this.signInWithGoogleLocal(userInfo);
+      // Try API Google sign-in first
+      try {
+        const googleAuthData: GoogleAuthRequest = {
+          idToken: userInfo.idToken || '',
+          accessToken: userInfo.serverAuthCode || '',
+        };
+        
+        const response = await authApi.googleLogin(googleAuthData);
+        
+        if (response.success) {
+          // Save user and token
+          this.currentUser = response.data.user;
+          await this.saveUserToStorage(response.data.user, response.data.token);
+          this.notifyAuthStateListeners(this.currentUser);
+          
+          console.log('Google sign-in successful via API:', response.data.user.id);
+          return { user: response.data.user };
+        } else {
+          throw new Error('Google login failed');
+        }
+      } catch (apiError) {
+        console.error('API Google sign-in failed, falling back to local:', apiError);
+        // Fallback to local Google sign-in
+        return this.signInWithGoogleLocal(userInfo);
+      }
     } catch (error) {
       console.error('Google Sign-In Error:', error);
       
@@ -282,10 +348,19 @@ class AuthService {
     }
   }
 
-  // Sign out (local only)
+  // Sign out (API first, local cleanup)
   async signOut(): Promise<void> {
     try {
       console.log('Signing out user...');
+      
+      // Try API logout first
+      try {
+        await authApi.logout();
+        console.log('API logout successful');
+      } catch (apiError) {
+        console.error('API logout failed:', apiError);
+        // Continue with local cleanup even if API logout fails
+      }
       
       // Sign out from Google if user was signed in with Google
       if (this.currentUser?.providerId === 'google') {
@@ -297,6 +372,7 @@ class AuthService {
         }
       }
       
+      // Clear local data
       this.currentUser = null;
       await AsyncStorage.removeItem('currentUser');
       await AsyncStorage.removeItem('authToken');
@@ -308,23 +384,42 @@ class AuthService {
     }
   }
 
-  // Get current user profile (local only)
+  // Get current user profile (API first, local fallback)
   async getUserProfile(): Promise<any> {
+    try {
+      // Try API first
+      const response = await authApi.getProfile();
+      if (response.success) {
+        this.currentUser = response.data;
+        await this.saveUserToStorage(response.data);
+        return response.data;
+      }
+    } catch (error) {
+      console.error('API get profile failed, using local:', error);
+    }
+    
+    // Fallback to local
     return this.currentUser;
   }
 
-  // Update user profile (local only)
+  // Update user profile (API first, local fallback)
   async updateUserProfile(profileData: any): Promise<any> {
     try {
-      // Update current user locally
-      this.currentUser = { ...this.currentUser, ...profileData };
-      await this.saveUserToStorage(this.currentUser);
-      
-      return this.currentUser;
+      // Try API first
+      const response = await authApi.updateProfile(profileData);
+      if (response.success) {
+        this.currentUser = response.data;
+        await this.saveUserToStorage(response.data);
+        return response.data;
+      }
     } catch (error) {
-      console.error('Error updating user profile:', error);
-      throw error;
+      console.error('API update profile failed, using local:', error);
     }
+    
+    // Fallback to local update
+    this.currentUser = { ...this.currentUser, ...profileData };
+    await this.saveUserToStorage(this.currentUser);
+    return this.currentUser;
   }
 
   // Get current user

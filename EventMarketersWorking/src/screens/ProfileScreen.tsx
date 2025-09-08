@@ -481,6 +481,7 @@ const ProfileScreen: React.FC = () => {
            <View style={styles.section}>
              <Text style={styles.sectionTitle}>App Settings</Text>
              {renderMenuItem('dark-mode', 'Dark Mode', 'Switch to dark theme', undefined, true, isDarkMode, handleDarkModeToggle, darkModeAnimation)}
+             {renderMenuItem('api', 'API Test', 'Test backend API endpoints', () => navigation.navigate('ApiTest' as never))}
            </View>
 
           {/* Support & Legal */}

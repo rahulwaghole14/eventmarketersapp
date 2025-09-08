@@ -83,6 +83,7 @@ export type MainStackParamList = {
   };
   MyPosters: undefined;
   LikedItems: undefined;
+  ApiTest: undefined;
 };
 
 export type TabParamList = {
@@ -115,6 +116,7 @@ import GreetingTemplatesScreen from '../screens/GreetingTemplatesScreen';
 import GreetingEditorScreen from '../screens/GreetingEditorScreen';
 import MyPostersScreen from '../screens/MyPostersScreen';
 import LikedItemsScreen from '../screens/LikedItemsScreen';
+import ApiTestScreen from '../screens/ApiTestScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const MainStack = createStackNavigator<MainStackParamList>();
@@ -199,6 +201,11 @@ const TabNavigator = () => {
       <MainStack.Screen 
         name="LikedItems" 
         component={LikedItemsScreen}
+        options={{ headerShown: false }}
+      />
+      <MainStack.Screen 
+        name="ApiTest" 
+        component={ApiTestScreen}
         options={{ headerShown: false }}
       />
     </MainStack.Navigator>
@@ -299,7 +306,7 @@ const AppNavigator = () => {
     const timeout = setTimeout(() => {
       console.log('AppNavigator: Timeout reached, setting loading to false');
       setIsLoading(false);
-    }, 1000);
+    }, 3000);
 
     // Listen to authentication state changes
     const unsubscribe = authService.onAuthStateChanged((user) => {
