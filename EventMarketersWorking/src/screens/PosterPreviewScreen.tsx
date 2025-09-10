@@ -18,7 +18,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import axios from 'axios';
-import RNFS from 'react-native-fs';
+// import RNFS from 'react-native-fs'; // Removed - package uninstalled
 import { CameraRoll } from '@react-native-camera-roll/camera-roll';
 import downloadedPostersService from '../services/downloadedPosters';
 
@@ -210,35 +210,7 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
      return true;
    };
 
-   // Helper function to ensure EventMarketers folder exists
-   const ensureEventMarketersFolder = async (basePath: string) => {
-     const eventMarketersPath = `${basePath}/EventMarketers`;
-     
-     try {
-       console.log('Checking if folder exists:', eventMarketersPath);
-       const folderExists = await RNFS.exists(eventMarketersPath);
-       console.log('Folder exists:', folderExists);
-       
-       if (!folderExists) {
-         console.log('Creating EventMarketers folder...');
-         await RNFS.mkdir(eventMarketersPath);
-         console.log('EventMarketers folder created at:', eventMarketersPath);
-         
-         // Verify folder was created
-         const folderCreated = await RNFS.exists(eventMarketersPath);
-         console.log('Folder creation verified:', folderCreated);
-       } else {
-         console.log('EventMarketers folder already exists');
-       }
-       
-       return eventMarketersPath;
-     } catch (error) {
-       console.error('Error creating EventMarketers folder:', error);
-       console.error('Base path was:', basePath);
-       // Return base path as fallback
-       return basePath;
-     }
-   };
+   // Helper function removed - RNFS package uninstalled
 
    // Helper function to get user-friendly folder path
    const getFolderPathForDisplay = () => {
@@ -311,13 +283,9 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
          }
        }
 
-       // Check if source file exists (for file:// URIs)
+       // Check if source file exists (for file:// URIs) - RNFS removed, skip check
        if (capturedImageUri.startsWith('file://')) {
-         const sourceExists = await RNFS.exists(capturedImageUri);
-         console.log('Source file exists:', sourceExists);
-         if (!sourceExists) {
-           throw new Error('Source file does not exist');
-         }
+         console.log('File URI detected, proceeding with save');
        }
 
        // Save to gallery using CameraRoll

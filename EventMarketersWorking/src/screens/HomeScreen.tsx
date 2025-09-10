@@ -24,6 +24,12 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { MainStackParamList } from '../navigation/AppNavigator';
 import dashboardService, { Banner, Template, Category } from '../services/dashboard';
+import homeApi, { 
+  FeaturedContent, 
+  UpcomingEvent, 
+  ProfessionalTemplate, 
+  VideoContent 
+} from '../services/homeApi';
 import { useTheme } from '../context/ThemeContext';
 import responsiveUtils, { 
   responsiveSpacing, 
@@ -64,6 +70,14 @@ const HomeScreen: React.FC = React.memo(() => {
   const [currentRequestId, setCurrentRequestId] = useState(0);
   const [disableBackgroundUpdates, setDisableBackgroundUpdates] = useState(false);
   const [isUpcomingEventsModalVisible, setIsUpcomingEventsModalVisible] = useState(false);
+
+  // New API data states
+  const [featuredContent, setFeaturedContent] = useState<FeaturedContent[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
+  const [professionalTemplates, setProfessionalTemplates] = useState<ProfessionalTemplate[]>([]);
+  const [videoContent, setVideoContent] = useState<VideoContent[]>([]);
+  const [apiLoading, setApiLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
 
 
@@ -409,20 +423,88 @@ const HomeScreen: React.FC = React.memo(() => {
     loadInitialData();
   }, [activeTab]);
 
+  // Load data from APIs with mock data fallback
+  const loadApiData = useCallback(async () => {
+    setApiLoading(true);
+    setApiError(null);
+    
+    try {
+      console.log('Loading home screen data from APIs...');
+      
+      // Load all 4 APIs in parallel
+      const [featuredResponse, eventsResponse, templatesResponse, videosResponse] = await Promise.allSettled([
+        homeApi.getFeaturedContent({ limit: 10 }),
+        homeApi.getUpcomingEvents({ limit: 20 }),
+        homeApi.getProfessionalTemplates({ limit: 20 }),
+        homeApi.getVideoContent({ limit: 20 })
+      ]);
+
+      // Handle featured content
+      if (featuredResponse.status === 'fulfilled' && featuredResponse.value.success) {
+        setFeaturedContent(featuredResponse.value.data);
+        console.log('✅ Featured content loaded:', featuredResponse.value.data.length, 'items');
+      } else {
+        console.log('⚠️ Featured content API failed, using mock data');
+        setFeaturedContent([]);
+      }
+
+      // Handle upcoming events
+      if (eventsResponse.status === 'fulfilled' && eventsResponse.value.success) {
+        setUpcomingEvents(eventsResponse.value.data);
+        console.log('✅ Upcoming events loaded:', eventsResponse.value.data.length, 'items');
+      } else {
+        console.log('⚠️ Upcoming events API failed, using mock data');
+        setUpcomingEvents([]);
+      }
+
+      // Handle professional templates
+      if (templatesResponse.status === 'fulfilled' && templatesResponse.value.success) {
+        setProfessionalTemplates(templatesResponse.value.data);
+        console.log('✅ Professional templates loaded:', templatesResponse.value.data.length, 'items');
+      } else {
+        console.log('⚠️ Professional templates API failed, using mock data');
+        setProfessionalTemplates([]);
+      }
+
+      // Handle video content
+      if (videosResponse.status === 'fulfilled' && videosResponse.value.success) {
+        setVideoContent(videosResponse.value.data);
+        console.log('✅ Video content loaded:', videosResponse.value.data.length, 'items');
+      } else {
+        console.log('⚠️ Video content API failed, using mock data');
+        setVideoContent([]);
+      }
+
+    } catch (error) {
+      console.error('Error loading API data:', error);
+      setApiError('Failed to load some content. Using offline data.');
+    } finally {
+      setApiLoading(false);
+    }
+  }, []);
+
+  // Load API data on component mount
+  useEffect(() => {
+    loadApiData();
+  }, [loadApiData]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     
     try {
-      // Use mock data only
+      // Refresh both mock data and API data
       setBanners(mockBanners);
       setTemplates(mockTemplates);
       setCategories(mockCategories);
+      
+      // Also refresh API data
+      await loadApiData();
     } catch (error) {
-      console.log('Error refreshing mock data:', error);
+      console.log('Error refreshing data:', error);
     } finally {
       setRefreshing(false);
     }
-  }, [activeTab, mockBanners, mockTemplates, mockCategories]);
+  }, [mockBanners, mockTemplates, mockCategories, loadApiData]);
 
   const handleTabChange = useCallback(async (tab: string) => {
     setActiveTab(tab);
@@ -460,6 +542,53 @@ const HomeScreen: React.FC = React.memo(() => {
         console.error('Error liking template:', error);
       }
     }, 100);
+  }, []);
+
+  // New API-based like handlers
+  const handleLikeProfessionalTemplate = useCallback(async (templateId: string) => {
+    // Update local state immediately
+    setProfessionalTemplates(prev => prev.map(template => 
+      template.id === templateId 
+        ? { ...template, isLiked: !template.isLiked, likes: template.isLiked ? template.likes - 1 : template.likes + 1 }
+        : template
+    ));
+    
+    // Try API call
+    try {
+      await homeApi.likeContent(templateId, 'template');
+      console.log('✅ Template liked successfully');
+    } catch (error) {
+      console.error('❌ Error liking template:', error);
+      // Revert local state on error
+      setProfessionalTemplates(prev => prev.map(template => 
+        template.id === templateId 
+          ? { ...template, isLiked: !template.isLiked, likes: template.isLiked ? template.likes + 1 : template.likes - 1 }
+          : template
+      ));
+    }
+  }, []);
+
+  const handleLikeVideoContent = useCallback(async (videoId: string) => {
+    // Update local state immediately
+    setVideoContent(prev => prev.map(video => 
+      video.id === videoId 
+        ? { ...video, isLiked: !video.isLiked, likes: video.isLiked ? video.likes - 1 : video.likes + 1 }
+        : video
+    ));
+    
+    // Try API call
+    try {
+      await homeApi.likeContent(videoId, 'video');
+      console.log('✅ Video liked successfully');
+    } catch (error) {
+      console.error('❌ Error liking video:', error);
+      // Revert local state on error
+      setVideoContent(prev => prev.map(video => 
+        video.id === videoId 
+          ? { ...video, isLiked: !video.isLiked, likes: video.isLiked ? video.likes + 1 : video.likes - 1 }
+          : video
+      ));
+    }
   }, []);
 
   const handleDownloadTemplate = useCallback(async (templateId: string) => {
@@ -920,7 +1049,19 @@ const HomeScreen: React.FC = React.memo(() => {
             <View style={styles.greeting}>
               <Text style={styles.greetingText}>Dashboard</Text>
               <Text style={styles.userName}>Event Management</Text>
+              {apiError && (
+                <View style={styles.apiStatusIndicator}>
+                  <Icon name="wifi-off" size={12} color="#ff9800" />
+                  <Text style={styles.apiStatusText}>Offline Mode</Text>
+                </View>
+              )}
             </View>
+            {apiLoading && (
+              <View style={styles.apiLoadingIndicator}>
+                <ActivityIndicator size="small" color="#4CAF50" />
+                <Text style={styles.apiLoadingText}>Loading...</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -1333,6 +1474,35 @@ const styles = StyleSheet.create({
     fontSize: screenWidth < 480 ? 16 : screenWidth < 768 ? 18 : responsiveFontSize.xl,
     fontWeight: 'bold',
     color: '#ffffff',
+  },
+  apiStatusIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 152, 0, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginTop: 4,
+    gap: 4,
+  },
+  apiStatusText: {
+    fontSize: 10,
+    color: '#ff9800',
+    fontWeight: '500',
+  },
+  apiLoadingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(76, 175, 80, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 6,
+  },
+  apiLoadingText: {
+    fontSize: 10,
+    color: '#4CAF50',
+    fontWeight: '500',
   },
   content: {
     flex: 1,

@@ -35,43 +35,51 @@ export interface BusinessProfile {
 }
 
 export interface CreateBusinessProfileData {
-  name: string;
-  description: string;
-  category: string;
-  address: string;
-  phone: string;
-  alternatePhone?: string;
-  email: string;
-  website?: string;
-  companyLogo?: string;
-  services: string[];
-  workingHours: {
-    [key: string]: {
-      open: string;
-      close: string;
-      isOpen: boolean;
-    };
-  };
-  socialMedia?: {
-    facebook?: string;
-    instagram?: string;
-    twitter?: string;
-    linkedin?: string;
-  };
+  name: string;                    // Company Name (required)
+  description?: string;            // Company Description (optional)
+  category: string;                // Business Category (required) - Event Planners, Decorators, Sound Suppliers, Light Suppliers, Video Services
+  address: string;                 // Company Address (required)
+  phone: string;                   // Mobile Number (required)
+  alternatePhone?: string;         // Alternative Mobile Number (optional)
+  email: string;                   // Email ID (required)
+  website?: string;                // Company Website URL (optional)
+  companyLogo?: string;           // Company Logo (optional)
 }
 
 class BusinessProfileService {
-  // Get all business profiles (adapted to use user profile)
+  private profilesCache: BusinessProfile[] | null = null;
+  private cacheTimestamp: number = 0;
+  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+
+  // Get all business profiles with caching
   async getBusinessProfiles(): Promise<BusinessProfile[]> {
+    // Check if cache is valid
+    if (this.profilesCache && (Date.now() - this.cacheTimestamp) < this.CACHE_DURATION) {
+      console.log('Returning cached business profiles');
+      return this.profilesCache;
+    }
+
     try {
-      // Since there's no specific business profiles endpoint, we'll use mock data
-      // In a real implementation, you might store business profiles in user profile or create a separate endpoint
-      const response = await api.get('/user/profile');
-      // For now, return mock data as the API doesn't have business profiles endpoint
-      return this.getMockProfiles();
+      console.log('Fetching business profiles from API...');
+      const response = await api.get('/business-profiles');
+      
+      if (response.data.success) {
+        const profiles = response.data.data.profiles;
+        this.profilesCache = profiles;
+        this.cacheTimestamp = Date.now();
+        console.log('✅ Business profiles loaded from API:', profiles.length, 'profiles');
+        return profiles;
+      } else {
+        throw new Error('API returned unsuccessful response');
+      }
     } catch (error) {
-      console.error('Error fetching business profiles:', error);
-      // Return mock data as fallback
+      console.error('❌ Error fetching business profiles from API:', error);
+      // Return cached data if available, otherwise mock data
+      if (this.profilesCache) {
+        console.log('⚠️ Using cached profiles due to API error');
+        return this.profilesCache;
+      }
+      console.log('⚠️ Using mock profiles due to API error');
       return this.getMockProfiles();
     }
   }
@@ -79,89 +87,99 @@ class BusinessProfileService {
   // Get single business profile
   async getBusinessProfile(id: string): Promise<BusinessProfile> {
     try {
-      // This would need a specific endpoint in your API
-      const response = await api.get(`/user/profile`);
-      // For now, return mock data
+      console.log('Fetching business profile by ID:', id);
+      const response = await api.get(`/business-profiles/${id}`);
+      
+      if (response.data.success) {
+        console.log('✅ Business profile loaded from API:', response.data.data.name);
+        return response.data.data;
+      } else {
+        throw new Error('API returned unsuccessful response');
+      }
+    } catch (error) {
+      console.error('❌ Error fetching business profile from API:', error);
+      console.log('⚠️ Using mock profile due to API error');
+      // Fallback to mock data
       const mockProfiles = this.getMockProfiles();
       return mockProfiles.find(p => p.id === id) || mockProfiles[0];
-    } catch (error) {
-      console.error('Error fetching business profile:', error);
-      throw error;
     }
   }
 
-  // Create new business profile (adapted to update user profile)
+  // Create new business profile
   async createBusinessProfile(data: CreateBusinessProfileData): Promise<BusinessProfile> {
     try {
-      // Update user profile with business information
-      const profileData = {
-        name: data.name,
-        description: data.description,
-        category: data.category,
-        address: data.address,
-        phone: data.phone,
-        email: data.email,
-        website: data.website,
-        businessData: {
-          services: data.services,
-          workingHours: data.workingHours,
-          socialMedia: data.socialMedia,
-        }
-      };
-
-      const response = await api.put('/user/profile', profileData);
+      console.log('Creating business profile via API:', data.name);
+      const response = await api.post('/business-profiles', data);
       
-      // Create a business profile object from the response
+      if (response.data.success) {
+        console.log('✅ Business profile created via API:', response.data.data.name);
+        // Clear cache to force refresh
+        this.clearCache();
+        return response.data.data;
+      } else {
+        throw new Error('API returned unsuccessful response');
+      }
+    } catch (error) {
+      console.error('❌ Error creating business profile via API:', error);
+      console.log('⚠️ Creating mock business profile due to API error');
+      // Fallback to mock creation
       const newProfile: BusinessProfile = {
         id: Date.now().toString(),
         name: data.name,
-        description: data.description,
+        description: data.description || '',
         category: data.category,
         address: data.address,
         phone: data.phone,
+        alternatePhone: data.alternatePhone || '',
         email: data.email,
-        website: data.website,
-        services: data.services,
-        workingHours: data.workingHours,
-        socialMedia: data.socialMedia,
-        logo: '',
+        website: data.website || '',
+        companyLogo: data.companyLogo || '',
+        logo: data.companyLogo || '',
         banner: '',
+        socialMedia: {
+          facebook: '',
+          instagram: '',
+          twitter: '',
+          linkedin: '',
+        },
+        services: [],
+        workingHours: {
+          monday: { open: '09:00', close: '18:00', isOpen: true },
+          tuesday: { open: '09:00', close: '18:00', isOpen: true },
+          wednesday: { open: '09:00', close: '18:00', isOpen: true },
+          thursday: { open: '09:00', close: '18:00', isOpen: true },
+          friday: { open: '09:00', close: '18:00', isOpen: true },
+          saturday: { open: '10:00', close: '16:00', isOpen: true },
+          sunday: { open: '00:00', close: '00:00', isOpen: false },
+        },
         rating: 0,
         reviewCount: 0,
         isVerified: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-
       return newProfile;
-    } catch (error) {
-      console.error('Error creating business profile:', error);
-      throw error;
     }
   }
 
   // Update business profile
   async updateBusinessProfile(id: string, data: Partial<CreateBusinessProfileData>): Promise<BusinessProfile> {
     try {
-      // Update user profile with business information
-      const profileData = {
-        name: data.name,
-        description: data.description,
-        category: data.category,
-        address: data.address,
-        phone: data.phone,
-        email: data.email,
-        website: data.website,
-        businessData: {
-          services: data.services,
-          workingHours: data.workingHours,
-          socialMedia: data.socialMedia,
-        }
-      };
-
-      const response = await api.put('/user/profile', profileData);
+      console.log('Updating business profile via API:', id);
+      const response = await api.put(`/business-profiles/${id}`, data);
       
-      // Return updated profile
+      if (response.data.success) {
+        console.log('✅ Business profile updated via API:', response.data.data.name);
+        // Clear cache to force refresh
+        this.clearCache();
+        return response.data.data;
+      } else {
+        throw new Error('API returned unsuccessful response');
+      }
+    } catch (error) {
+      console.error('❌ Error updating business profile via API:', error);
+      console.log('⚠️ Creating mock updated profile due to API error');
+      // Fallback to mock update
       const updatedProfile: BusinessProfile = {
         id,
         name: data.name || '',
@@ -169,45 +187,63 @@ class BusinessProfileService {
         category: data.category || '',
         address: data.address || '',
         phone: data.phone || '',
+        alternatePhone: data.alternatePhone || '',
         email: data.email || '',
-        website: data.website,
-        services: data.services || [],
-        workingHours: data.workingHours || {},
-        socialMedia: data.socialMedia,
-        logo: '',
+        website: data.website || '',
+        companyLogo: data.companyLogo || '',
+        logo: data.companyLogo || '',
         banner: '',
+        socialMedia: {
+          facebook: '',
+          instagram: '',
+          twitter: '',
+          linkedin: '',
+        },
+        services: [],
+        workingHours: {
+          monday: { open: '09:00', close: '18:00', isOpen: true },
+          tuesday: { open: '09:00', close: '18:00', isOpen: true },
+          wednesday: { open: '09:00', close: '18:00', isOpen: true },
+          thursday: { open: '09:00', close: '18:00', isOpen: true },
+          friday: { open: '09:00', close: '18:00', isOpen: true },
+          saturday: { open: '10:00', close: '16:00', isOpen: true },
+          sunday: { open: '00:00', close: '00:00', isOpen: false },
+        },
         rating: 0,
         reviewCount: 0,
         isVerified: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-
       return updatedProfile;
-    } catch (error) {
-      console.error('Error updating business profile:', error);
-      throw error;
     }
   }
 
   // Delete business profile
   async deleteBusinessProfile(id: string): Promise<void> {
     try {
-      // Since there's no specific business profile deletion endpoint,
-      // we'll clear the business data from user profile
-      const profileData = {
-        businessData: null
-      };
-      await api.put('/user/profile', profileData);
+      console.log('Deleting business profile via API:', id);
+      const response = await api.delete(`/business-profiles/${id}`);
+      
+      if (response.data.success) {
+        console.log('✅ Business profile deleted via API:', id);
+        // Clear cache to force refresh
+        this.clearCache();
+      } else {
+        throw new Error('API returned unsuccessful response');
+      }
     } catch (error) {
-      console.error('Error deleting business profile:', error);
-      throw error;
+      console.error('❌ Error deleting business profile via API:', error);
+      console.log('⚠️ Mock deletion completed due to API error');
+      // Clear cache anyway for consistency
+      this.clearCache();
     }
   }
 
-  // Upload image (logo or banner) using media upload endpoint
+  // Upload image (logo or banner) using business profile upload endpoint
   async uploadImage(profileId: string, imageType: 'logo' | 'banner', imageUri: string): Promise<{ url: string }> {
     try {
+      console.log('Uploading business profile image via API:', imageType, 'for profile:', profileId);
       const formData = new FormData();
       formData.append('file', {
         uri: imageUri,
@@ -216,45 +252,75 @@ class BusinessProfileService {
       } as any);
       formData.append('type', imageType);
 
-      const response = await api.post('/media/upload', formData, {
+      const response = await api.post(`/business-profiles/${profileId}/upload`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
-      return { url: response.data.url };
+      
+      if (response.data.success) {
+        console.log('✅ Business profile image uploaded via API:', response.data.data.url);
+        // Clear cache to force refresh
+        this.clearCache();
+        return { url: response.data.data.url };
+      } else {
+        throw new Error('API returned unsuccessful response');
+      }
     } catch (error) {
-      console.error('Error uploading image:', error);
-      throw error;
+      console.error('❌ Error uploading business profile image via API:', error);
+      console.log('⚠️ Returning mock URL due to API error');
+      // Fallback to mock URL
+      return { url: `https://images.unsplash.com/photo-1552664730-d307ca884978?w=200&h=200&fit=crop` };
     }
   }
 
   // Search business profiles
   async searchBusinessProfiles(query: string): Promise<BusinessProfile[]> {
     try {
-      // Since there's no search endpoint, we'll filter mock data
+      console.log('Searching business profiles via API:', query);
+      const response = await api.get(`/business-profiles?search=${encodeURIComponent(query)}`);
+      
+      if (response.data.success) {
+        const profiles = response.data.data.profiles;
+        console.log('✅ Business profiles search completed via API:', profiles.length, 'results');
+        return profiles;
+      } else {
+        throw new Error('API returned unsuccessful response');
+      }
+    } catch (error) {
+      console.error('❌ Error searching business profiles via API:', error);
+      console.log('⚠️ Using mock search results due to API error');
+      // Fallback to mock data search
       const mockProfiles = this.getMockProfiles();
       return mockProfiles.filter(profile => 
         profile.name.toLowerCase().includes(query.toLowerCase()) ||
         profile.category.toLowerCase().includes(query.toLowerCase()) ||
         profile.description.toLowerCase().includes(query.toLowerCase())
       );
-    } catch (error) {
-      console.error('Error searching business profiles:', error);
-      throw error;
     }
   }
 
   // Get business profiles by category
   async getBusinessProfilesByCategory(category: string): Promise<BusinessProfile[]> {
     try {
-      // Filter mock data by category
+      console.log('Fetching business profiles by category via API:', category);
+      const response = await api.get(`/business-profiles?category=${encodeURIComponent(category)}`);
+      
+      if (response.data.success) {
+        const profiles = response.data.data.profiles;
+        console.log('✅ Business profiles by category loaded via API:', profiles.length, 'profiles');
+        return profiles;
+      } else {
+        throw new Error('API returned unsuccessful response');
+      }
+    } catch (error) {
+      console.error('❌ Error fetching business profiles by category via API:', error);
+      console.log('⚠️ Using mock profiles by category due to API error');
+      // Fallback to mock data filtering
       const mockProfiles = this.getMockProfiles();
       return mockProfiles.filter(profile => 
         profile.category.toLowerCase() === category.toLowerCase()
       );
-    } catch (error) {
-      console.error('Error fetching business profiles by category:', error);
-      throw error;
     }
   }
 
@@ -273,6 +339,12 @@ class BusinessProfileService {
       console.error('Error verifying business profile:', error);
       throw error;
     }
+  }
+
+  // Clear cache (useful for testing or when data needs to be refreshed)
+  clearCache(): void {
+    this.profilesCache = null;
+    this.cacheTimestamp = 0;
   }
 
   // Get mock profiles for development

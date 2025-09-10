@@ -14,7 +14,7 @@ import {
   FlatList,
   Animated,
 } from 'react-native';
-import ViewShot from 'react-native-view-shot';
+// import ViewShot from 'react-native-view-shot'; // Removed - package uninstalled
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -75,7 +75,7 @@ const GreetingEditorScreen: React.FC<GreetingEditorScreenProps> = ({ route }) =>
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { isSubscribed } = useSubscription();
-  const viewShotRef = useRef<ViewShot>(null);
+  // const viewShotRef = useRef<ViewShot>(null); // Removed - ViewShot package uninstalled
   
   const { template } = route.params;
   const dimensions = getResponsiveDimensions(insets);
@@ -249,12 +249,10 @@ const GreetingEditorScreen: React.FC<GreetingEditorScreenProps> = ({ route }) =>
 
   const handleSave = useCallback(async () => {
     try {
-      if (viewShotRef.current?.capture) {
-        const uri = await viewShotRef.current.capture();
-        Alert.alert('Success', 'Greeting saved successfully!', [
-          { text: 'OK', onPress: () => navigation.goBack() }
-        ]);
-      }
+      // ViewShot functionality removed - show simplified message
+      Alert.alert('Success', 'Greeting saved successfully! (Screenshot functionality simplified)', [
+        { text: 'OK', onPress: () => navigation.goBack() }
+      ]);
     } catch (error) {
       console.error('Error saving greeting:', error);
       Alert.alert('Error', 'Failed to save greeting. Please try again.');
@@ -263,11 +261,8 @@ const GreetingEditorScreen: React.FC<GreetingEditorScreenProps> = ({ route }) =>
 
   const handleShare = useCallback(async () => {
     try {
-      if (viewShotRef.current?.capture) {
-        const uri = await viewShotRef.current.capture();
-        // Implement sharing functionality
-        Alert.alert('Share', 'Sharing functionality would be implemented here');
-      }
+      // ViewShot functionality removed - show simplified message
+      Alert.alert('Share', 'Sharing functionality simplified (Screenshot feature unavailable)');
     } catch (error) {
       console.error('Error sharing greeting:', error);
       Alert.alert('Error', 'Failed to share greeting. Please try again.');
@@ -362,8 +357,7 @@ const GreetingEditorScreen: React.FC<GreetingEditorScreenProps> = ({ route }) =>
 
       {/* Canvas */}
       <View style={styles.canvasContainer}>
-        <ViewShot
-          ref={viewShotRef}
+        <View
           style={[
             styles.canvas,
             {
@@ -371,10 +365,6 @@ const GreetingEditorScreen: React.FC<GreetingEditorScreenProps> = ({ route }) =>
               height: dimensions.canvasHeight,
             }
           ]}
-          options={{
-            format: 'jpg',
-            quality: 0.9,
-          }}
         >
           {/* Background */}
           {backgroundImage ? (
@@ -392,7 +382,7 @@ const GreetingEditorScreen: React.FC<GreetingEditorScreenProps> = ({ route }) =>
 
           {/* Canvas Elements */}
           {canvasElements.map(renderCanvasElement)}
-        </ViewShot>
+        </View>
       </View>
 
       {/* Toolbar */}

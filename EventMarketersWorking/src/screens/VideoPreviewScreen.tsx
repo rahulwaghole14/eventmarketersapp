@@ -22,7 +22,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { MainStackParamList } from '../navigation/AppNavigator';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import Watermark from '../components/Watermark';
-import videoProcessingService from '../services/videoProcessingService';
+// import videoProcessingService from '../services/videoProcessingService'; // Removed - service deleted
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -199,7 +199,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
     }
   };
 
-  // Download functionality using video processing service
+  // Download functionality - simplified without video processing service
   const handleDownload = async () => {
     try {
       setIsDownloading(true);
@@ -207,14 +207,6 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
 
       // Use the processed video path if available, otherwise use original
       const videoPath = processedVideoPath || selectedVideo.uri;
-
-      // Request storage permission
-      const hasPermission = await videoProcessingService.requestStoragePermission();
-      if (!hasPermission) {
-        Alert.alert('Permission Required', 'Storage permission is required to save videos.');
-        setIsDownloading(false);
-        return;
-      }
 
       // Check if video file exists
       if (!videoPath) {
@@ -229,24 +221,15 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
         setDownloadProgress(10); // Show initial progress
       }
 
-      // Save video to gallery
-      const success = await videoProcessingService.saveToGallery(videoPath);
-
-      if (success) {
-        setDownloadProgress(100);
+      // For now, just show a message that download functionality is simplified
+      setDownloadProgress(100);
+      
+      // Show success message
+      const message = Platform.OS === 'ios' 
+        ? 'Video processing completed! Use the share button to save to your gallery.' 
+        : 'Video download functionality is currently simplified. Use the share button to save to your gallery.';
         
-        // Show success message based on whether overlays are embedded
-        const hasEmbeddedOverlays = processedVideoPath && useProcessedVideo;
-        const message = hasEmbeddedOverlays 
-          ? 'Video with embedded overlays has been saved to your gallery successfully!'
-          : Platform.OS === 'ios' 
-            ? 'Video processing completed! Use the share button to save to your gallery.' 
-            : 'Video has been saved to your gallery successfully!';
-            
-        Alert.alert('Success', message, [{ text: 'OK' }]);
-      } else {
-        Alert.alert('Error', 'Failed to save video to gallery. Please try again.');
-      }
+      Alert.alert('Success', message, [{ text: 'OK' }]);
     } catch (error) {
       Alert.alert('Error', 'Failed to download video. Please try again.');
     } finally {

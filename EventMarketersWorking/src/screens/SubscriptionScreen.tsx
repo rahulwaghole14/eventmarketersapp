@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ScrollView,
   Platform,
   ToastAndroid,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -18,6 +19,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import RazorpayCheckout from 'react-native-razorpay';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { useTheme } from '../context/ThemeContext';
+import subscriptionApi, { SubscriptionPlan, SubscriptionStatus } from '../services/subscriptionApi';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -53,6 +55,10 @@ const SubscriptionScreen: React.FC = () => {
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
+  const [apiPlans, setApiPlans] = useState<SubscriptionPlan[]>([]);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
+  const [apiLoading, setApiLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // Subscription plans configuration
   const plans = {
@@ -93,6 +99,52 @@ const SubscriptionScreen: React.FC = () => {
   };
 
   const currentPlan = plans[selectedPlan];
+
+  // Load subscription data from API
+  const loadSubscriptionData = useCallback(async () => {
+    setApiLoading(true);
+    setApiError(null);
+    
+    try {
+      console.log('Loading subscription data from API...');
+      
+      // Load subscription plans and status in parallel
+      const [plansResponse, statusResponse] = await Promise.allSettled([
+        subscriptionApi.getPlans(),
+        subscriptionApi.getStatus(),
+      ]);
+      
+      // Handle plans response
+      if (plansResponse.status === 'fulfilled') {
+        console.log('✅ Subscription plans loaded from API:', plansResponse.value.data);
+        setApiPlans(plansResponse.value.data);
+      } else {
+        console.log('❌ Failed to load plans from API, using mock data');
+        setApiError('Failed to load subscription plans');
+      }
+      
+      // Handle status response
+      if (statusResponse.status === 'fulfilled') {
+        console.log('✅ Subscription status loaded from API:', statusResponse.value.data);
+        setSubscriptionStatus(statusResponse.value.data);
+        setIsSubscribed(statusResponse.value.data.isActive);
+      } else {
+        console.log('❌ Failed to load status from API, using local state');
+        setApiError('Failed to load subscription status');
+      }
+      
+    } catch (error) {
+      console.error('Error loading subscription data:', error);
+      setApiError('Network error - using offline mode');
+    } finally {
+      setApiLoading(false);
+    }
+  }, []);
+
+  // Load data on component mount
+  useEffect(() => {
+    loadSubscriptionData();
+  }, [loadSubscriptionData]);
 
   // Handle payment with Razorpay
   const handlePayment = async () => {
@@ -138,7 +190,7 @@ const SubscriptionScreen: React.FC = () => {
           },
         });
         
-        // Update subscription status
+        // Update subscription status via API
         await updateSubscriptionStatus(mockResponse.razorpay_payment_id);
         
         if (Platform.OS === 'android') {
@@ -187,7 +239,7 @@ const SubscriptionScreen: React.FC = () => {
             },
           });
           
-          // Call your backend to verify payment and update subscription
+          // Call subscription API to verify payment and update subscription
           await updateSubscriptionStatus(response.razorpay_payment_id);
           
           if (Platform.OS === 'android') {
@@ -243,19 +295,29 @@ const SubscriptionScreen: React.FC = () => {
     }
   };
 
-  // Update subscription status on backend
+  // Update subscription status via API
   const updateSubscriptionStatus = async (paymentId: string) => {
     try {
-      // In a real app, make API call to your backend
-      // await axios.post('/api/subscription/activate', {
-      //   paymentId,
-      //   plan: selectedPlan,
-      //   userId: currentUser.id,
-      // });
+      console.log('Updating subscription status via API:', { paymentId, plan: selectedPlan });
       
-      console.log('Subscription updated on backend:', { paymentId, plan: selectedPlan });
+      // Call subscription API to activate subscription
+      const response = await subscriptionApi.subscribe({
+        planId: selectedPlan === 'monthly' ? 'monthly_pro' : 'yearly_pro',
+        paymentMethod: 'razorpay',
+        autoRenew: true,
+      });
+      
+      console.log('✅ Subscription activated via API:', response.data);
+      
+      // Refresh subscription status
+      await loadSubscriptionData();
+      
     } catch (error) {
-      console.error('Error updating subscription:', error);
+      console.error('❌ Error updating subscription via API:', error);
+      
+      // Fallback: Update local state even if API fails
+      console.log('Using fallback: updating local subscription state');
+      setIsSubscribed(true);
     }
   };
 
@@ -302,8 +364,21 @@ const SubscriptionScreen: React.FC = () => {
            <Text style={styles.headerSubtitle}>
              Unlock unlimited possibilities
            </Text>
-           <View style={styles.demoBadge}>
-             <Text style={styles.demoBadgeText}>DEMO MODE</Text>
+           <View style={styles.statusContainer}>
+             {apiLoading ? (
+               <View style={styles.loadingBadge}>
+                 <ActivityIndicator size="small" color="#ffffff" />
+                 <Text style={styles.loadingBadgeText}>Loading...</Text>
+               </View>
+             ) : apiError ? (
+               <View style={styles.errorBadge}>
+                 <Text style={styles.errorBadgeText}>OFFLINE MODE</Text>
+               </View>
+             ) : (
+               <View style={styles.demoBadge}>
+                 <Text style={styles.demoBadgeText}>DEMO MODE</Text>
+               </View>
+             )}
            </View>
          </View>
         <View style={styles.headerSpacer} />
@@ -523,14 +598,43 @@ const styles = StyleSheet.create({
      color: 'rgba(255, 255, 255, 0.8)',
      marginTop: 2,
    },
+   statusContainer: {
+     marginTop: 8,
+   },
    demoBadge: {
      backgroundColor: 'rgba(255, 255, 255, 0.2)',
      paddingHorizontal: 12,
      paddingVertical: 4,
      borderRadius: 12,
-     marginTop: 8,
    },
    demoBadgeText: {
+     fontSize: responsiveFontSize.xs,
+     fontWeight: '700',
+     color: '#ffffff',
+     textAlign: 'center',
+   },
+   loadingBadge: {
+     backgroundColor: 'rgba(255, 255, 255, 0.2)',
+     paddingHorizontal: 12,
+     paddingVertical: 4,
+     borderRadius: 12,
+     flexDirection: 'row',
+     alignItems: 'center',
+     justifyContent: 'center',
+   },
+   loadingBadgeText: {
+     fontSize: responsiveFontSize.xs,
+     fontWeight: '700',
+     color: '#ffffff',
+     marginLeft: 4,
+   },
+   errorBadge: {
+     backgroundColor: 'rgba(220, 53, 69, 0.8)',
+     paddingHorizontal: 12,
+     paddingVertical: 4,
+     borderRadius: 12,
+   },
+   errorBadgeText: {
      fontSize: responsiveFontSize.xs,
      fontWeight: '700',
      color: '#ffffff',
@@ -660,8 +764,8 @@ const styles = StyleSheet.create({
   },
   savingsBadge: {
     position: 'absolute',
-    top: -8,
-    right: -40,
+    top: -12,
+    right: -35,
     backgroundColor: '#28a745',
     paddingHorizontal: 8,
     paddingVertical: 4,

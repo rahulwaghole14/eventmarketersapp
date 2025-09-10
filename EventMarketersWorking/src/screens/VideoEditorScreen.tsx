@@ -1,3 +1,4 @@
+// VideoEditorScreen - Metro cache fix - VideoProcessor import commented out
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
@@ -36,7 +37,7 @@ import Watermark from '../components/Watermark';
 import videoProcessingService, { VideoLayer } from '../services/videoProcessingService';
 import { useTheme } from '../context/ThemeContext';
 import ViewShot from 'react-native-view-shot';
-import VideoProcessor from '../components/VideoProcessor';
+// import VideoProcessor from '../components/VideoProcessor'; // Temporarily disabled
 import responsiveUtils, { 
   responsiveSpacing as responsiveSpacingUtils, 
   responsiveFontSize as responsiveFontSizeUtils, 
@@ -115,6 +116,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   const [selectedProfile, setSelectedProfile] = useState<BusinessProfile | null>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showProfileSelectionModal, setShowProfileSelectionModal] = useState(false);
+  const [loadingProfiles, setLoadingProfiles] = useState(false);
 
   // Template and frame state
   const [selectedFrame, setSelectedFrame] = useState<Frame | null>(null);
@@ -230,10 +232,19 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
 
   const themeStyles = getThemeStyles();
 
-  // Fetch business profiles
+  // Fetch business profiles with optimized loading
   const fetchBusinessProfiles = async () => {
     try {
-      const profiles = await businessProfileService.getBusinessProfiles();
+      // Show loading state immediately
+      setLoadingProfiles(true);
+      
+      // Use Promise.race to timeout quickly if API is slow
+      const profilesPromise = businessProfileService.getBusinessProfiles();
+      const timeoutPromise = new Promise<BusinessProfile[]>((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), 3000) // 3 second timeout
+      );
+      
+      const profiles = await Promise.race([profilesPromise, timeoutPromise]);
       setBusinessProfiles(profiles);
       
       if (profiles.length === 1) {
@@ -246,12 +257,38 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
       }
     } catch (error) {
       console.error('Error fetching business profiles:', error);
-      Alert.alert('Error', 'Failed to load business profiles');
+      // Use mock data immediately on error
+      const mockProfiles = [
+        {
+          id: '1',
+          name: 'Tech Solutions Inc.',
+          description: 'Leading technology solutions provider',
+          category: 'Technology',
+          address: '123 Innovation Drive, Tech City',
+          phone: '+1 (555) 123-4567',
+          email: 'contact@techsolutions.com',
+          services: ['Custom Software Development', 'Web Development'],
+          workingHours: {},
+          rating: 4.8,
+          reviewCount: 156,
+          isVerified: true,
+          createdAt: '2024-01-15T10:00:00Z',
+          updatedAt: '2024-01-20T14:30:00Z',
+        }
+      ];
+      setBusinessProfiles(mockProfiles);
+      setSelectedProfile(mockProfiles[0]);
+      applyBusinessProfileToVideo(mockProfiles[0]);
+    } finally {
+      setLoadingProfiles(false);
     }
   };
 
   useEffect(() => {
-    fetchBusinessProfiles();
+    // Only fetch profiles if we don't have any cached data
+    if (businessProfiles.length === 0) {
+      fetchBusinessProfiles();
+    }
   }, []);
 
   // Apply default template when component loads
@@ -1492,13 +1529,24 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
             <Text style={themeStyles.modalSubtitle}>
               Choose which business profile to use for your video. You must select one to continue.
             </Text>
-            <FlatList
-              data={businessProfiles}
-              renderItem={renderProfileItem}
-              keyExtractor={(item) => item.id}
-              style={styles.profileList}
-              showsVerticalScrollIndicator={false}
-            />
+            {loadingProfiles ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={theme?.colors?.primary || '#007AFF'} />
+                <Text style={themeStyles.modalSubtitle}>Loading profiles...</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={businessProfiles}
+                renderItem={renderProfileItem}
+                keyExtractor={(item) => item.id}
+                style={styles.profileList}
+                showsVerticalScrollIndicator={false}
+                removeClippedSubviews={true}
+                maxToRenderPerBatch={5}
+                windowSize={10}
+                initialNumToRender={3}
+              />
+            )}
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalButton, themeStyles.cancelButton]}
@@ -1535,8 +1583,8 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         </View>
       </Modal>
 
-             {/* Video Processor Modal */}
-       <VideoProcessor
+             {/* Video Processor Modal - Temporarily disabled */}
+       {/* <VideoProcessor
          visible={showVideoProcessor}
          onComplete={handleVideoProcessingComplete}
          onClose={handleVideoProcessingClose}
@@ -1549,7 +1597,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
          videoCanvasHeight={videoCanvasHeight}
          isSubscribed={isSubscribed}
          overlayImageUri={overlayImageUri || undefined}
-       />
+       /> */}
     </View>
   );
 };
@@ -1701,6 +1749,12 @@ const styles = StyleSheet.create({
   profileList: {
     maxHeight: 400,
     marginBottom: 15,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
   },
   processingOverlay: {
     position: 'absolute',

@@ -31,6 +31,23 @@ const isLargeScreen = screenWidth >= 414;
 const isTablet = screenWidth >= 768;
 const isLandscape = screenWidth > screenHeight;
 
+// Dynamic responsive helpers for modal
+const getModalDimensions = () => {
+  const currentWidth = Dimensions.get('window').width;
+  const currentHeight = Dimensions.get('window').height;
+  const isCurrentlyLandscape = currentWidth > currentHeight;
+  
+  return {
+    width: currentWidth,
+    height: currentHeight,
+    isLandscape: isCurrentlyLandscape,
+    isSmall: currentWidth < 375,
+    isMedium: currentWidth >= 375 && currentWidth < 414,
+    isLarge: currentWidth >= 414,
+    isTablet: currentWidth >= 768,
+  };
+};
+
 // Create a stable FloatingInput component outside the main component
 const FloatingInput = React.memo(({ 
   value, 
@@ -133,6 +150,7 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
   const [modalAnimation] = useState(new Animated.Value(0));
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
   const [showValidationSummary, setShowValidationSummary] = useState(false);
+  const [modalDimensions, setModalDimensions] = useState(getModalDimensions());
 
   const categories = [
     'Event Planners',
@@ -234,6 +252,15 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
       setValidationErrors(newErrors);
     }
   };
+
+  // Handle orientation changes for modal responsiveness
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setModalDimensions(getModalDimensions());
+    });
+
+    return () => subscription?.remove();
+  }, []);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -853,12 +880,24 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
         animationType="none"
         onRequestClose={hideModal}
       >
-        <View style={styles.modalOverlay}>
+        <View style={[
+          styles.modalOverlay,
+          modalDimensions.isLandscape && {
+            paddingHorizontal: modalDimensions.width * 0.15,
+            paddingVertical: modalDimensions.height * 0.05,
+          }
+        ]}>
           <Animated.View 
             style={[
               styles.errorModalContainer,
               { 
                 backgroundColor: theme.colors.surface,
+                maxWidth: modalDimensions.isLandscape ? 
+                  Math.min(modalDimensions.width * 0.6, 500) : 
+                  modalDimensions.isSmall ? modalDimensions.width * 0.9 : 
+                  modalDimensions.isMedium ? modalDimensions.width * 0.85 : 
+                  modalDimensions.isLarge ? modalDimensions.width * 0.8 : 
+                  modalDimensions.isTablet ? 500 : modalDimensions.width * 0.75,
                 transform: [
                   {
                     scale: modalAnimation.interpolate({
@@ -880,7 +919,14 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
             {/* Modal Header */}
             <View style={styles.errorModalHeader}>
               <View style={[styles.errorIconContainer, { backgroundColor: theme.colors.error + '20' }]}>
-                <Icon name="error-outline" size={32} color={theme.colors.error} />
+                <Icon 
+                  name="error-outline" 
+                  size={modalDimensions.isSmall ? 24 : 
+                        modalDimensions.isMedium ? 26 : 
+                        modalDimensions.isLarge ? 28 : 
+                        modalDimensions.isTablet ? 32 : 30} 
+                  color={theme.colors.error} 
+                />
               </View>
               <Text style={[styles.errorModalTitle, { color: theme.colors.text }]}>
                 Registration Error
@@ -1208,14 +1254,7 @@ const styles = StyleSheet.create({
     fontSize: isTablet ? 16 : Math.min(screenWidth * 0.035, 14),
     fontWeight: '600',
   },
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: Math.min(screenWidth * 0.05, 20),
-  },
+  // Upload Modal Styles
   uploadModalContainer: {
     borderRadius: isTablet ? 28 : Math.min(screenWidth * 0.06, 24),
     padding: isTablet ? 32 : Math.min(screenWidth * 0.06, 24),
@@ -1348,70 +1387,172 @@ const styles = StyleSheet.create({
   },
 
   // Error Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: isSmallScreen ? screenWidth * 0.08 : 
+                       isMediumScreen ? screenWidth * 0.06 : 
+                       isLargeScreen ? screenWidth * 0.05 : 
+                       isTablet ? screenWidth * 0.1 : screenWidth * 0.04,
+    paddingVertical: isSmallScreen ? screenHeight * 0.1 : 
+                     isMediumScreen ? screenHeight * 0.08 : 
+                     isLargeScreen ? screenHeight * 0.06 : 
+                     isTablet ? screenHeight * 0.05 : screenHeight * 0.05,
+  },
   errorModalContainer: {
     width: '100%',
-    maxWidth: isTablet ? 500 : 400,
-    borderRadius: isTablet ? 24 : 20,
-    padding: isTablet ? 32 : 24,
+    maxWidth: isSmallScreen ? screenWidth * 0.9 : 
+              isMediumScreen ? screenWidth * 0.85 : 
+              isLargeScreen ? screenWidth * 0.8 : 
+              isTablet ? 500 : screenWidth * 0.75,
+    minWidth: isSmallScreen ? screenWidth * 0.8 : 
+              isMediumScreen ? screenWidth * 0.75 : 
+              isLargeScreen ? screenWidth * 0.7 : 
+              isTablet ? 400 : screenWidth * 0.65,
+    borderRadius: isSmallScreen ? 16 : 
+                  isMediumScreen ? 18 : 
+                  isLargeScreen ? 20 : 
+                  isTablet ? 24 : 22,
+    padding: isSmallScreen ? 20 : 
+             isMediumScreen ? 22 : 
+             isLargeScreen ? 24 : 
+             isTablet ? 32 : 26,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 10,
+      height: isSmallScreen ? 8 : 
+              isMediumScreen ? 9 : 
+              isLargeScreen ? 10 : 
+              isTablet ? 12 : 10,
     },
     shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowRadius: isSmallScreen ? 16 : 
+                  isMediumScreen ? 18 : 
+                  isLargeScreen ? 20 : 
+                  isTablet ? 24 : 20,
+    elevation: isSmallScreen ? 8 : 
+               isMediumScreen ? 9 : 
+               isLargeScreen ? 10 : 
+               isTablet ? 12 : 10,
   },
   errorModalHeader: {
     alignItems: 'center',
-    marginBottom: isTablet ? 24 : 20,
+    marginBottom: isSmallScreen ? 16 : 
+                  isMediumScreen ? 18 : 
+                  isLargeScreen ? 20 : 
+                  isTablet ? 24 : 20,
   },
   errorIconContainer: {
-    width: isTablet ? 80 : 64,
-    height: isTablet ? 80 : 64,
-    borderRadius: isTablet ? 40 : 32,
+    width: isSmallScreen ? 56 : 
+           isMediumScreen ? 60 : 
+           isLargeScreen ? 64 : 
+           isTablet ? 80 : 68,
+    height: isSmallScreen ? 56 : 
+            isMediumScreen ? 60 : 
+            isLargeScreen ? 64 : 
+            isTablet ? 80 : 68,
+    borderRadius: isSmallScreen ? 28 : 
+                  isMediumScreen ? 30 : 
+                  isLargeScreen ? 32 : 
+                  isTablet ? 40 : 34,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: isTablet ? 16 : 12,
+    marginBottom: isSmallScreen ? 8 : 
+                  isMediumScreen ? 10 : 
+                  isLargeScreen ? 12 : 
+                  isTablet ? 16 : 12,
   },
   errorModalTitle: {
-    fontSize: isTablet ? 24 : Math.min(screenWidth * 0.06, 20),
+    fontSize: isSmallScreen ? Math.min(screenWidth * 0.055, 18) : 
+              isMediumScreen ? Math.min(screenWidth * 0.057, 19) : 
+              isLargeScreen ? Math.min(screenWidth * 0.06, 20) : 
+              isTablet ? 24 : Math.min(screenWidth * 0.062, 21),
     fontWeight: 'bold',
     textAlign: 'center',
+    lineHeight: isSmallScreen ? Math.min(screenWidth * 0.07, 22) : 
+                isMediumScreen ? Math.min(screenWidth * 0.072, 23) : 
+                isLargeScreen ? Math.min(screenWidth * 0.075, 24) : 
+                isTablet ? 30 : Math.min(screenWidth * 0.078, 25),
   },
   errorModalContent: {
-    marginBottom: isTablet ? 32 : 24,
+    marginBottom: isSmallScreen ? 20 : 
+                  isMediumScreen ? 22 : 
+                  isLargeScreen ? 24 : 
+                  isTablet ? 32 : 24,
   },
   errorModalMessage: {
-    fontSize: isTablet ? 18 : Math.min(screenWidth * 0.045, 16),
-    lineHeight: isTablet ? 26 : Math.min(screenWidth * 0.065, 22),
+    fontSize: isSmallScreen ? Math.min(screenWidth * 0.04, 14) : 
+              isMediumScreen ? Math.min(screenWidth * 0.042, 15) : 
+              isLargeScreen ? Math.min(screenWidth * 0.045, 16) : 
+              isTablet ? 18 : Math.min(screenWidth * 0.047, 17),
+    lineHeight: isSmallScreen ? Math.min(screenWidth * 0.06, 18) : 
+                isMediumScreen ? Math.min(screenWidth * 0.062, 19) : 
+                isLargeScreen ? Math.min(screenWidth * 0.065, 22) : 
+                isTablet ? 26 : Math.min(screenWidth * 0.068, 23),
     textAlign: 'center',
   },
   errorModalActions: {
-    gap: isTablet ? 16 : 12,
+    gap: isSmallScreen ? 10 : 
+         isMediumScreen ? 11 : 
+         isLargeScreen ? 12 : 
+         isTablet ? 16 : 12,
   },
   errorModalButton: {
-    borderRadius: isTablet ? 16 : 12,
-    paddingVertical: isTablet ? 16 : 14,
-    paddingHorizontal: isTablet ? 24 : 20,
+    borderRadius: isSmallScreen ? 10 : 
+                  isMediumScreen ? 11 : 
+                  isLargeScreen ? 12 : 
+                  isTablet ? 16 : 12,
+    paddingVertical: isSmallScreen ? 12 : 
+                     isMediumScreen ? 13 : 
+                     isLargeScreen ? 14 : 
+                     isTablet ? 16 : 14,
+    paddingHorizontal: isSmallScreen ? 18 : 
+                       isMediumScreen ? 19 : 
+                       isLargeScreen ? 20 : 
+                       isTablet ? 24 : 20,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: isSmallScreen ? 44 : 
+               isMediumScreen ? 46 : 
+               isLargeScreen ? 48 : 
+               isTablet ? 56 : 48,
   },
   errorModalButtonText: {
     color: '#FFFFFF',
-    fontSize: isTablet ? 18 : Math.min(screenWidth * 0.045, 16),
+    fontSize: isSmallScreen ? Math.min(screenWidth * 0.04, 14) : 
+              isMediumScreen ? Math.min(screenWidth * 0.042, 15) : 
+              isLargeScreen ? Math.min(screenWidth * 0.045, 16) : 
+              isTablet ? 18 : Math.min(screenWidth * 0.047, 17),
     fontWeight: '600',
   },
   errorModalSecondaryButton: {
-    borderRadius: isTablet ? 16 : 12,
-    paddingVertical: isTablet ? 16 : 14,
-    paddingHorizontal: isTablet ? 24 : 20,
+    borderRadius: isSmallScreen ? 10 : 
+                  isMediumScreen ? 11 : 
+                  isLargeScreen ? 12 : 
+                  isTablet ? 16 : 12,
+    paddingVertical: isSmallScreen ? 12 : 
+                     isMediumScreen ? 13 : 
+                     isLargeScreen ? 14 : 
+                     isTablet ? 16 : 14,
+    paddingHorizontal: isSmallScreen ? 18 : 
+                       isMediumScreen ? 19 : 
+                       isLargeScreen ? 20 : 
+                       isTablet ? 24 : 20,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
+    minHeight: isSmallScreen ? 44 : 
+               isMediumScreen ? 46 : 
+               isLargeScreen ? 48 : 
+               isTablet ? 56 : 48,
   },
   errorModalSecondaryButtonText: {
-    fontSize: isTablet ? 18 : Math.min(screenWidth * 0.045, 16),
+    fontSize: isSmallScreen ? Math.min(screenWidth * 0.04, 14) : 
+              isMediumScreen ? Math.min(screenWidth * 0.042, 15) : 
+              isLargeScreen ? Math.min(screenWidth * 0.045, 16) : 
+              isTablet ? 18 : Math.min(screenWidth * 0.047, 17),
     fontWeight: '600',
   },
 });
