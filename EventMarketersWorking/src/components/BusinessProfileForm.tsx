@@ -16,9 +16,9 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { launchImageLibrary, launchCamera, ImagePickerResponse, MediaType } from 'react-native-image-picker';
 import { BusinessProfile, CreateBusinessProfileData } from '../services/businessProfile';
 import { useTheme } from '../context/ThemeContext';
+import ImagePickerModal from './ImagePickerModal';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -103,22 +103,6 @@ const BusinessProfileForm: React.FC<BusinessProfileFormProps> = ({
     email: '',
     website: '',
     companyLogo: '',
-    services: [],
-    workingHours: {
-      monday: { open: '09:00', close: '18:00', isOpen: true },
-      tuesday: { open: '09:00', close: '18:00', isOpen: true },
-      wednesday: { open: '09:00', close: '18:00', isOpen: true },
-      thursday: { open: '09:00', close: '18:00', isOpen: true },
-      friday: { open: '09:00', close: '18:00', isOpen: true },
-      saturday: { open: '10:00', close: '16:00', isOpen: true },
-      sunday: { open: '00:00', close: '00:00', isOpen: false },
-    },
-    socialMedia: {
-      facebook: '',
-      instagram: '',
-      twitter: '',
-      linkedin: '',
-    },
   });
 
   const [focusedField, setFocusedField] = useState<string | null>(null);
@@ -127,13 +111,13 @@ const BusinessProfileForm: React.FC<BusinessProfileFormProps> = ({
   const [showImagePicker, setShowImagePicker] = useState(false);
   const [showUploadOptions, setShowUploadOptions] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showImagePickerModal, setShowImagePickerModal] = useState(false);
 
   const categories = [
     'Event Planners',
     'Decorators',
     'Sound Suppliers',
     'Light Suppliers',
-    'Video Services',
   ];
 
   useEffect(() => {
@@ -146,14 +130,6 @@ const BusinessProfileForm: React.FC<BusinessProfileFormProps> = ({
         phone: profile.phone,
         email: profile.email,
         website: profile.website || '',
-        services: profile.services,
-        workingHours: profile.workingHours,
-        socialMedia: profile.socialMedia || {
-          facebook: '',
-          instagram: '',
-          twitter: '',
-          linkedin: '',
-        },
       });
     } else {
       // Reset form for new profile
@@ -165,22 +141,6 @@ const BusinessProfileForm: React.FC<BusinessProfileFormProps> = ({
         phone: '',
         email: '',
         website: '',
-        services: [],
-        workingHours: {
-          monday: { open: '09:00', close: '18:00', isOpen: true },
-          tuesday: { open: '09:00', close: '18:00', isOpen: true },
-          wednesday: { open: '09:00', close: '18:00', isOpen: true },
-          thursday: { open: '09:00', close: '18:00', isOpen: true },
-          friday: { open: '09:00', close: '18:00', isOpen: true },
-          saturday: { open: '10:00', close: '16:00', isOpen: true },
-          sunday: { open: '00:00', close: '00:00', isOpen: false },
-        },
-        socialMedia: {
-          facebook: '',
-          instagram: '',
-          twitter: '',
-          linkedin: '',
-        },
       });
     }
   }, [profile, visible]);
@@ -192,73 +152,20 @@ const BusinessProfileForm: React.FC<BusinessProfileFormProps> = ({
     }));
   };
 
-  const handleSocialMediaChange = (platform: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      socialMedia: {
-        ...prev.socialMedia,
-        [platform]: value,
-      },
-    }));
+
+
+  const handleImagePickerPress = () => {
+    setShowImagePickerModal(true);
   };
 
-  const addService = () => {
-    if (newService.trim()) {
-      setFormData(prev => ({
-        ...prev,
-        services: [...prev.services, newService.trim()],
-      }));
-      setNewService('');
-    }
+  const handleImageSelected = (imageUri: string) => {
+    setLogoImage(imageUri);
+    setFormData(prev => ({ ...prev, companyLogo: imageUri }));
+    setShowImagePickerModal(false);
   };
 
-  const removeService = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      services: prev.services.filter((_, i) => i !== index),
-    }));
-  };
-
-  const handleImagePicker = (type: 'camera' | 'gallery') => {
-    const options = {
-      mediaType: 'photo' as MediaType,
-      includeBase64: false,
-      maxHeight: 2000,
-      maxWidth: 2000,
-      quality: 0.8 as const,
-    };
-
-    if (type === 'camera') {
-      launchCamera(options, (response: ImagePickerResponse) => {
-        if (response.didCancel) {
-          console.log('User cancelled camera');
-        } else if (response.errorCode) {
-          Alert.alert('Error', 'Failed to take photo');
-        } else if (response.assets && response.assets[0]) {
-          const asset = response.assets[0];
-          setLogoImage(asset.uri || null);
-          setFormData(prev => ({
-            ...prev,
-            companyLogo: asset.uri || '',
-          }));
-        }
-      });
-    } else {
-      launchImageLibrary(options, (response: ImagePickerResponse) => {
-        if (response.didCancel) {
-          console.log('User cancelled image picker');
-        } else if (response.errorCode) {
-          Alert.alert('Error', 'Failed to pick image');
-        } else if (response.assets && response.assets[0]) {
-          const asset = response.assets[0];
-          setLogoImage(asset.uri || null);
-          setFormData(prev => ({
-            ...prev,
-            companyLogo: asset.uri || '',
-          }));
-        }
-      });
-    }
+  const handleCloseImagePicker = () => {
+    setShowImagePickerModal(false);
   };
 
   const showImagePickerOptions = () => {
@@ -268,11 +175,11 @@ const BusinessProfileForm: React.FC<BusinessProfileFormProps> = ({
       [
         {
           text: 'Take Photo',
-          onPress: () => handleImagePicker('camera'),
+          onPress: handleImagePickerPress,
         },
         {
           text: 'Choose from Gallery',
-          onPress: () => handleImagePicker('gallery'),
+          onPress: handleImagePickerPress,
         },
         {
           text: 'Cancel',
@@ -283,13 +190,9 @@ const BusinessProfileForm: React.FC<BusinessProfileFormProps> = ({
   };
 
   const handleUploadAreaClick = () => {
-    setShowUploadModal(true);
+    setShowImagePickerModal(true);
   };
 
-  const handleImagePickerWithClose = (type: 'camera' | 'gallery') => {
-    handleImagePicker(type);
-    setShowUploadModal(false);
-  };
 
   const handleSubmit = () => {
     // Validation
@@ -400,7 +303,7 @@ const BusinessProfileForm: React.FC<BusinessProfileFormProps> = ({
                       <View style={styles.logoActionButtons}>
                         <TouchableOpacity 
                           style={styles.logoActionButton}
-                          onPress={showImagePickerOptions}
+                          onPress={handleImagePickerPress}
                         >
                           <Icon name="edit" size={16} color="#ffffff" style={styles.buttonIcon} />
                           <Text style={styles.logoActionButtonText}>Change</Text>
@@ -580,7 +483,7 @@ const BusinessProfileForm: React.FC<BusinessProfileFormProps> = ({
               <View style={styles.uploadModalOptions}>
                 <TouchableOpacity 
                   style={[styles.uploadModalOption, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border }]}
-                  onPress={() => handleImagePickerWithClose('gallery')}
+                    onPress={handleImagePickerPress}
                   activeOpacity={0.7}
                 >
                   <View style={[styles.uploadModalOptionIcon, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
@@ -594,7 +497,7 @@ const BusinessProfileForm: React.FC<BusinessProfileFormProps> = ({
                 
                 <TouchableOpacity 
                   style={[styles.uploadModalOption, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border }]}
-                  onPress={() => handleImagePickerWithClose('camera')}
+                    onPress={handleImagePickerPress}
                   activeOpacity={0.7}
                 >
                   <View style={[styles.uploadModalOptionIcon, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
@@ -618,6 +521,13 @@ const BusinessProfileForm: React.FC<BusinessProfileFormProps> = ({
         </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
+
+    {/* Image Picker Modal */}
+    <ImagePickerModal
+      visible={showImagePickerModal}
+      onClose={handleCloseImagePicker}
+      onImageSelected={handleImageSelected}
+    />
   </>
 );
  };

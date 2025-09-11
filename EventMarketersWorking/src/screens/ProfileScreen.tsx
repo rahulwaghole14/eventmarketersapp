@@ -22,6 +22,7 @@ import authService from '../services/auth';
 import { useTheme } from '../context/ThemeContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import downloadedPostersService from '../services/downloadedPosters';
+import ImagePickerModal from '../components/ImagePickerModal';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -53,16 +54,34 @@ const ProfileScreen: React.FC = () => {
   const currentUser = authService.getCurrentUser();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
-  const [editDisplayName, setEditDisplayName] = useState(currentUser?.displayName || '');
-  const [editEmail, setEditEmail] = useState(currentUser?.email || '');
-  const [editPhone, setEditPhone] = useState(currentUser?.phoneNumber || '');
-  const [editBio, setEditBio] = useState(currentUser?.bio || '');
+  const [editFormData, setEditFormData] = useState({
+    name: currentUser?.displayName || currentUser?.companyName || '',
+    description: currentUser?.description || currentUser?.bio || '',
+    category: currentUser?.category || '',
+    address: currentUser?.address || '',
+    phone: currentUser?.phoneNumber || '',
+    alternatePhone: currentUser?.alternatePhone || '',
+    email: currentUser?.email || '',
+    website: currentUser?.website || '',
+    companyLogo: currentUser?.companyLogo || '',
+  });
   const [isUpdating, setIsUpdating] = useState(false);
   const [posterStats, setPosterStats] = useState({ total: 0, recentCount: 0 });
+  const [showImagePickerModal, setShowImagePickerModal] = useState(false);
+  const [profileImageUri, setProfileImageUri] = useState<string | null>(null);
   const { isDarkMode, toggleDarkMode, theme } = useTheme();
   const { isSubscribed, transactionStats } = useSubscription();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+
+  // Business categories (same as registration)
+  const categories = [
+    'Event Planners',
+    'Decorators',
+    'Sound Suppliers',
+    'Light Suppliers',
+    'Video Services',
+  ];
 
   // Animation values for toggles
   const notificationsAnimation = useRef(new Animated.Value(notificationsEnabled ? 1 : 0)).current;
@@ -183,16 +202,44 @@ const ProfileScreen: React.FC = () => {
   };
 
   const handleEditProfile = () => {
-    setEditDisplayName(currentUser?.displayName || '');
-    setEditEmail(currentUser?.email || '');
-    setEditPhone(currentUser?.phoneNumber || '');
-    setEditBio(currentUser?.bio || '');
+    const user = authService.getCurrentUser();
+    setEditFormData({
+      name: user?.displayName || user?.companyName || '',
+      description: user?.description || user?.bio || '',
+      category: user?.category || '',
+      address: user?.address || '',
+      phone: user?.phoneNumber || '',
+      alternatePhone: user?.alternatePhone || '',
+      email: user?.email || '',
+      website: user?.website || '',
+      companyLogo: user?.companyLogo || '',
+    });
     setShowEditProfileModal(true);
   };
 
   const handleSaveProfile = async () => {
-    if (!editDisplayName.trim()) {
-      Alert.alert('Error', 'Display name is required');
+    if (!editFormData.name.trim()) {
+      Alert.alert('Error', 'Company name is required');
+      return;
+    }
+
+    if (!editFormData.email.trim()) {
+      Alert.alert('Error', 'Email is required');
+      return;
+    }
+
+    if (!editFormData.phone.trim()) {
+      Alert.alert('Error', 'Phone number is required');
+      return;
+    }
+
+    if (!editFormData.category.trim()) {
+      Alert.alert('Error', 'Business category is required');
+      return;
+    }
+
+    if (!editFormData.address.trim()) {
+      Alert.alert('Error', 'Address is required');
       return;
     }
 
@@ -204,10 +251,17 @@ const ProfileScreen: React.FC = () => {
       
       // Update the current user object (in a real app, this would come from the service)
       if (currentUser) {
-        currentUser.displayName = editDisplayName.trim();
-        currentUser.email = editEmail.trim();
-        currentUser.phoneNumber = editPhone.trim();
-        currentUser.bio = editBio.trim();
+        currentUser.displayName = editFormData.name.trim();
+        currentUser.companyName = editFormData.name.trim();
+        currentUser.email = editFormData.email.trim();
+        currentUser.phoneNumber = editFormData.phone.trim();
+        currentUser.description = editFormData.description.trim();
+        currentUser.bio = editFormData.description.trim(); // For backward compatibility
+        currentUser.category = editFormData.category.trim();
+        currentUser.address = editFormData.address.trim();
+        currentUser.alternatePhone = editFormData.alternatePhone.trim();
+        currentUser.website = editFormData.website.trim();
+        currentUser.companyLogo = editFormData.companyLogo.trim();
       }
       
       setShowEditProfileModal(false);
@@ -220,11 +274,37 @@ const ProfileScreen: React.FC = () => {
   };
 
   const handleCancelEdit = () => {
+    const user = authService.getCurrentUser();
     setShowEditProfileModal(false);
-    setEditDisplayName(currentUser?.displayName || '');
-    setEditEmail(currentUser?.email || '');
-    setEditPhone(currentUser?.phoneNumber || '');
-    setEditBio(currentUser?.bio || '');
+    setEditFormData({
+      name: user?.displayName || user?.companyName || '',
+      description: user?.description || user?.bio || '',
+      category: user?.category || '',
+      address: user?.address || '',
+      phone: user?.phoneNumber || '',
+      alternatePhone: user?.alternatePhone || '',
+      email: user?.email || '',
+      website: user?.website || '',
+      companyLogo: user?.companyLogo || '',
+    });
+  };
+
+  const handleImagePickerPress = () => {
+    setShowImagePickerModal(true);
+  };
+
+  const handleImageSelected = (imageUri: string) => {
+    setProfileImageUri(imageUri);
+    // Update the current user's profile picture
+    if (currentUser) {
+      currentUser.photoURL = imageUri;
+      currentUser.profileImage = imageUri;
+    }
+    Alert.alert('Success', 'Profile picture updated successfully!');
+  };
+
+  const handleCloseImagePicker = () => {
+    setShowImagePickerModal(false);
   };
 
   const renderMenuItem = (
@@ -314,15 +394,28 @@ const ProfileScreen: React.FC = () => {
           <View style={[styles.profileCard, { backgroundColor: theme.colors.cardBackground }]}>
             <View style={styles.profileHeader}>
               <View style={styles.avatarContainer}>
-                <LinearGradient
-                  colors={[theme.colors.primary, theme.colors.secondary]}
-                  style={styles.avatarGradient}
+                {profileImageUri || currentUser?.photoURL || currentUser?.profileImage ? (
+                  <View style={styles.avatarImageContainer}>
+                    <Image
+                      source={{ uri: profileImageUri || currentUser?.photoURL || currentUser?.profileImage }}
+                      style={styles.avatarImage}
+                      resizeMode="cover"
+                    />
+                  </View>
+                ) : (
+                  <LinearGradient
+                    colors={[theme.colors.primary, theme.colors.secondary]}
+                    style={styles.avatarGradient}
+                  >
+                    <Text style={styles.avatarText}>
+                      {currentUser?.displayName?.charAt(0) || currentUser?.email?.charAt(0) || 'U'}
+                    </Text>
+                  </LinearGradient>
+                )}
+                <TouchableOpacity 
+                  style={[styles.editAvatarButton, { backgroundColor: theme.colors.primary }]}
+                  onPress={handleImagePickerPress}
                 >
-                  <Text style={styles.avatarText}>
-                    {currentUser?.displayName?.charAt(0) || currentUser?.email?.charAt(0) || 'U'}
-                  </Text>
-                </LinearGradient>
-                <TouchableOpacity style={[styles.editAvatarButton, { backgroundColor: theme.colors.primary }]}>
                   <Icon name="camera-alt" size={16} color="#fff" />
                 </TouchableOpacity>
               </View>
@@ -552,31 +645,125 @@ const ProfileScreen: React.FC = () => {
             </View>
 
             <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              {/* Company Name */}
               <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: theme.colors.text }]}>Display Name *</Text>
+                <Text style={[styles.inputLabel, { color: theme.colors.text }]}>Company Name *</Text>
                 <TextInput
                   style={[styles.textInput, { 
                     backgroundColor: theme.colors.surface,
                     borderColor: theme.colors.border,
                     color: theme.colors.text
                   }]}
-                  value={editDisplayName}
-                  onChangeText={setEditDisplayName}
-                  placeholder="Enter your display name"
+                  value={editFormData.name}
+                  onChangeText={(text) => setEditFormData({...editFormData, name: text})}
+                  placeholder="Enter your company name"
                   placeholderTextColor={theme.colors.textSecondary}
                 />
               </View>
 
+              {/* Description */}
               <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: theme.colors.text }]}>Email</Text>
+                <Text style={[styles.inputLabel, { color: theme.colors.text }]}>Description</Text>
+                <TextInput
+                  style={[styles.textArea, { 
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                    color: theme.colors.text
+                  }]}
+                  value={editFormData.description}
+                  onChangeText={(text) => setEditFormData({...editFormData, description: text})}
+                  placeholder="Describe your business..."
+                  placeholderTextColor={theme.colors.textSecondary}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
+              </View>
+
+              {/* Business Category */}
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: theme.colors.text }]}>Business Category *</Text>
+                <View style={[styles.categoryPicker, { 
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border
+                }]}>
+                  <Text style={[styles.categoryPickerText, { 
+                    color: editFormData.category ? theme.colors.text : theme.colors.textSecondary 
+                  }]}>
+                    {editFormData.category || 'Select business category'}
+                  </Text>
+                  <Icon name="keyboard-arrow-down" size={24} color={theme.colors.textSecondary} />
+                </View>
+                {editFormData.category && (
+                  <View style={styles.categoryOptions}>
+                    {categories.map((category) => (
+                      <TouchableOpacity
+                        key={category}
+                        style={[
+                          styles.categoryOption,
+                          { backgroundColor: theme.colors.surface },
+                          editFormData.category === category && [styles.categoryOptionSelected, { backgroundColor: theme.colors.primary }]
+                        ]}
+                        onPress={() => setEditFormData({...editFormData, category})}
+                      >
+                        <Text style={[
+                          styles.categoryOptionText,
+                          { color: theme.colors.text },
+                          editFormData.category === category && [styles.categoryOptionTextSelected, { color: '#ffffff' }]
+                        ]}>
+                          {category}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+
+              {/* Phone Number */}
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: theme.colors.text }]}>Phone Number *</Text>
                 <TextInput
                   style={[styles.textInput, { 
                     backgroundColor: theme.colors.surface,
                     borderColor: theme.colors.border,
                     color: theme.colors.text
                   }]}
-                  value={editEmail}
-                  onChangeText={setEditEmail}
+                  value={editFormData.phone}
+                  onChangeText={(text) => setEditFormData({...editFormData, phone: text})}
+                  placeholder="Enter your phone number"
+                  placeholderTextColor={theme.colors.textSecondary}
+                  keyboardType="phone-pad"
+                />
+              </View>
+
+              {/* Alternate Phone */}
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: theme.colors.text }]}>Alternate Phone</Text>
+                <TextInput
+                  style={[styles.textInput, { 
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                    color: theme.colors.text
+                  }]}
+                  value={editFormData.alternatePhone}
+                  onChangeText={(text) => setEditFormData({...editFormData, alternatePhone: text})}
+                  placeholder="Enter alternate phone number"
+                  placeholderTextColor={theme.colors.textSecondary}
+                  keyboardType="phone-pad"
+                />
+              </View>
+
+              {/* Email */}
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: theme.colors.text }]}>Email *</Text>
+                <TextInput
+                  style={[styles.textInput, { 
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                    color: theme.colors.text
+                  }]}
+                  value={editFormData.email}
+                  onChangeText={(text) => setEditFormData({...editFormData, email: text})}
                   placeholder="Enter your email"
                   placeholderTextColor={theme.colors.textSecondary}
                   keyboardType="email-address"
@@ -584,36 +771,39 @@ const ProfileScreen: React.FC = () => {
                 />
               </View>
 
+              {/* Website */}
               <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: theme.colors.text }]}>Phone Number</Text>
+                <Text style={[styles.inputLabel, { color: theme.colors.text }]}>Website</Text>
                 <TextInput
                   style={[styles.textInput, { 
                     backgroundColor: theme.colors.surface,
                     borderColor: theme.colors.border,
                     color: theme.colors.text
                   }]}
-                  value={editPhone}
-                  onChangeText={setEditPhone}
-                  placeholder="Enter your phone number"
+                  value={editFormData.website}
+                  onChangeText={(text) => setEditFormData({...editFormData, website: text})}
+                  placeholder="Enter your website URL"
                   placeholderTextColor={theme.colors.textSecondary}
-                  keyboardType="phone-pad"
+                  keyboardType="url"
+                  autoCapitalize="none"
                 />
               </View>
 
+              {/* Address */}
               <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: theme.colors.text }]}>Bio</Text>
+                <Text style={[styles.inputLabel, { color: theme.colors.text }]}>Address *</Text>
                 <TextInput
                   style={[styles.textArea, { 
                     backgroundColor: theme.colors.surface,
                     borderColor: theme.colors.border,
                     color: theme.colors.text
                   }]}
-                  value={editBio}
-                  onChangeText={setEditBio}
-                  placeholder="Tell us about yourself..."
+                  value={editFormData.address}
+                  onChangeText={(text) => setEditFormData({...editFormData, address: text})}
+                  placeholder="Enter your business address"
                   placeholderTextColor={theme.colors.textSecondary}
                   multiline
-                  numberOfLines={4}
+                  numberOfLines={2}
                   textAlignVertical="top"
                 />
               </View>
@@ -642,6 +832,13 @@ const ProfileScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Image Picker Modal */}
+      <ImagePickerModal
+        visible={showImagePickerModal}
+        onClose={handleCloseImagePicker}
+        onImageSelected={handleImageSelected}
+      />
     </SafeAreaView>
   );
 };
@@ -697,6 +894,18 @@ const styles = StyleSheet.create({
     borderRadius: screenWidth * 0.1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  avatarImageContainer: {
+    width: screenWidth * 0.2,
+    height: screenWidth * 0.2,
+    borderRadius: screenWidth * 0.1,
+    overflow: 'hidden',
+    borderWidth: 3,
+    borderColor: '#ffffff',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   avatarText: {
     fontSize: Math.min(screenWidth * 0.08, 32),
@@ -1183,6 +1392,48 @@ const styles = StyleSheet.create({
   },
   modalButtonText: {
     fontSize: Math.min(screenWidth * 0.04, 16),
+    fontWeight: '600',
+  },
+  // Category Picker Styles
+  categoryPicker: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: screenWidth * 0.04,
+    paddingVertical: screenHeight * 0.012,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  categoryPickerText: {
+    fontSize: Math.min(screenWidth * 0.04, 16),
+    flex: 1,
+  },
+  categoryOptions: {
+    marginTop: screenHeight * 0.01,
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  categoryOption: {
+    paddingVertical: screenHeight * 0.012,
+    paddingHorizontal: screenWidth * 0.04,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  categoryOptionSelected: {
+    // Selected state styling handled inline
+  },
+  categoryOptionText: {
+    fontSize: Math.min(screenWidth * 0.04, 16),
+  },
+  categoryOptionTextSelected: {
     fontWeight: '600',
   },
 });

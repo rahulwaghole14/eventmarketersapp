@@ -38,6 +38,9 @@ import videoProcessingService, { VideoLayer } from '../services/videoProcessingS
 import { useTheme } from '../context/ThemeContext';
 import ViewShot from 'react-native-view-shot';
 // import VideoProcessor from '../components/VideoProcessor'; // Temporarily disabled
+import VideoProcessingModal from '../components/VideoProcessingModal';
+import { convertCanvasToVideoFormat, createSampleVideoCanvas } from '../utils/videoCanvasConverter';
+import EnhancedVideoProcessingService from '../services/enhancedVideoProcessingService';
 import responsiveUtils, { 
   responsiveSpacing as responsiveSpacingUtils, 
   responsiveFontSize as responsiveFontSizeUtils, 
@@ -110,6 +113,9 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingProgress, setProcessingProgress] = useState(0);
   const [showVideoProcessor, setShowVideoProcessor] = useState(false);
+  const [showVideoProcessingModal, setShowVideoProcessingModal] = useState(false);
+  const [generatedVideoPath, setGeneratedVideoPath] = useState<string | null>(null);
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
 
   // Business profiles
   const [businessProfiles, setBusinessProfiles] = useState<BusinessProfile[]>([]);
@@ -344,6 +350,66 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   const toggleFieldVisibility = useCallback((field: string) => {
     setVisibleFields(prev => ({ ...prev, [field]: !prev[field] }));
   }, []);
+
+  // Video Processing Functions
+  const handleGenerateVideo = useCallback(() => {
+    if (layers.length === 0) {
+      Alert.alert('No Content', 'Please add some content to your video before generating.');
+      return;
+    }
+    
+    setShowVideoProcessingModal(true);
+  }, [layers]);
+
+  const handleVideoGenerated = useCallback((videoPath: string) => {
+    setGeneratedVideoPath(videoPath);
+    console.log('✅ Video generated successfully:', videoPath);
+    
+    // Show success message
+    Alert.alert(
+      'Video Generated!',
+      'Your video has been created successfully. You can now share or download it.',
+      [
+        {
+          text: 'View Video',
+          onPress: () => {
+            // Navigate to video viewer or open video player
+            console.log('Opening video:', videoPath);
+          },
+        },
+        {
+          text: 'OK',
+          onPress: () => {
+            setShowVideoProcessingModal(false);
+          },
+        },
+      ]
+    );
+  }, []);
+
+  const createVideoCanvas = useCallback(() => {
+    // Convert current layers to video canvas format
+    const videoCanvas = {
+      id: `canvas_${Date.now()}`,
+      name: selectedProfile ? `${selectedProfile.name} Video` : 'My Video',
+      duration: videoDuration || 10,
+      width: 1920,
+      height: 1080,
+      fps: 30,
+      layers: layers.map((layer, index) => ({
+        id: layer.id || `layer_${index}`,
+        type: layer.type as 'text' | 'image' | 'logo',
+        content: layer.content || '',
+        position: { x: layer.position?.x || 0, y: layer.position?.y || 0 },
+        size: { width: layer.size?.width || 100, height: layer.size?.height || 100 },
+        style: layer.style,
+        fieldType: layer.fieldType,
+      })),
+      backgroundColor: '#000000',
+    };
+
+    return videoCanvas;
+  }, [layers, selectedProfile, videoDuration]);
 
   // Apply template function
   const applyTemplate = (template: string) => {
@@ -1054,6 +1120,14 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
               </Text>
             </TouchableOpacity>
             <TouchableOpacity 
+              style={styles.generateVideoButton} 
+              onPress={handleGenerateVideo}
+              disabled={layers.length === 0}
+            >
+              <Icon name="videocam" size={20} color="#ffffff" />
+              <Text style={styles.generateVideoButtonText}>Generate Video</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
               style={[styles.nextButton, isProcessing && styles.nextButtonDisabled]} 
               onPress={handleNext}
               disabled={isProcessing}
@@ -1598,6 +1672,14 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
          isSubscribed={isSubscribed}
          overlayImageUri={overlayImageUri || undefined}
        /> */}
+
+      {/* Video Processing Modal */}
+      <VideoProcessingModal
+        visible={showVideoProcessingModal}
+        onClose={() => setShowVideoProcessingModal(false)}
+        canvas={createVideoCanvas()}
+        onVideoGenerated={handleVideoGenerated}
+      />
     </View>
   );
 };
@@ -2116,6 +2198,23 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   profileButtonText: {
+    color: '#ffffff',
+    fontSize: responsiveText.caption,
+    fontWeight: '500',
+  },
+  generateVideoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: Math.max(14, screenWidth * 0.035),
+    paddingVertical: Math.max(8, screenHeight * 0.01),
+    borderRadius: Math.max(18, screenWidth * 0.045),
+    gap: Math.max(6, screenWidth * 0.015),
+    borderWidth: Math.max(1, screenWidth * 0.002),
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    opacity: 1,
+  },
+  generateVideoButtonText: {
     color: '#ffffff',
     fontSize: responsiveText.caption,
     fontWeight: '500',

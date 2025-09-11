@@ -111,7 +111,7 @@ class AuthService {
         throw new Error('Email already registered');
       }
 
-      // Create new user
+      // Create new user with all registration data
       const newUser = {
         uid: 'user-' + Date.now(),
         id: 'user-' + Date.now(),
@@ -121,6 +121,14 @@ class AuthService {
         phoneNumber: userData.phoneNumber,
         displayName: userData.companyName,
         name: userData.companyName,
+        // Additional registration fields
+        description: userData.additionalData?.description || '',
+        category: userData.additionalData?.category || '',
+        address: userData.additionalData?.address || '',
+        alternatePhone: userData.additionalData?.alternatePhone || '',
+        website: userData.additionalData?.website || '',
+        companyLogo: userData.additionalData?.companyLogo || '',
+        bio: userData.additionalData?.description || '', // For backward compatibility
         isAnonymous: false,
         photoURL: null,
         providerId: 'email',
