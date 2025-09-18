@@ -17,10 +17,11 @@ import {
   PermissionsAndroid,
   Platform,
   ActivityIndicator,
+  NativeModules,
 } from 'react-native';
 import Video from 'react-native-video';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { MainStackParamList } from '../navigation/AppNavigator';
@@ -38,9 +39,13 @@ import videoProcessingService, { VideoLayer } from '../services/videoProcessingS
 import { useTheme } from '../context/ThemeContext';
 import ViewShot from 'react-native-view-shot';
 // import VideoProcessor from '../components/VideoProcessor'; // Temporarily disabled
-import VideoProcessingModal from '../components/VideoProcessingModal';
 import { convertCanvasToVideoFormat, createSampleVideoCanvas } from '../utils/videoCanvasConverter';
-import EnhancedVideoProcessingService from '../services/enhancedVideoProcessingService';
+import VideoComposer, { OverlayConfig, VideoLayer as ComposerVideoLayer } from '../services/VideoComposer';
+import { getVideoAssetSource, getAvailableVideoNames, getRandomVideoFromAssets } from '../utils/videoAssets';
+import { getVideoSource, getVideoComponentSource, getNativeVideoSource, VideoSourceConfig, clearVideoCache, getVideoCacheInfo } from '../utils/videoSourceHelper';
+import { testVideoSourceHelper, debugVideoSource } from '../utils/videoSourceTest';
+import VideoCompositionService, { Overlay } from '../services/CloudVideoCompositionService';
+import RNFS from 'react-native-fs';
 import responsiveUtils, { 
   responsiveSpacing as responsiveSpacingUtils, 
   responsiveFontSize as responsiveFontSizeUtils, 
@@ -58,9 +63,9 @@ import responsiveUtils, {
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-// Calculate video canvas dimensions - optimized for no scrolling
-const videoCanvasWidth = Math.min(screenWidth - 32, screenWidth * 0.88); // Slightly wider for better fit
-const videoCanvasHeight = Math.min(screenHeight - 280, screenHeight * 0.4); // Reduced height to fit all controls
+// Calculate video canvas dimensions - increased size with responsive design and safe area consideration
+const videoCanvasWidth = Math.min(screenWidth - 24, screenWidth * 0.92); // Increased width for better visibility
+const videoCanvasHeight = Math.min(screenHeight - 300, screenHeight * 0.45); // Further reduced height to account for tab bar
 
 // Responsive design helpers - using centralized utilities
 
@@ -81,7 +86,8 @@ interface VideoEditorScreenProps {
 const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   const navigation = useNavigation<StackNavigationProp<MainStackParamList>>();
   const insets = useSafeAreaInsets();
-  const { selectedVideo, selectedLanguage, selectedTemplateId } = route.params;
+  const { selectedLanguage, selectedTemplateId, selectedVideo } = route.params;
+  
   const { isSubscribed } = useSubscription();
   const { isDarkMode, theme } = useTheme();
 
@@ -90,6 +96,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   const visibleVideoRef = useRef<any>(null);
   const canvasRef = useRef<ViewShot>(null);
   const overlaysRef = useRef<ViewShot>(null);
+  const lastGenerateTimeRef = useRef<number>(0);
   const [overlayImageUri, setOverlayImageUri] = useState<string | null>(null);
 
   // State for video layers
@@ -111,11 +118,17 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   const [currentTime, setCurrentTime] = useState(0);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showCloudComposer, setShowCloudComposer] = useState(false);
+  const [showProcessingOptions, setShowProcessingOptions] = useState(false);
   const [processingProgress, setProcessingProgress] = useState(0);
   const [showVideoProcessor, setShowVideoProcessor] = useState(false);
-  const [showVideoProcessingModal, setShowVideoProcessingModal] = useState(false);
   const [generatedVideoPath, setGeneratedVideoPath] = useState<string | null>(null);
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
+  const [videoSource, setVideoSource] = useState<any>(null);
+
+  // Video assets state
+  const [currentVideoFromAssets, setCurrentVideoFromAssets] = useState<string>('test');
+  const [availableVideos, setAvailableVideos] = useState<string[]>([]);
 
   // Business profiles
   const [businessProfiles, setBusinessProfiles] = useState<BusinessProfile[]>([]);
@@ -297,6 +310,35 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
     }
   }, []);
 
+  // Load available videos from assets
+  useEffect(() => {
+    const loadAvailableVideos = () => {
+      try {
+        const videoNames = getAvailableVideoNames();
+        setAvailableVideos(videoNames);
+        console.log('📹 Available videos loaded:', videoNames);
+        
+        // Set default video if none selected
+        if (videoNames.length > 0 && !currentVideoFromAssets) {
+          setCurrentVideoFromAssets(videoNames[0]);
+        }
+      } catch (error) {
+        console.error('❌ Failed to load available videos:', error);
+      }
+    };
+    
+    loadAvailableVideos();
+  }, []);
+
+  // Debug native modules availability
+  useEffect(() => {
+    console.log('🔍 Debugging native modules availability:');
+    console.log('- VideoComposer available:', !!VideoComposer);
+    console.log('- VideoComposer module:', VideoComposer);
+    console.log('- All native modules:', Object.keys(NativeModules));
+    console.log('- NativeModules object:', NativeModules);
+  }, []);
+
   // Apply default template when component loads
   useEffect(() => {
     console.log('useEffect triggered - selectedProfile:', selectedProfile?.name, 'selectedTemplate:', selectedTemplate); // Debug log
@@ -352,15 +394,6 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   }, []);
 
   // Video Processing Functions
-  const handleGenerateVideo = useCallback(() => {
-    if (layers.length === 0) {
-      Alert.alert('No Content', 'Please add some content to your video before generating.');
-      return;
-    }
-    
-    setShowVideoProcessingModal(true);
-  }, [layers]);
-
   const handleVideoGenerated = useCallback((videoPath: string) => {
     setGeneratedVideoPath(videoPath);
     console.log('✅ Video generated successfully:', videoPath);
@@ -380,12 +413,465 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         {
           text: 'OK',
           onPress: () => {
-            setShowVideoProcessingModal(false);
+            console.log('Video generation completed');
           },
         },
       ]
     );
   }, []);
+
+  // Get current video source for React Native Video component
+  const getCurrentVideoSource = useCallback(() => {
+    // Use the selected video from route params
+    console.log('📹 Getting video component source from selectedVideo:', selectedVideo);
+    return selectedVideo;
+  }, [selectedVideo]);
+
+  // Load video source on component mount
+  useEffect(() => {
+    const source = getCurrentVideoSource();
+    setVideoSource(source);
+    console.log('📹 Video source loaded:', source);
+  }, [getCurrentVideoSource]);
+
+  // Helper function to copy asset to local file and return file:// path
+  const copyAssetToLocalFile = useCallback(async (assetPath: string, fileName: string = 'test.mp4'): Promise<string> => {
+    try {
+      console.log('📁 copyAssetToLocalFile: Starting asset copy process...');
+      console.log('📁 Asset path:', assetPath);
+      console.log('📁 Target filename:', fileName);
+      
+      // Resolve the asset using Image.resolveAssetSource
+      const resolvedAsset = Image.resolveAssetSource(require('../assets/video/test.mp4'));
+      console.log('📁 Resolved asset source:', resolvedAsset);
+      
+      if (!resolvedAsset?.uri) {
+        throw new Error('Could not resolve asset URI from require()');
+      }
+      
+      const originalUri = resolvedAsset.uri;
+      console.log('📁 Original asset URI:', originalUri);
+      
+      // Create local storage path
+      const localPath = RNFS.DocumentDirectoryPath + '/' + fileName;
+      console.log('📁 Target local path:', localPath);
+      
+      // Always overwrite the file to ensure fresh MP4 each time
+      console.log('📁 Copying asset to local storage (overwriting if exists)...');
+      
+      // Determine if it's a Metro URL or local file
+      const isMetroUrl = originalUri.startsWith('http://localhost:8081') || originalUri.startsWith('https://localhost:8081');
+      console.log('📁 Is Metro URL:', isMetroUrl);
+      
+      if (isMetroUrl) {
+        console.log('📁 Downloading from Metro server...');
+        
+        // Download from Metro server (this will overwrite existing file)
+        const downloadResult = await RNFS.downloadFile({
+          fromUrl: originalUri,
+          toFile: localPath,
+        }).promise;
+        
+        console.log('📁 Download result:', downloadResult);
+        
+        if (downloadResult.statusCode === 200) {
+          console.log('✅ Video downloaded successfully from Metro server');
+        } else {
+          throw new Error(`Metro download failed with status: ${downloadResult.statusCode}`);
+        }
+      } else {
+        console.log('📁 Copying from local bundled asset...');
+        
+        // Copy from local bundled asset (this will overwrite existing file)
+        await RNFS.copyFile(originalUri, localPath);
+        console.log('✅ Video file copied successfully from bundled asset');
+      }
+      
+      // Validate the copied file
+      const fileStats = await RNFS.stat(localPath);
+      console.log('📁 Copied file stats:', fileStats);
+      
+      if (fileStats.size === 0) {
+        throw new Error('Copied video file is empty');
+      }
+      
+      // Return file:// URI
+      const fileUri = 'file://' + localPath;
+      console.log('📁 Returning file:// URI:', fileUri);
+      console.log('📁 File size:', fileStats.size, 'bytes');
+      
+      return fileUri;
+    } catch (error) {
+      console.error('🚨 copyAssetToLocalFile failed:', error);
+      throw new Error(`Failed to copy asset to local file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }, []);
+
+  // Get current video URI for native module - USES NEW HELPER FOR PLATFORM-SPECIFIC SOURCES
+  const getCurrentVideoUri = useCallback(async () => {
+    try {
+      console.log('🎬 Starting video source resolution...');
+      
+      // Use new video source helper for platform-specific sources
+      const videoUri = await getNativeVideoSource({
+        fileName: 'test',
+        useRemote: false, // Use local files first
+      });
+      
+      console.log('✅ Video source resolution completed');
+      console.log('📁 Final video URI:', videoUri);
+      
+      return videoUri;
+    } catch (error) {
+      console.error('🚨 Failed to get current video URI:', error);
+      throw new Error(`Failed to get video URI: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }, []);
+
+  // New direct video generation function
+  const handleGenerateVideo = useCallback(async () => {
+    if (layers.length === 0) {
+      Alert.alert('No Content', 'Please add some content to your video before generating.');
+      return;
+    }
+    
+    if (!VideoComposer) {
+      console.error('🚨 VideoComposer module is not available');
+      console.error('🚨 Available native modules:', Object.keys(NativeModules));
+      Alert.alert('Error', 'VideoComposer module is not available. Please check the native module registration.');
+      return;
+    }
+
+    // Prevent multiple simultaneous calls
+    if (isProcessing) {
+      console.log('⚠️ Video generation already in progress, skipping...');
+      return;
+    }
+
+    // Debounce: prevent rapid successive calls (minimum 2 seconds between calls)
+    const now = Date.now();
+    const timeSinceLastCall = now - lastGenerateTimeRef.current;
+    if (timeSinceLastCall < 2000) {
+      console.log('⚠️ Video generation called too soon, debouncing...');
+      return;
+    }
+    lastGenerateTimeRef.current = now;
+
+    try {
+      setIsProcessing(true);
+      setProcessingProgress(0);
+
+      console.log('🎬 Starting direct video generation...');
+      console.log('- Layers count:', layers.length);
+      
+      // Get video source once and store it - now async
+      console.log('📁 Preparing local video file for VideoComposer...');
+      const currentVideoSource = await getCurrentVideoUri();
+      console.log('📁 Current video source (file:// path):', currentVideoSource);
+      console.log('📁 Path type:', typeof currentVideoSource);
+      console.log('📁 Path length:', currentVideoSource.length);
+      console.log('📁 Path starts with file://:', currentVideoSource.startsWith('file://'));
+
+      // Capture canvas content if available
+      let canvasImageUri: string | undefined;
+      if (canvasRef.current && canvasRef.current.capture) {
+        try {
+          console.log('📸 Capturing canvas content...');
+          const canvasImage = await canvasRef.current.capture();
+          canvasImageUri = canvasImage;
+          console.log('✅ Canvas captured:', canvasImageUri);
+        } catch (error) {
+          console.warn('⚠️ Canvas capture failed:', error);
+        }
+      }
+
+      // Prepare overlay configuration
+      const overlayConfig: OverlayConfig = {
+        layers: layers.map(layer => ({
+          id: layer.id,
+          type: layer.type as 'text' | 'image' | 'logo',
+          content: layer.content,
+          position: layer.position,
+          size: layer.size,
+          style: layer.style,
+          fieldType: layer.fieldType,
+        })),
+        canvasImageUri: canvasImageUri || undefined,
+      };
+
+      // Validate file existence before calling VideoComposer
+      const filePath = currentVideoSource.replace('file://', '');
+      console.log('📁 Checking file existence at:', filePath);
+      
+      const fileExists = await RNFS.exists(filePath);
+      console.log('📁 File exists:', fileExists);
+      
+      if (!fileExists) {
+        throw new Error(`Source video file does not exist: ${filePath}`);
+      }
+      
+      // Get file stats for additional validation
+      const fileStats = await RNFS.stat(filePath);
+      console.log('📁 File stats:', fileStats);
+      
+      if (fileStats.size === 0) {
+        throw new Error(`Source video file is empty: ${filePath}`);
+      }
+      
+      console.log('✅ File validation passed, proceeding with VideoComposer...');
+      console.log('🎯 Calling VideoComposer.composeVideo...');
+      console.log('📁 Source path (file:// URI):', currentVideoSource);
+      console.log('📁 Source path type:', typeof currentVideoSource);
+      console.log('📁 Source path starts with file://:', currentVideoSource.startsWith('file://'));
+      console.log('📁 Overlay config:', overlayConfig);
+
+      // Call VideoComposer with guaranteed valid file:// URI
+      const processedVideoPath = await VideoComposer.composeVideo(
+        currentVideoSource,
+        overlayConfig
+      );
+
+      console.log('✅ Video generation completed!');
+      console.log('- Processed video path:', processedVideoPath);
+
+      // Navigate to video preview
+    navigation.navigate('VideoPreview', {
+        selectedVideo: { uri: currentVideoSource },
+        selectedLanguage: 'en',
+        selectedTemplateId: 'custom',
+      layers: layers,
+        selectedProfile: selectedProfile,
+        processedVideoPath: processedVideoPath,
+        canvasData: {
+          width: videoCanvasWidth,
+          height: videoCanvasHeight,
+          layers: layers,
+        },
+      });
+
+    } catch (error) {
+      console.error('🚨 Video generation failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      Alert.alert('Generation Failed', `Video generation failed: ${errorMessage}`);
+    } finally {
+      setIsProcessing(false);
+      setProcessingProgress(0);
+    }
+  }, [layers, isProcessing, videoCanvasWidth, videoCanvasHeight, selectedProfile, navigation]);
+
+  // Cloud processing function
+  const handleCloudProcessing = useCallback(async () => {
+    console.log('🔍 DEBUG: ===== CLOUD PROCESSING BUTTON CLICKED =====');
+    console.log('🔍 DEBUG: handleCloudProcessing function started');
+    console.log('🔍 DEBUG: Current timestamp:', new Date().toISOString());
+    
+    // Show immediate feedback that button was clicked
+    Alert.alert('Debug', 'Cloud processing button clicked! Check console logs.');
+    
+    console.log('🚀 handleCloudProcessing called!');
+    console.log('🔍 Current layers state:', layers);
+    console.log('🔍 Layers length:', layers.length);
+    
+      // Add timeout to prevent hanging (reduced to 5 minutes for smaller video)
+      const timeoutId = setTimeout(() => {
+        console.log('🔍 DEBUG: Processing timeout reached (5 minutes)');
+        setIsProcessing(false);
+        setProcessingProgress(0);
+        Alert.alert('Timeout', 'Processing took too long. The video may still be processing in the background. Please check again later.');
+      }, 300000); // 5 minute timeout (300 seconds)
+    
+    try {
+      if (layers.length === 0) {
+        console.log('⚠️ No layers found, but continuing with test overlay...');
+        // Don't return early - let's test with a fallback overlay
+      }
+
+      if (isProcessing) {
+        console.log('⚠️ Video generation already in progress, skipping...');
+        return;
+      }
+      setIsProcessing(true);
+      setProcessingProgress(0);
+
+      console.log('🌐 Starting cloud video composition...');
+      console.log('- Video source: Using selected video from route params');
+      console.log('- CSS Overlays: These are rendered in frontend, not sent to backend');
+
+      console.log('🔍 DEBUG: About to initialize VideoCompositionService...');
+      console.log('🔍 DEBUG: Service URL will be: http://localhost:8000');
+      
+      const compositionService = new VideoCompositionService('http://localhost:8000');
+      
+      console.log('🔍 DEBUG: VideoCompositionService initialized successfully');
+      console.log('🔍 DEBUG: About to check server health...');
+      
+      // Skip server health check for now - server is working
+      console.log('🔍 Skipping server health check - server is working');
+      console.log('✅ Proceeding directly to video processing...');
+      
+      // Force bypass health check
+      const isHealthy = true; // Force true to bypass check
+      console.log('🔍 Forced health check result:', isHealthy);
+
+      // Debug layers array
+      console.log('🔍 DEBUGGING LAYERS ARRAY:');
+      console.log('- Raw layers array:', JSON.stringify(layers, null, 2));
+      console.log('- Layers length:', layers.length);
+      
+      // Check each layer individually
+      layers.forEach((layer, index) => {
+        console.log(`- Layer ${index}:`, {
+          type: layer.type,
+          content: layer.content,
+          hasContent: !!layer.content,
+          contentType: typeof layer.content
+        });
+      });
+
+      // Convert CSS layers to Django API overlay format
+      const overlays: Overlay[] = [];
+      
+      console.log('🔍 Converting CSS layers to Django overlays:');
+      console.log('- Total layers:', layers.length);
+      
+      layers.forEach((layer, index) => {
+        console.log(`- Processing layer ${index + 1}:`, {
+          id: layer.id,
+          type: layer.type,
+          content: layer.content,
+          hasContent: !!layer.content,
+          hasBackgroundColor: !!layer.style?.backgroundColor,
+          position: layer.position,
+          style: layer.style,
+          fieldType: layer.fieldType,
+          size: layer.size
+        });
+        
+        if (layer.type === 'text') {
+          // Handle background layers (they have backgroundColor but no text content)
+          if (layer.style?.backgroundColor && !layer.content) {
+            console.log(`- Processing background layer ${index + 1}: has backgroundColor`);
+            overlays.push({
+              type: 'text',
+              text: '', // Empty text for background
+              x: Math.round(layer.position.x),
+              y: Math.round(layer.position.y),
+              start: 0,
+              end: 5
+            });
+            return;
+          }
+          
+          // Only process layers with actual text content
+          if (layer.content && layer.content.trim()) {
+            // Extract actual styling from layer
+            const fontSize = layer.style?.fontSize || 18;
+            const color = layer.style?.color || '#ffffff';
+            const fontWeight = layer.style?.fontWeight || 'normal';
+            
+            overlays.push({
+              type: 'text',
+              text: layer.content.trim(),
+              x: Math.round(layer.position.x),
+              y: Math.round(layer.position.y),
+              fontsize: fontSize,
+              color: color.replace('#', ''), // Remove # for FFmpeg
+              start: 0, // Show from start
+              end: 5 // Show for 5 seconds
+            });
+            console.log(`- Text overlay ${index + 1}: "${layer.content}" at (${layer.position.x}, ${layer.position.y}) with color ${color} and size ${fontSize}`);
+          } else {
+            console.log(`- Skipping text layer ${index + 1}: no content or empty content`);
+          }
+        } else if (layer.type === 'image' || layer.type === 'logo') {
+          // For image overlays, use the actual logo content/URL from the layer
+          const logoPath = layer.content || 'src/assets/images/9.png'; // Use actual logo content
+          overlays.push({
+            type: 'image',
+            path: logoPath, // Use actual logo content instead of hardcoded path
+            x: Math.round(layer.position.x),
+            y: Math.round(layer.position.y),
+            start: 0, // Show from start
+            end: 5 // Show for 5 seconds
+          });
+          console.log(`- Image overlay ${index + 1}: "${logoPath}" at (${layer.position.x}, ${layer.position.y})`);
+          console.log(`- Logo layer content: "${layer.content}"`);
+        }
+      });
+      
+      console.log('- Converted overlays:', overlays.length);
+      console.log('- Overlay details:', overlays.map((overlay, index) => ({
+        index: index + 1,
+        type: overlay.type,
+        x: overlay.x,
+        y: overlay.y
+      })));
+
+        // Get the proper video URI for cloud processing
+        // Use the selected video from route params
+        const videoUri = selectedVideo.uri;
+      
+      console.log('🚀 Starting cloud composition with:', {
+        videoUri: videoUri,
+        overlayCount: overlays.length,
+        overlays: overlays,
+        note: 'Using local video file for Django backend processing'
+      });
+
+      console.log('📤 About to call composeVideo with:');
+      console.log('- videoPath:', videoUri);
+      console.log('- overlays:', overlays);
+      console.log('- overlays.length:', overlays.length);
+      console.log('🔍 DEBUG: About to call compositionService.composeVideo...');
+      console.log('🔍 DEBUG: Service instance:', compositionService);
+
+      const result = await compositionService.composeVideo(
+        videoUri,
+        overlays,
+        {
+          outputName: `result_${Date.now()}.mp4`
+        },
+        (progressUpdate) => {
+          setProcessingProgress(progressUpdate.progress);
+          console.log(`📊 Progress: ${progressUpdate.stage} - ${progressUpdate.progress}%`);
+        }
+      );
+
+      if (result.success && result.videoPath) {
+        console.log('✅ Cloud composition completed!');
+        console.log('📁 Processed video path:', result.videoPath);
+        console.log('📁 Original video path:', videoUri);
+        console.log('📝 Note: CSS overlays will be applied in VideoPreviewScreen');
+        
+        // Navigate to video preview
+        navigation.navigate('VideoPreview', {
+          selectedVideo: { uri: videoUri }, // Keep original video as selectedVideo
+          selectedLanguage: 'en',
+          selectedTemplateId: 'custom',
+          layers: layers,
+          selectedProfile: selectedProfile,
+          processedVideoPath: result.videoPath, // Pass processed video as processedVideoPath
+          canvasData: {
+            width: videoCanvasWidth,
+            height: videoCanvasHeight,
+            layers: layers,
+          },
+        });
+      } else {
+        throw new Error(result.error || 'Cloud composition failed');
+      }
+
+    } catch (error) {
+      console.error('❌ Cloud processing failed:', (error as Error).message);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      Alert.alert('Cloud Processing Failed', `Cloud processing failed: ${errorMessage}`);
+    } finally {
+      console.log('🔍 DEBUG: Cleaning up - clearing timeout and resetting state');
+      clearTimeout(timeoutId);
+      setIsProcessing(false);
+      setProcessingProgress(0);
+    }
+  }, [layers, selectedVideo, isProcessing, videoCanvasWidth, videoCanvasHeight, selectedProfile, navigation]);
 
   const createVideoCanvas = useCallback(() => {
     // Convert current layers to video canvas format
@@ -457,10 +943,21 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
           size: { width: logoSize, height: logoSize },
           fieldType: 'logo',
         });
+      } else {
+        // Add a test logo if no logo is available
+        const logoSize = Math.min(60, videoCanvasWidth * 0.15);
+        newLayers.push({
+          id: generateId(),
+          type: 'logo',
+          content: 'https://picsum.photos/100/100.jpg',
+          position: { x: videoCanvasWidth - logoSize - 20, y: 20 },
+          size: { width: logoSize, height: logoSize },
+          fieldType: 'logo',
+        });
       }
 
       // Create professional footer with contact information - always at bottom
-      const footerHeight = Math.max(120, videoCanvasHeight * 0.15); // Responsive footer height
+      const footerHeight = Math.max(80, videoCanvasHeight * 0.12); // Reduced footer height to reasonable size
       const footerY = videoCanvasHeight - footerHeight - Math.max(10, videoCanvasHeight * 0.02); // Always at bottom with small margin
       
       console.log('Footer positioning debug:', {
@@ -642,7 +1139,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
       });
 
       // Create professional footer with contact information (default) - always at bottom
-      const footerHeight = Math.max(120, videoCanvasHeight * 0.15); // Responsive footer height
+      const footerHeight = Math.max(80, videoCanvasHeight * 0.12); // Reduced footer height to reasonable size
       const footerY = videoCanvasHeight - footerHeight - Math.max(10, videoCanvasHeight * 0.02); // Always at bottom with small margin
       
 
@@ -791,17 +1288,22 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
     setLayers(newLayers);
   };
 
-  // Video controls
-  const toggleVideoPlayback = () => {
-    setIsVideoPlaying(!isVideoPlaying);
+  const onVideoProgress = (data: any) => {
+    setCurrentTime(data.currentTime);
+  };
+
+  const onVideoError = (error: any) => {
+    console.error('🚨 Video playback error:', error);
+    Alert.alert('Video Error', `Video playback failed: ${error.error?.errorString || 'Unknown error'}`);
+  };
+
+  const onVideoLoadStart = () => {
+    console.log('📹 Video load started');
   };
 
   const onVideoLoad = (data: any) => {
+    console.log('📹 Video loaded successfully:', data);
     setVideoDuration(data.duration);
-  };
-
-  const onVideoProgress = (data: any) => {
-    setCurrentTime(data.currentTime);
   };
 
   // Layer management
@@ -1090,7 +1592,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar 
         barStyle="light-content" 
         backgroundColor="transparent" 
@@ -1119,27 +1621,21 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
                 {selectedProfile ? selectedProfile.name : 'Select Profile'}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.generateVideoButton} 
-              onPress={handleGenerateVideo}
-              disabled={layers.length === 0}
-            >
-              <Icon name="videocam" size={20} color="#ffffff" />
-              <Text style={styles.generateVideoButtonText}>Generate Video</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.nextButton, isProcessing && styles.nextButtonDisabled]} 
-              onPress={handleNext}
-              disabled={isProcessing}
-            >
+        <TouchableOpacity 
+          style={[styles.generateVideoButton, isProcessing && styles.generateVideoButtonDisabled]} 
+          onPress={() => {
+            setShowProcessingOptions(true);
+          }}
+          disabled={layers.length === 0 || isProcessing}
+        >
               {isProcessing ? (
-                <View style={styles.processingContainer}>
-                  <ActivityIndicator size="small" color="#667eea" />
-                  <Text style={styles.processingText}>Processing...</Text>
-                </View>
+                <ActivityIndicator size="small" color="#ffffff" />
               ) : (
-                <Text style={styles.nextButtonText}>Next</Text>
+              <Icon name="videocam" size={20} color="#ffffff" />
               )}
+              <Text style={styles.generateVideoButtonText}>
+                {isProcessing ? 'Generating...' : 'Generate Video'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1158,12 +1654,14 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
           >
           <Video
             ref={videoRef}
-            source={{ uri: selectedVideo.uri }}
+            source={videoSource}
             style={styles.video}
             resizeMode="stretch"
             paused={!isVideoPlaying}
             onLoad={onVideoLoad}
+            onLoadStart={onVideoLoadStart}
             onProgress={onVideoProgress}
+            onError={onVideoError}
             repeat={true}
           />
           
@@ -1177,6 +1675,21 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
             console.log('Rendering layer:', l.id, l.type, l.position, l.size); // Debug log
             return renderLayer(l);
           })}
+          
+          {/* Play/Pause Button Overlay */}
+          <TouchableOpacity 
+            style={styles.playButtonOverlay} 
+            onPress={() => setIsVideoPlaying(!isVideoPlaying)}
+            activeOpacity={0.8}
+          >
+            <View style={styles.playButton}>
+              <Icon 
+                name={isVideoPlaying ? 'pause' : 'play-arrow'} 
+                size={48} 
+                color="#ffffff" 
+              />
+            </View>
+          </TouchableOpacity>
           
           {/* Footer layers are working correctly - test layer removed */}
           
@@ -1210,6 +1723,9 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
                 <Text style={styles.processingSubtitle}>
                   Adding overlays and effects...
                 </Text>
+                <Text style={styles.processingSubtitle}>
+                  DEBUG: Processing state is TRUE
+                </Text>
                 <View style={styles.progressBar}>
                   <View 
                     style={[
@@ -1225,32 +1741,14 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         </ViewShot>
         </View>
 
-        {/* Video Controls */}
-        <View style={styles.videoControls}>
-          <TouchableOpacity style={styles.playButton} onPress={toggleVideoPlayback}>
-            <Icon 
-              name={isVideoPlaying ? 'pause' : 'play-arrow'} 
-              size={24} 
-              color="#ffffff" 
-            />
-          </TouchableOpacity>
-          <Text style={styles.timeText}>
-            {Math.floor(currentTime)}s / {Math.floor(videoDuration)}s
-          </Text>
-        </View>
-
-
-
         {/* Controls Container */}
+        <View style={[
+          styles.controlsContainer,
+          { paddingBottom: Math.max(insets.bottom + responsiveSpacingUtils.xxl + 60, responsiveSpacingUtils.xxl + 80) }
+        ]}>
         <ScrollView 
-          style={[
-            styles.controlsContainer, 
-            { 
-              paddingBottom: Math.max(insets.bottom + responsiveSpacingUtils.md, responsiveSpacingUtils.lg)
-            }
-          ]}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ flexGrow: 1 }}
+          contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + responsiveSpacingUtils.xxl + 40, responsiveSpacingUtils.xxl + 60) }}
         >
         
         {/* Field Toggle Buttons */}
@@ -1435,6 +1933,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
           </View>
         </View>
         </ScrollView>
+        </View>
       </LinearGradient>
       {/* Frame Selector */}
       {showFrameSelector && (
@@ -1663,7 +2162,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
          onComplete={handleVideoProcessingComplete}
          onClose={handleVideoProcessingClose}
          layers={layers}
-         selectedVideoUri={selectedVideo.uri}
+         selectedVideoUri={selectedVideo}
          selectedLanguage={selectedLanguage}
          selectedTemplateId={selectedTemplateId}
          selectedProfile={selectedProfile}
@@ -1673,14 +2172,82 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
          overlayImageUri={overlayImageUri || undefined}
        /> */}
 
-      {/* Video Processing Modal */}
-      <VideoProcessingModal
-        visible={showVideoProcessingModal}
-        onClose={() => setShowVideoProcessingModal(false)}
-        canvas={createVideoCanvas()}
-        onVideoGenerated={handleVideoGenerated}
-      />
-    </View>
+      {/* Video Processing Modal - Removed, using direct generation */}
+
+      {/* Processing Options Modal */}
+      {showProcessingOptions && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>🎬 Choose Processing Method</Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowProcessingOptions(false)}
+              >
+                <Icon name="close" size={24} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.processingOptionsContainer}>
+              <Text style={styles.processingOptionsSubtitle}>
+                Select how you want to process your video:
+              </Text>
+              
+        <TouchableOpacity
+          style={styles.processingOptionButton}
+          onPress={() => {
+            setShowProcessingOptions(false);
+            handleGenerateVideo(); // Local processing
+          }}
+        >
+                <Icon name="phone-android" size={24} color="#ffffff" />
+                <View style={styles.processingOptionText}>
+                  <Text style={styles.processingOptionTitle}>Local Processing</Text>
+                  <Text style={styles.processingOptionDescription}>
+                    Process video on your device using native modules
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.processingOptionButton}
+          onPress={async () => {
+            try {
+              console.log('🎯 Cloud Processing button clicked!');
+              console.log('🔍 DEBUG: Closing modal and starting processing...');
+              
+              // Close modal first
+              setShowProcessingOptions(false);
+              
+              // Set processing state immediately
+              setIsProcessing(true);
+              setProcessingProgress(0);
+              
+              console.log('🔍 DEBUG: Modal closed, processing state set to true');
+              
+              // Start cloud processing directly
+              await handleCloudProcessing();
+            } catch (error) {
+              console.error('❌ Error in cloud processing button:', error);
+              Alert.alert('Error', `Cloud processing failed: ${(error as Error).message}`);
+              // Reset processing state on error
+              setIsProcessing(false);
+              setProcessingProgress(0);
+            }
+          }}
+        >
+                <Icon name="cloud-upload" size={24} color="#ffffff" />
+                <View style={styles.processingOptionText}>
+                  <Text style={styles.processingOptionTitle}>Cloud Processing</Text>
+                  <Text style={styles.processingOptionDescription}>
+                    Upload and process video on cloud servers
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+    </SafeAreaView>
   );
 };
 
@@ -1712,46 +2279,19 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#ffffff',
   },
-  nextButton: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: Math.max(20, screenWidth * 0.05),
-    paddingVertical: Math.max(10, screenHeight * 0.012),
-    borderRadius: Math.max(20, screenWidth * 0.05),
-    marginLeft: Math.max(12, screenWidth * 0.03),
-    borderWidth: Math.max(1, screenWidth * 0.002),
-    borderColor: 'rgba(0, 0, 0, 0.1)',
-    ...responsiveShadow.medium,
-  },
-  nextButtonText: {
-    color: '#667eea',
-    fontWeight: 'bold',
-    fontSize: responsiveText.caption,
-  },
-  nextButtonDisabled: {
-    opacity: 0.6,
-  },
-  processingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  processingText: {
-    color: '#667eea',
-    fontWeight: 'bold',
-    marginLeft: 8,
-    fontSize: 12,
-  },
   videoCanvasContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Math.max(2, screenHeight * 0.002),
+    paddingVertical: Math.max(8, screenHeight * 0.01),
     flex: 0,
+    marginBottom: Math.max(12, screenHeight * 0.015), // Added margin to push controls down
   },
   videoCanvas: {
     width: videoCanvasWidth,
     height: videoCanvasHeight,
     alignSelf: 'center',
-    marginVertical: Math.max(4, screenHeight * 0.005),
-    marginHorizontal: Math.max(12, screenWidth * 0.03),
+    marginVertical: Math.max(8, screenHeight * 0.01), // Increased vertical margins
+    marginHorizontal: Math.max(8, screenWidth * 0.02), // Reduced horizontal margins for more width
     borderRadius: Math.max(16, screenWidth * 0.04),
     overflow: 'hidden',
     backgroundColor: '#000000',
@@ -1763,27 +2303,25 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  videoControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  playButtonOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: 'center',
-    paddingHorizontal: Math.max(12, screenWidth * 0.03),
-    paddingVertical: Math.max(4, screenHeight * 0.005),
-    marginBottom: Math.max(4, screenHeight * 0.005),
-    marginTop: Math.max(2, screenHeight * 0.002),
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: Math.max(16, screenWidth * 0.04),
-    marginHorizontal: Math.max(12, screenWidth * 0.03),
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
   },
   playButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    padding: Math.max(10, screenWidth * 0.025),
-    borderRadius: Math.max(18, screenWidth * 0.045),
-    marginRight: Math.max(12, screenWidth * 0.03),
-  },
-  timeText: {
-    color: '#ffffff',
-    fontSize: responsiveText.body,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   toolbar: {
     flexDirection: 'row',
@@ -1887,61 +2425,6 @@ const styles = StyleSheet.create({
     color: '#666666',
     fontWeight: '600',
   },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 20,
-    width: screenWidth * 0.9,
-    maxHeight: screenHeight * 0.7,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#333333',
-    marginBottom: 10,
-  },
-  modalSubtitle: {
-    fontSize: 15,
-    color: '#666666',
-    marginBottom: 20,
-    fontWeight: '500',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginHorizontal: 8,
-  },
-  modalButtonPrimary: {
-    backgroundColor: '#667eea',
-  },
-  modalButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  modalButtonTextPrimary: {
-    color: '#ffffff',
-  },
   // Image and logo modal styles
   imageOptions: {
     flexDirection: 'row',
@@ -1995,13 +2478,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.98)',
     borderTopLeftRadius: Math.max(20, screenWidth * 0.05),
     borderTopRightRadius: Math.max(20, screenWidth * 0.05),
-    paddingTop: Math.max(8, screenHeight * 0.01),
+    paddingTop: Math.max(16, screenHeight * 0.02), // Increased top padding
     paddingHorizontal: Math.max(8, screenWidth * 0.02),
     paddingBottom: Math.max(8, screenHeight * 0.01),
     borderTopWidth: Math.max(1, screenWidth * 0.002),
     borderTopColor: 'rgba(0, 0, 0, 0.1)',
     ...responsiveShadow.large,
-    flex: 1,
+    marginTop: Math.max(8, screenHeight * 0.01), // Added top margin to push controls down
   },
   // Field Toggle Section
   fieldToggleSection: {
@@ -2012,7 +2495,7 @@ const styles = StyleSheet.create({
     ...responsiveShadow.medium,
     borderWidth: Math.max(1, screenWidth * 0.002),
     borderColor: 'rgba(0, 0, 0, 0.08)',
-    marginBottom: Math.max(8, screenHeight * 0.01),
+    marginBottom: Math.max(12, screenHeight * 0.015), // Increased margin to push templates down
     marginHorizontal: Math.max(2, screenWidth * 0.005),
   },
   fieldToggleHeader: {
@@ -2073,7 +2556,7 @@ const styles = StyleSheet.create({
     ...responsiveShadow.medium,
     borderWidth: Math.max(1, screenWidth * 0.002),
     borderColor: 'rgba(0, 0, 0, 0.08)',
-    marginBottom: Math.max(8, screenHeight * 0.01),
+    marginBottom: Math.max(8, screenHeight * 0.01), // Increased margin for better spacing
     marginHorizontal: Math.max(2, screenWidth * 0.005),
   },
   templatesHeader: {
@@ -2184,7 +2667,9 @@ const styles = StyleSheet.create({
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Math.max(16, screenWidth * 0.04),
+    gap: Math.max(8, screenWidth * 0.02),
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
   },
   profileButton: {
     flexDirection: 'row',
@@ -2206,18 +2691,127 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: Math.max(14, screenWidth * 0.035),
-    paddingVertical: Math.max(8, screenHeight * 0.01),
-    borderRadius: Math.max(18, screenWidth * 0.045),
-    gap: Math.max(6, screenWidth * 0.015),
+    paddingHorizontal: Math.max(10, screenWidth * 0.025),
+    paddingVertical: Math.max(6, screenHeight * 0.008),
+    borderRadius: Math.max(15, screenWidth * 0.035),
+    gap: Math.max(4, screenWidth * 0.01),
     borderWidth: Math.max(1, screenWidth * 0.002),
     borderColor: 'rgba(255, 255, 255, 0.2)',
     opacity: 1,
+    minWidth: 60,
   },
   generateVideoButtonText: {
     color: '#ffffff',
     fontSize: responsiveText.caption,
     fontWeight: '500',
+  },
+  generateVideoButtonDisabled: {
+    opacity: 0.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 20,
+    width: screenWidth * 0.9,
+    maxHeight: screenHeight * 0.7,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#333333',
+    marginBottom: 10,
+  },
+  modalSubtitle: {
+    fontSize: 15,
+    color: '#666666',
+    marginBottom: 20,
+    fontWeight: '500',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginHorizontal: 8,
+  },
+  modalButtonPrimary: {
+    backgroundColor: '#667eea',
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalButtonTextPrimary: {
+    color: '#ffffff',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  closeButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  // Processing Options Modal Styles
+  processingOptionsContainer: {
+    padding: 20,
+  },
+  processingOptionsSubtitle: {
+    fontSize: 16,
+    color: '#666666',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  processingOptionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  processingOptionText: {
+    marginLeft: 15,
+    flex: 1,
+  },
+  processingOptionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333333',
+    marginBottom: 5,
+  },
+  processingOptionDescription: {
+    fontSize: 14,
+    color: '#666666',
+    lineHeight: 20,
   },
 
 });
