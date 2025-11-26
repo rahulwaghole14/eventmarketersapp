@@ -293,6 +293,22 @@ model MobileTransaction {
   @@map("mobile_transactions")
 }
 
+model MobilePasswordResetCode {
+  id           String     @id @default(cuid())
+  mobileUserId String     @unique
+  email        String
+  code         String
+  attempts     Int        @default(0)
+  expiresAt    DateTime
+  verifiedAt   DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  mobileUser   MobileUser @relation(fields: [mobileUserId], references: [id], onDelete: Cascade)
+
+  @@map("mobile_password_reset_codes")
+  @@index([email], map: "idx_mobile_password_reset_codes_email")
+}
+
 model BusinessProfilePayment {
   id               String     @id @default(cuid())
   mobileUserId     String
@@ -335,6 +351,7 @@ model MobileUser {
   mobile_subscriptions MobileSubscription[]
   mobile_transactions  MobileTransaction[]
   businessProfilePayments BusinessProfilePayment[]
+  passwordResetCode    MobilePasswordResetCode?
   
   @@map("mobile_users")
 }
