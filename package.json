@@ -14,7 +14,7 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "ts-node prisma/seed.ts",
+    "db:seed": "ts-node --transpile-only prisma/seed.ts",
     "postinstall": "prisma generate",
     "prestart": "node seed-admin-production.js",
     "test": "jest",
@@ -25,7 +25,7 @@
     "test:full": "npm run test:setup && npm run test:coverage"
   },
   "prisma": {
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "ts-node --transpile-only prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.0.0",
