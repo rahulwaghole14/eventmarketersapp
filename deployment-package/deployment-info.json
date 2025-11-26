@@ -1,0 +1,27 @@
+{
+  "packageName": "eventmarketers-backend-deployment",
+  "version": "1.0.0",
+  "description": "EventMarketers Backend - Production Ready Deployment Package",
+  "files": 12,
+  "apis": [
+    "Health Check",
+    "Mobile Home Stats",
+    "Mobile Templates",
+    "Mobile Greetings",
+    "Mobile Posters",
+    "Mobile User Registration",
+    "Mobile User Login",
+    "Mobile Subscription Status"
+  ],
+  "testResults": "12/13 tests passed",
+  "status": "Ready for Production",
+  "deploymentOptions": [
+    "Render.com",
+    "Heroku",
+    "Railway",
+    "Vercel",
+    "VPS/Server",
+    "Docker"
+  ],
+  "createdAt": "2025-09-29T12:43:27.873Z"
+}

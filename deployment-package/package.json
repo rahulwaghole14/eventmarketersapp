@@ -1,0 +1,38 @@
+{
+  "name": "@business-marketing-platform/backend",
+  "version": "1.0.0",
+  "description": "EventMarketers Backend API - Production Ready",
+  "main": "deployment_server.js",
+  "scripts": {
+    "start": "node deployment_server.js",
+    "dev": "nodemon deployment_server.js",
+    "test": "node test_deployment_server.js",
+    "build": "echo 'Build completed - using deployment server'",
+    "deploy": "npm install && npx prisma generate && npx prisma db push && npm start"
+  },
+  "keywords": [
+    "eventmarketers",
+    "backend",
+    "api",
+    "mobile",
+    "production"
+  ],
+  "author": "EventMarketers Team",
+  "license": "MIT",
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eventmarketers/backend.git"
+  }
+}

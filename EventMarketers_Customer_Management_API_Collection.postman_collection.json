@@ -1,0 +1,711 @@
+{
+  "info": {
+    "name": "EventMarketers - Customer Management API",
+    "description": "Complete Customer Management API collection for EventMarketers Web App Admin Dashboard. Includes customer CRUD operations, business profile management, and subscription handling.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{admin_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://eventmarketersbackend.onrender.com",
+      "type": "string"
+    },
+    {
+      "key": "local_url",
+      "value": "http://localhost:3001",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "customer_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🔐 Authentication",
+      "item": [
+        {
+          "name": "Admin Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.token) {",
+                  "        pm.collectionVariables.set('admin_token', response.token);",
+                  "        console.log('✅ Admin token saved:', response.token.substring(0, 50) + '...');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@eventmarketers.com\",\n  \"password\": \"Admin123!@#\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/admin/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "admin", "login"]
+            },
+            "description": "Login as admin to get authentication token for customer management APIs."
+          },
+          "response": [
+            {
+              "name": "Successful Login",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"admin@eventmarketers.com\",\n  \"password\": \"Admin123!@#\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/auth/admin/login",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "auth", "admin", "login"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Login successful\",\n  \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"user\": {\n    \"id\": \"cmg0hb4fc0000dw4c23szexi1\",\n    \"email\": \"admin@eventmarketers.com\",\n    \"name\": \"System Administrator\",\n    \"role\": \"ADMIN\",\n    \"userType\": \"ADMIN\"\n  }\n}"
+            }
+          ]
+        }
+      ],
+      "description": "Authentication endpoints for admin access to customer management APIs."
+    },
+    {
+      "name": "👥 Customer Management",
+      "item": [
+        {
+          "name": "Create Customer (Minimal)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data.customer) {",
+                  "        pm.collectionVariables.set('customer_id', response.data.customer.id);",
+                  "        console.log('✅ Customer created with ID:', response.data.customer.id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john.doe@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/customers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "customers"]
+            },
+            "description": "Create a new customer with minimal required information (name and email only)."
+          },
+          "response": [
+            {
+              "name": "Customer Created Successfully",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john.doe@example.com\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/admin/customers",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "admin", "customers"]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Customer created successfully\",\n  \"data\": {\n    \"customer\": {\n      \"id\": \"cmg0hyz2r0004nqxx5zflj2mw\",\n      \"name\": \"John Doe\",\n      \"email\": \"john.doe@example.com\",\n      \"phone\": null,\n      \"businessName\": \"John Doe\",\n      \"businessEmail\": \"john.doe@example.com\",\n      \"businessPhone\": null,\n      \"businessWebsite\": null,\n      \"businessAddress\": null,\n      \"businessDescription\": null,\n      \"businessCategory\": null,\n      \"businessLogo\": null,\n      \"subscriptionStatus\": \"INACTIVE\",\n      \"subscriptionStartDate\": null,\n      \"subscriptionEndDate\": null,\n      \"subscriptionAmount\": null,\n      \"paymentMethod\": null,\n      \"createdAt\": \"2025-09-26T07:05:12.723Z\",\n      \"selectedBusinessCategory\": null,\n      \"subscriptions\": []\n    },\n    \"subscription\": null\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Customer (Complete)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data.customer) {",
+                  "        pm.collectionVariables.set('customer_id', response.data.customer.id);",
+                  "        console.log('✅ Complete customer created with ID:', response.data.customer.id);",
+                  "        console.log('💳 Subscription Status:', response.data.customer.subscriptionStatus);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Smith\",\n  \"email\": \"jane.smith@example.com\",\n  \"phone\": \"+1234567890\",\n  \"businessName\": \"Jane's Event Planning\",\n  \"businessEmail\": \"business@janesevents.com\",\n  \"businessPhone\": \"+1234567891\",\n  \"businessWebsite\": \"https://janesevents.com\",\n  \"businessAddress\": \"456 Oak St, Los Angeles, CA\",\n  \"businessDescription\": \"Professional event planning and coordination services\",\n  \"businessCategory\": \"Event Planners\",\n  \"subscriptionPlan\": \"YEARLY\",\n  \"subscriptionAmount\": 299.99,\n  \"paymentMethod\": \"CREDIT_CARD\",\n  \"autoActivateSubscription\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/customers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "customers"]
+            },
+            "description": "Create a new customer with complete business profile and active subscription."
+          },
+          "response": [
+            {
+              "name": "Complete Customer Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Jane Smith\",\n  \"email\": \"jane.smith@example.com\",\n  \"phone\": \"+1234567890\",\n  \"businessName\": \"Jane's Event Planning\",\n  \"businessEmail\": \"business@janesevents.com\",\n  \"businessPhone\": \"+1234567891\",\n  \"businessWebsite\": \"https://janesevents.com\",\n  \"businessAddress\": \"456 Oak St, Los Angeles, CA\",\n  \"businessDescription\": \"Professional event planning and coordination services\",\n  \"businessCategory\": \"Event Planners\",\n  \"subscriptionPlan\": \"YEARLY\",\n  \"subscriptionAmount\": 299.99,\n  \"paymentMethod\": \"CREDIT_CARD\",\n  \"autoActivateSubscription\": true\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/admin/customers",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "admin", "customers"]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Customer created successfully\",\n  \"data\": {\n    \"customer\": {\n      \"id\": \"cmg0i34y500022s12acb4qjc9\",\n      \"name\": \"Jane Smith\",\n      \"email\": \"jane.smith@example.com\",\n      \"phone\": \"+1234567890\",\n      \"businessName\": \"Jane's Event Planning\",\n      \"businessEmail\": \"business@janesevents.com\",\n      \"businessPhone\": \"+1234567891\",\n      \"businessWebsite\": \"https://janesevents.com\",\n      \"businessAddress\": \"456 Oak St, Los Angeles, CA\",\n      \"businessDescription\": \"Professional event planning and coordination services\",\n      \"businessCategory\": \"Event Planners\",\n      \"businessLogo\": null,\n      \"subscriptionStatus\": \"ACTIVE\",\n      \"subscriptionStartDate\": \"2025-09-26T07:08:26.954Z\",\n      \"subscriptionEndDate\": \"2026-09-26T07:08:26.954Z\",\n      \"subscriptionAmount\": 299.99,\n      \"paymentMethod\": \"CREDIT_CARD\",\n      \"createdAt\": \"2025-09-26T07:08:26.954Z\",\n      \"selectedBusinessCategory\": null,\n      \"subscriptions\": []\n    },\n    \"subscription\": {\n      \"id\": \"cmg0i36l700042s12sdlncd2z\",\n      \"plan\": \"YEARLY\",\n      \"status\": \"ACTIVE\",\n      \"amount\": 299.99,\n      \"startDate\": \"2025-09-26T07:08:26.954Z\",\n      \"endDate\": \"2026-09-26T07:08:26.954Z\",\n      \"paymentMethod\": \"CREDIT_CARD\"\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get All Customers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/customers?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "customers"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Items per page"
+                }
+              ]
+            },
+            "description": "Get all customers with pagination. Optional query parameters: page, limit, search, status, category."
+          },
+          "response": [
+            {
+              "name": "Customers Retrieved",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/admin/customers?page=1&limit=10",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "admin", "customers"],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Customers fetched successfully\",\n  \"data\": {\n    \"customers\": [\n      {\n        \"id\": \"cmg0i34y500022s12acb4qjc9\",\n        \"name\": \"Jane Smith\",\n        \"email\": \"jane.smith@example.com\",\n        \"phone\": \"+1234567890\",\n        \"businessName\": \"Jane's Event Planning\",\n        \"businessEmail\": \"business@janesevents.com\",\n        \"businessPhone\": \"+1234567891\",\n        \"businessWebsite\": \"https://janesevents.com\",\n        \"businessAddress\": \"456 Oak St, Los Angeles, CA\",\n        \"businessDescription\": \"Professional event planning and coordination services\",\n        \"businessCategory\": \"Event Planners\",\n        \"subscriptionStatus\": \"ACTIVE\",\n        \"subscriptionStartDate\": \"2025-09-26T07:08:26.954Z\",\n        \"subscriptionEndDate\": \"2026-09-26T07:08:26.954Z\",\n        \"subscriptionAmount\": 299.99,\n        \"paymentMethod\": \"CREDIT_CARD\",\n        \"createdAt\": \"2025-09-26T07:08:26.954Z\",\n        \"selectedBusinessCategory\": null,\n        \"subscriptions\": [\n          {\n            \"id\": \"cmg0i36l700042s12sdlncd2z\",\n            \"plan\": \"YEARLY\",\n            \"status\": \"ACTIVE\",\n            \"amount\": 299.99,\n            \"startDate\": \"2025-09-26T07:08:26.954Z\",\n            \"endDate\": \"2026-09-26T07:08:26.954Z\",\n            \"paymentMethod\": \"CREDIT_CARD\"\n          }\n        ]\n      }\n    ],\n    \"pagination\": {\n      \"page\": 1,\n      \"limit\": 10,\n      \"total\": 2,\n      \"pages\": 1\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Search Customers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/customers?search=jane&status=ACTIVE&category=Event Planners",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "customers"],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "jane",
+                  "description": "Search in name, email, business name, or category"
+                },
+                {
+                  "key": "status",
+                  "value": "ACTIVE",
+                  "description": "Filter by subscription status"
+                },
+                {
+                  "key": "category",
+                  "value": "Event Planners",
+                  "description": "Filter by business category"
+                }
+              ]
+            },
+            "description": "Search and filter customers by various criteria."
+          }
+        },
+        {
+          "name": "Get Customer by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/customers/{{customer_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "customers", "{{customer_id}}"]
+            },
+            "description": "Get a specific customer by their ID."
+          },
+          "response": [
+            {
+              "name": "Customer Retrieved",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/admin/customers/{{customer_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "admin", "customers", "{{customer_id}}"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Customer fetched successfully\",\n  \"data\": {\n    \"customer\": {\n      \"id\": \"cmg0i34y500022s12acb4qjc9\",\n      \"name\": \"Jane Smith\",\n      \"email\": \"jane.smith@example.com\",\n      \"phone\": \"+1234567890\",\n      \"businessName\": \"Jane's Event Planning\",\n      \"businessEmail\": \"business@janesevents.com\",\n      \"businessPhone\": \"+1234567891\",\n      \"businessWebsite\": \"https://janesevents.com\",\n      \"businessAddress\": \"456 Oak St, Los Angeles, CA\",\n      \"businessDescription\": \"Professional event planning and coordination services\",\n      \"businessCategory\": \"Event Planners\",\n      \"subscriptionStatus\": \"ACTIVE\",\n      \"subscriptionStartDate\": \"2025-09-26T07:08:26.954Z\",\n      \"subscriptionEndDate\": \"2026-09-26T07:08:26.954Z\",\n      \"subscriptionAmount\": 299.99,\n      \"paymentMethod\": \"CREDIT_CARD\",\n      \"createdAt\": \"2025-09-26T07:08:26.954Z\",\n      \"selectedBusinessCategory\": null,\n      \"subscriptions\": [\n        {\n          \"id\": \"cmg0i36l700042s12sdlncd2z\",\n          \"plan\": \"YEARLY\",\n          \"status\": \"ACTIVE\",\n          \"amount\": 299.99,\n          \"startDate\": \"2025-09-26T07:08:26.954Z\",\n          \"endDate\": \"2026-09-26T07:08:26.954Z\",\n          \"paymentMethod\": \"CREDIT_CARD\"\n        }\n      ]\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Customer",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Smith Updated\",\n  \"businessName\": \"Jane's Updated Event Planning\",\n  \"businessEmail\": \"updated@janesevents.com\",\n  \"businessWebsite\": \"https://updated-janesevents.com\",\n  \"businessAddress\": \"789 Updated St, Los Angeles, CA\",\n  \"businessDescription\": \"Updated professional event planning and coordination services\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/customers/{{customer_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "customers", "{{customer_id}}"]
+            },
+            "description": "Update customer information. All fields are optional."
+          },
+          "response": [
+            {
+              "name": "Customer Updated",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Jane Smith Updated\",\n  \"businessName\": \"Jane's Updated Event Planning\",\n  \"businessEmail\": \"updated@janesevents.com\",\n  \"businessWebsite\": \"https://updated-janesevents.com\",\n  \"businessAddress\": \"789 Updated St, Los Angeles, CA\",\n  \"businessDescription\": \"Updated professional event planning and coordination services\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/admin/customers/{{customer_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "admin", "customers", "{{customer_id}}"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Customer updated successfully\",\n  \"data\": {\n    \"customer\": {\n      \"id\": \"cmg0i34y500022s12acb4qjc9\",\n      \"name\": \"Jane Smith Updated\",\n      \"email\": \"jane.smith@example.com\",\n      \"phone\": \"+1234567890\",\n      \"businessName\": \"Jane's Updated Event Planning\",\n      \"businessEmail\": \"updated@janesevents.com\",\n      \"businessPhone\": \"+1234567891\",\n      \"businessWebsite\": \"https://updated-janesevents.com\",\n      \"businessAddress\": \"789 Updated St, Los Angeles, CA\",\n      \"businessDescription\": \"Updated professional event planning and coordination services\",\n      \"businessCategory\": \"Event Planners\",\n      \"subscriptionStatus\": \"ACTIVE\",\n      \"subscriptionStartDate\": \"2025-09-26T07:08:26.954Z\",\n      \"subscriptionEndDate\": \"2026-09-26T07:08:26.954Z\",\n      \"subscriptionAmount\": 299.99,\n      \"paymentMethod\": \"CREDIT_CARD\",\n      \"createdAt\": \"2025-09-26T07:08:26.954Z\",\n      \"updatedAt\": \"2025-09-26T07:15:30.123Z\",\n      \"selectedBusinessCategory\": null,\n      \"subscriptions\": []\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete Customer (Soft Delete)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/customers/{{customer_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "customers", "{{customer_id}}"]
+            },
+            "description": "Soft delete a customer by deactivating their subscription."
+          },
+          "response": [
+            {
+              "name": "Customer Deactivated",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/admin/customers/{{customer_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "admin", "customers", "{{customer_id}}"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Customer deactivated successfully\",\n  \"data\": {\n    \"customer\": {\n      \"id\": \"cmg0i34y500022s12acb4qjc9\",\n      \"name\": \"Jane Smith Updated\",\n      \"email\": \"jane.smith@example.com\",\n      \"subscriptionStatus\": \"INACTIVE\",\n      \"subscriptionEndDate\": \"2025-09-26T07:20:15.456Z\",\n      \"updatedAt\": \"2025-09-26T07:20:15.456Z\"\n    }\n  }\n}"
+            }
+          ]
+        }
+      ],
+      "description": "Complete CRUD operations for customer management including business profiles and subscriptions."
+    },
+    {
+      "name": "🔍 Advanced Queries",
+      "item": [
+        {
+          "name": "Get Active Customers Only",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/customers?status=ACTIVE&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "customers"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "ACTIVE"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Get only customers with active subscriptions."
+          }
+        },
+        {
+          "name": "Get Inactive Customers Only",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/customers?status=INACTIVE",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "customers"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "INACTIVE"
+                }
+              ]
+            },
+            "description": "Get only customers with inactive subscriptions."
+          }
+        },
+        {
+          "name": "Search by Business Category",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/customers?category=Event Planners",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "customers"],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "Event Planners"
+                }
+              ]
+            },
+            "description": "Get customers filtered by business category."
+          }
+        },
+        {
+          "name": "Search by Name or Email",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/customers?search=jane",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "customers"],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "jane"
+                }
+              ]
+            },
+            "description": "Search customers by name, email, business name, or category."
+          }
+        }
+      ],
+      "description": "Advanced query options for filtering and searching customers."
+    },
+    {
+      "name": "📊 Analytics & Reports",
+      "item": [
+        {
+          "name": "Get Customer Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/customers?page=1&limit=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "customers"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Get customer statistics from pagination data. Use limit=1 to get total count efficiently."
+          }
+        }
+      ],
+      "description": "Analytics and reporting endpoints for customer data insights."
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-set base URL based on environment",
+          "if (pm.environment.get('use_local') === 'true') {",
+          "    pm.collectionVariables.set('base_url', pm.collectionVariables.get('local_url'));",
+          "} else {",
+          "    pm.collectionVariables.set('base_url', 'https://eventmarketersbackend.onrender.com');",
+          "}"
+        ]
+      }
+    }
+  ]
+}

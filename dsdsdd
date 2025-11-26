@@ -1,0 +1,15 @@
+* [33m7316867[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m fix: Fix content images API 500 error - Change adminUploader to admin (correct relation name) - Change subadminUploader to subadmin (correct relation name) - This fixes 500 error on /api/content/images endpoint
+* [33mdc840ce[m fix: Fix business categories API 500 error - Remove invalid customers count (not in schema) - Add mainCategory field to BusinessCategory schema - Add mainCategory query parameter filter support - This fixes the 500 error when filtering by mainCategory=FESTIVAL
+* [33ma5575dc[m fix: Update setup endpoint to reset admin password even if admin exists - Change from create-only to upsert logic - Now updates existing admin password to EventMarketers2024! - This allows resetting admin password when credentials are unknown
+* [33m6d0e8cb[m debug: Add detailed password verification logging to diagnose login issues - Log email and password lengths - Log password comparison result - Log first 5 chars of both passwords on mismatch - This will help identify if passwords are being saved correctly
+* [33m9b14aa7[m fix: Correct field mapping in business profile create/update to match database schema - Map email to businessEmail, phone to businessPhone, etc - Add alternatePhone field - Remove invalid ownerName, socialMedia, isActive fields - This fixes the issue where name and other fields were not being saved
+* [33m7d978cd[m fix: Accept 'name' field in business profile endpoints - Accept both 'name' and 'businessName' in POST and PUT requests - Use 'name' if 'businessName' not provided for backward compatibility - Fixes issue where name field from frontend wasn't being saved
+* [33m102a4d3[m fix: Add alternatePhone field and remove companyLogo/banner - Add alternatePhone to BusinessProfile schema - Update all endpoints to include alternatePhone - Remove companyLogo and banner from responses - Fix TypeScript error by adding alternatePhone to select
+* [33mf9b9a77[m feat: Add alternatePhone field to BusinessProfile schema and remove companyLogo/banner from responses
+* [33m1005bc9[m fix: Add user validation and update response format for business profile endpoints
+* [33m3b50757[m fix: Update business profile response to match expected field structure
+* [33m9d61f05[m feat: Add one-time admin setup endpoint for free tier deployment
+* [33m49a5622[m fix: Add web frontend routes including installed-users to deployment server
+* [33mf6c0f95[m fix: Include pre-compiled dist folder in git for deployment
+* [33mff7a0cb[m fix: Correct TypeScript build command syntax - Remove incorrect --noEmit false flag and properly emit JavaScript files
+* [33m83c7d9b[m fix: Update build script to continue on TypeScript errors

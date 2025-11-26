@@ -1,0 +1,490 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id                  String             @id
+  email               String             @unique
+  password            String
+  name                String?
+  role                String             @default("admin")
+  isActive            Boolean            @default(true)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime
+  business_categories BusinessCategory[]
+  images              Image[]
+  videos              Video[]
+  
+  @@map("admins")
+}
+
+model AuditLog {
+  id              String   @id
+  adminId         String?
+  subadminId      String?
+  customerId      String?
+  installedUserId String?
+  userType        String
+  action          String
+  resource        String
+  resourceId      String?
+  details         String?
+  status          String   @default("SUCCESS")
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime @default(now())
+  
+  @@map("audit_logs")
+}
+
+model BusinessCategory {
+  id           String   @id
+  name         String   @unique
+  description  String?
+  icon         String?
+  mainCategory String?  @default("BUSINESS")
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdBy    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime
+  admins       Admin    @relation(fields: [createdBy], references: [id])
+  images       Image[]
+  videos       Video[]
+  
+  @@map("business_categories")
+}
+
+model BusinessProfile {
+  id                  String      @id @default(cuid())
+  customerId          String?
+  mobileUserId        String?
+  businessName        String
+  businessEmail       String?
+  businessPhone       String?
+  alternatePhone      String?
+  businessWebsite     String?
+  businessAddress     String?
+  businessLogo        String?
+  businessDescription String?
+  businessCategory    String?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  customers           Customer?   @relation(fields: [customerId], references: [id])
+  mobile_users        MobileUser? @relation(fields: [mobileUserId], references: [id])
+  
+  @@map("business_profiles")
+}
+
+model Customer {
+  id                         String              @id
+  email                      String              @unique
+  password                   String              @default("password123")
+  name                       String?
+  phone                      String?
+  businessName               String?
+  businessPhone              String?
+  businessEmail              String?
+  businessWebsite            String?
+  businessAddress            String?
+  businessLogo               String?
+  businessDescription        String?
+  selectedBusinessCategory   String?
+  selectedBusinessCategoryId String?
+  subscriptionStatus         String              @default("INACTIVE")
+  subscriptionAmount         Float?
+  subscriptionStartDate      DateTime?
+  subscriptionEndDate        DateTime?
+  paymentMethod              String?
+  totalDownloads             Int                 @default(0)
+  isActive                   Boolean             @default(true)
+  lastActiveAt               DateTime?
+  createdAt                  DateTime          @default(now())
+  updatedAt                  DateTime
+  business_profiles          BusinessProfile[]
+  subscriptions              subscriptions[]
+  
+  @@map("customers")
+}
+
+model greeting_downloads {
+  id           String   @id
+  mobileUserId String
+  greetingId   String
+  downloadedAt DateTime @default(now())
+}
+
+model greeting_likes {
+  id           String   @id
+  mobileUserId String
+  greetingId   String
+  createdAt    DateTime @default(now())
+}
+
+model greeting_templates {
+  id          String   @id
+  title       String
+  description String?
+  imageUrl    String
+  category    String
+  tags        String?
+  isActive    Boolean  @default(true)
+  downloads   Int      @default(0)
+  likes       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+}
+
+model Image {
+  id                  String              @id @default(cuid())
+  title               String
+  description         String?
+  url                 String
+  thumbnailUrl        String?
+  category            String
+  tags                String?
+  dimensions          String?
+  fileSize            Int?
+  downloads           Int                 @default(0)
+  views               Int                 @default(0)
+  approvalStatus      String              @default("PENDING")
+  isActive            Boolean             @default(true)
+  isMobileSynced      Boolean             @default(false)
+  businessCategoryId  String?
+  mobileTemplateId    String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  mobileSyncAt        DateTime?
+  adminUploaderId     String?
+  subadminUploaderId  String?
+  admins              Admin?              @relation(fields: [adminUploaderId], references: [id], map: "images_admin_fkey")
+  business_categories BusinessCategory?   @relation(fields: [businessCategoryId], references: [id])
+  subadmins           Subadmin?           @relation(fields: [subadminUploaderId], references: [id], map: "images_subadmin_fkey")
+  
+  @@map("images")
+}
+
+model InstalledUser {
+  id                       String    @id
+  deviceId                 String    @unique
+  email                    String?
+  name                     String?
+  phone                    String?
+  appVersion               String?
+  installDate              DateTime  @default(now())
+  totalViews               Int       @default(0)
+  downloadAttempts         Int       @default(0)
+  isConverted              Boolean   @default(false)
+  convertedAt              DateTime?
+  convertedToCustomerId    String?
+  businessName             String?
+  businessPhone            String?
+  businessEmail            String?
+  businessWebsite          String?
+  businessAddress          String?
+  businessLogo             String?
+  businessDescription      String?
+  selectedBusinessCategory String?
+  subscriptionStatus       String?
+  subscriptionData         String?
+  businessProfile          String?
+  isActive                 Boolean   @default(true)
+  lastActiveAt             DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime
+  
+  @@map("installed_users")
+}
+
+model MobileActivity {
+  id           String     @id @default(cuid())
+  mobileUserId String
+  action       String
+  resource     String
+  resourceType String?
+  resourceId   String?
+  details      String?
+  createdAt    DateTime   @default(now())
+  mobile_users MobileUser @relation(fields: [mobileUserId], references: [id], onDelete: Cascade)
+  
+  @@map("mobile_activities")
+}
+
+model MobileDownload {
+  id           String     @id @default(cuid())
+  mobileUserId String
+  resourceType String
+  resourceId   String
+  fileUrl      String?
+  downloadedAt DateTime   @default(now())
+  mobile_users MobileUser @relation(fields: [mobileUserId], references: [id], onDelete: Cascade)
+  
+  @@map("mobile_downloads")
+}
+
+model MobileLike {
+  id           String     @id @default(cuid())
+  mobileUserId String
+  resourceType String
+  resourceId   String
+  createdAt    DateTime   @default(now())
+  mobile_users MobileUser @relation(fields: [mobileUserId], references: [id], onDelete: Cascade)
+  
+  @@map("mobile_likes")
+}
+
+model MobileSubscription {
+  id            String     @id @default(cuid())
+  mobileUserId  String
+  plan          String
+  planId        String
+  status        String     @default("ACTIVE")
+  startDate     DateTime   @default(now())
+  endDate       DateTime
+  amount        Float?
+  paymentId     String?
+  paymentMethod String?
+  autoRenew     Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  mobile_users  MobileUser @relation(fields: [mobileUserId], references: [id], onDelete: Cascade)
+  
+  @@map("mobile_subscriptions")
+}
+
+model mobile_templates {
+  id                 String               @id
+  title              String
+  description        String?
+  imageUrl           String
+  thumbnailUrl       String?
+  fileUrl            String?
+  category           String
+  tags               String?
+  language           String?
+  type               String?
+  isPremium          Boolean              @default(false)
+  isActive           Boolean              @default(true)
+  downloads          Int                  @default(0)
+  likes              Int                  @default(0)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime
+  mobileSyncAt       DateTime?
+  template_downloads template_downloads[]
+  template_likes     template_likes[]
+}
+
+model MobileTransaction {
+  id            String     @id @default(cuid())
+  mobileUserId  String
+  amount        Float
+  currency      String     @default("INR")
+  paymentId     String?
+  paymentMethod String?
+  status        String     @default("PENDING")
+  createdAt     DateTime   @default(now())
+  mobile_users  MobileUser @relation(fields: [mobileUserId], references: [id], onDelete: Cascade)
+  
+  @@map("mobile_transactions")
+}
+
+model BusinessProfilePayment {
+  id               String     @id @default(cuid())
+  mobileUserId     String
+  orderId          String     @unique
+  paymentId        String?
+  amount           Int
+  amountPaise      Int
+  currency         String     @default("INR")
+  status           String     @default("PENDING")
+  type             String     @default("BUSINESS_PROFILE")
+  receipt          String?
+  razorpaySignature String?
+  metadata         Json?
+  expiresAt        DateTime?
+  verifiedAt       DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  mobileUser       MobileUser @relation(fields: [mobileUserId], references: [id], onDelete: Cascade)
+
+  @@map("business_profile_payments")
+  @@index([mobileUserId, status, type], map: "idx_business_profile_payments_user_status_type")
+}
+
+model MobileUser {
+  id                   String                @id @default(cuid())
+  deviceId             String?               @unique
+  email                String                @unique
+  password             String                @default("password123")
+  name                 String?
+  phone                String?
+  alternatePhone       String?
+  isActive             Boolean               @default(true)
+  lastActiveAt         DateTime?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  business_profiles    BusinessProfile[]
+  mobile_activities    MobileActivity[]
+  mobile_downloads     MobileDownload[]
+  mobile_likes         MobileLike[]
+  mobile_subscriptions MobileSubscription[]
+  mobile_transactions  MobileTransaction[]
+  businessProfilePayments BusinessProfilePayment[]
+  
+  @@map("mobile_users")
+}
+
+model mobile_videos {
+  id              String            @id
+  title           String
+  description     String?
+  videoUrl        String
+  thumbnailUrl    String?
+  duration        Int
+  category        String
+  tags            String?
+  language        String?
+  isPremium       Boolean           @default(false)
+  isActive        Boolean           @default(true)
+  downloads       Int               @default(0)
+  likes           Int               @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime
+  mobileSyncAt    DateTime?
+  video_downloads video_downloads[]
+  video_likes     video_likes[]
+}
+
+model plans {
+  id          String   @id
+  name        String
+  description String?
+  price       Float
+  duration    Int
+  features    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+}
+
+model Subadmin {
+  id                 String    @id
+  email              String    @unique
+  password           String    @default("password123")
+  name               String?
+  role               String    @default("subadmin")
+  status             String    @default("ACTIVE")
+  permissions        String?
+  assignedCategories String?
+  createdBy          String?
+  lastLogin          DateTime?
+  isActive           Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime
+  images             Image[]
+  videos             Video[]
+  
+  @@map("subadmins")
+}
+
+model subscriptions {
+  id         String   @id
+  customerId String
+  plan       String
+  planId     String
+  status     String   @default("ACTIVE")
+  startDate  DateTime @default(now())
+  endDate    DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime
+  customers  Customer @relation(fields: [customerId], references: [id])
+}
+
+model template_downloads {
+  id               String           @id
+  mobileUserId     String
+  templateId       String
+  downloadedAt     DateTime         @default(now())
+  mobile_templates mobile_templates @relation(fields: [templateId], references: [id])
+}
+
+model CalendarPoster {
+  id            String   @id @default(cuid())
+  name          String
+  title         String?
+  description   String?
+  thumbnailUrl  String
+  imageUrl      String
+  category      String   @default("Festival")
+  downloads     Int      @default(0)
+  tags          String?
+  date          String   // Date in YYYY-MM-DD format
+  festivalName  String?
+  festivalEmoji String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([date])
+  @@index([category])
+  @@map("calendar_posters")
+}
+
+model template_likes {
+  id               String           @id
+  mobileUserId     String
+  templateId       String
+  createdAt        DateTime         @default(now())
+  mobile_templates mobile_templates @relation(fields: [templateId], references: [id])
+}
+
+model video_downloads {
+  id            String        @id
+  mobileUserId  String
+  videoId       String
+  downloadedAt  DateTime      @default(now())
+  mobile_videos mobile_videos @relation(fields: [videoId], references: [id])
+}
+
+model video_likes {
+  id            String        @id
+  mobileUserId  String
+  videoId       String
+  createdAt     DateTime      @default(now())
+  mobile_videos mobile_videos @relation(fields: [videoId], references: [id])
+}
+
+model Video {
+  id                  String              @id @default(cuid())
+  title               String
+  description         String?
+  url                 String
+  videoUrl            String
+  thumbnailUrl        String?
+  duration            Int
+  category            String
+  tags                String?
+  fileSize            Int?
+  downloads           Int                 @default(0)
+  views               Int                 @default(0)
+  approvalStatus      String              @default("PENDING")
+  isActive            Boolean             @default(true)
+  isMobileSynced      Boolean             @default(false)
+  businessCategoryId  String?
+  mobileVideoId       String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  mobileSyncAt        DateTime?
+  adminUploaderId     String?
+  subadminUploaderId  String?
+  admins              Admin?              @relation(fields: [adminUploaderId], references: [id], map: "videos_admin_fkey")
+  business_categories BusinessCategory?   @relation(fields: [businessCategoryId], references: [id])
+  subadmins           Subadmin?           @relation(fields: [subadminUploaderId], references: [id], map: "videos_subadmin_fkey")
+  
+  @@map("videos")
+}

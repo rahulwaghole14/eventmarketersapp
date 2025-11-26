@@ -1,0 +1,553 @@
+{
+  "info": {
+    "name": "EventMarketers - Installed Users API",
+    "description": "Complete API collection for Installed Users management including registration, profile management, content tracking, and customer conversion.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{admin_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://eventmarketersbackend.onrender.com",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "device_id",
+      "value": "test-device-123",
+      "type": "string"
+    },
+    {
+      "key": "customer_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "User Registration & Profile",
+      "item": [
+        {
+          "name": "Register Installed User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"{{device_id}}\",\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"phone\": \"+1234567890\",\n  \"appVersion\": \"1.0.0\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/installed-users/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "installed-users", "register"]
+            },
+            "description": "Register a new user when they install the app"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"deviceId\": \"unique-device-id-123\",\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"phone\": \"+1234567890\",\n  \"appVersion\": \"1.0.0\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/installed-users/register",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "installed-users", "register"]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Installed user registered successfully\",\n  \"user\": {\n    \"id\": \"cmfz8d67o000986ivv1n4xowd\",\n    \"deviceId\": \"unique-device-id-123\",\n    \"name\": \"John Doe\",\n    \"email\": \"john@example.com\",\n    \"phone\": \"+1234567890\",\n    \"userType\": \"INSTALLED_USER\",\n    \"canDownload\": false,\n    \"totalViews\": 0,\n    \"downloadAttempts\": 0\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get User Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/installed-users/profile/{{device_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "installed-users", "profile", "{{device_id}}"]
+            },
+            "description": "Get the profile information for an installed user"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/installed-users/profile/unique-device-id-123",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "installed-users", "profile", "unique-device-id-123"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"user\": {\n    \"id\": \"cmfz8d67o000986ivv1n4xowd\",\n    \"deviceId\": \"unique-device-id-123\",\n    \"name\": \"John Doe\",\n    \"email\": \"john@example.com\",\n    \"phone\": \"+1234567890\",\n    \"userType\": \"INSTALLED_USER\",\n    \"canDownload\": false,\n    \"totalViews\": 15,\n    \"downloadAttempts\": 3,\n    \"installDate\": \"2025-09-26T10:00:00.000Z\",\n    \"lastActiveAt\": \"2025-09-26T12:30:00.000Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update User Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Smith\",\n  \"email\": \"johnsmith@example.com\",\n  \"phone\": \"+1987654321\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/installed-users/profile/{{device_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "installed-users", "profile", "{{device_id}}"]
+            },
+            "description": "Update the profile information for an installed user"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"John Smith\",\n  \"email\": \"johnsmith@example.com\",\n  \"phone\": \"+1987654321\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/installed-users/profile/unique-device-id-123",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "installed-users", "profile", "unique-device-id-123"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Profile updated successfully\",\n  \"user\": {\n    \"id\": \"cmfz8d67o000986ivv1n4xowd\",\n    \"deviceId\": \"unique-device-id-123\",\n    \"name\": \"John Smith\",\n    \"email\": \"johnsmith@example.com\",\n    \"phone\": \"+1987654321\",\n    \"userType\": \"INSTALLED_USER\",\n    \"canDownload\": false\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Content Tracking",
+      "item": [
+        {
+          "name": "Track Content View",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"{{device_id}}\",\n  \"contentId\": \"content-id-456\",\n  \"contentType\": \"VIDEO\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/installed-users/track-view",
+              "host": ["{{base_url}}"],
+              "path": ["api", "installed-users", "track-view"]
+            },
+            "description": "Track when an installed user views content (images or videos)"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"deviceId\": \"unique-device-id-123\",\n  \"contentId\": \"content-id-456\",\n  \"contentType\": \"VIDEO\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/installed-users/track-view",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "installed-users", "track-view"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"View tracked successfully\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Track Download Attempt",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"{{device_id}}\",\n  \"contentId\": \"content-id-456\",\n  \"contentType\": \"VIDEO\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/installed-users/track-download-attempt",
+              "host": ["{{base_url}}"],
+              "path": ["api", "installed-users", "track-download-attempt"]
+            },
+            "description": "Track when an installed user attempts to download content (should trigger subscription prompt)"
+          },
+          "response": [
+            {
+              "name": "Subscription Required Response",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"deviceId\": \"unique-device-id-123\",\n  \"contentId\": \"content-id-456\",\n  \"contentType\": \"VIDEO\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/installed-users/track-download-attempt",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "installed-users", "track-download-attempt"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"error\": \"SUBSCRIPTION_REQUIRED\",\n  \"message\": \"Subscription required to download content\",\n  \"data\": {\n    \"downloadAttempts\": 3,\n    \"showSubscriptionPrompt\": true,\n    \"subscriptionPlans\": [\n      {\n        \"id\": \"yearly_pro\",\n        \"name\": \"Yearly Pro\",\n        \"price\": 1999,\n        \"period\": \"year\",\n        \"savings\": \"67% OFF\"\n      }\n    ]\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Customer Conversion",
+      "item": [
+        {
+          "name": "Convert to Customer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"{{device_id}}\",\n  \"subscriptionData\": {\n    \"amount\": 1999,\n    \"paymentMethod\": \"CREDIT_CARD\",\n    \"paymentId\": \"payment-id-789\",\n    \"selectedBusinessCategoryId\": \"category-id-123\"\n  },\n  \"businessProfile\": {\n    \"businessName\": \"John's Event Planning\",\n    \"businessEmail\": \"business@example.com\",\n    \"businessPhone\": \"+1234567890\",\n    \"businessWebsite\": \"https://johnevents.com\",\n    \"businessAddress\": \"123 Main St, City, State\",\n    \"businessDescription\": \"Professional event planning services\",\n    \"businessCategory\": \"Event Planners\",\n    \"businessLogo\": \"https://example.com/logo.png\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/installed-users/convert-to-customer",
+              "host": ["{{base_url}}"],
+              "path": ["api", "installed-users", "convert-to-customer"]
+            },
+            "description": "Convert an installed user to a paid customer after subscription"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"deviceId\": \"unique-device-id-123\",\n  \"subscriptionData\": {\n    \"amount\": 1999,\n    \"paymentMethod\": \"CREDIT_CARD\",\n    \"paymentId\": \"payment-id-789\",\n    \"selectedBusinessCategoryId\": \"category-id-123\"\n  },\n  \"businessProfile\": {\n    \"businessName\": \"John's Event Planning\",\n    \"businessEmail\": \"business@example.com\",\n    \"businessPhone\": \"+1234567890\",\n    \"businessWebsite\": \"https://johnevents.com\",\n    \"businessAddress\": \"123 Main St, City, State\",\n    \"businessDescription\": \"Professional event planning services\",\n    \"businessCategory\": \"Event Planners\",\n    \"businessLogo\": \"https://example.com/logo.png\"\n  }\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/installed-users/convert-to-customer",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "installed-users", "convert-to-customer"]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Successfully converted to customer\",\n  \"customer\": {\n    \"id\": \"customer-id-456\",\n    \"name\": \"John's Event Planning\",\n    \"email\": \"business@example.com\",\n    \"businessName\": \"John's Event Planning\",\n    \"subscriptionStatus\": \"ACTIVE\",\n    \"subscriptionEndDate\": \"2026-09-26T10:00:00.000Z\",\n    \"userType\": \"CUSTOMER\",\n    \"canDownload\": true\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin Management",
+      "item": [
+        {
+          "name": "Get All Installed Users (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/installed-users/list?page=1&limit=10&search=john&isConverted=false",
+              "host": ["{{base_url}}"],
+              "path": ["api", "installed-users", "list"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "search",
+                  "value": "john"
+                },
+                {
+                  "key": "isConverted",
+                  "value": "false"
+                }
+              ]
+            },
+            "description": "Get all installed users with pagination and filtering (Admin only)"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer admin-token-here"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/installed-users/list?page=1&limit=10",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "installed-users", "list"],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Installed users fetched successfully\",\n  \"data\": {\n    \"users\": [\n      {\n        \"id\": \"cmfz8d67o000986ivv1n4xowd\",\n        \"deviceId\": \"unique-device-id-123\",\n        \"name\": \"John Doe\",\n        \"email\": \"john@example.com\",\n        \"phone\": \"+1234567890\",\n        \"appVersion\": \"1.0.0\",\n        \"totalViews\": 15,\n        \"downloadAttempts\": 3,\n        \"isConverted\": false,\n        \"convertedAt\": null,\n        \"convertedToCustomerId\": null,\n        \"installDate\": \"2025-09-26T10:00:00.000Z\",\n        \"lastActiveAt\": \"2025-09-26T12:30:00.000Z\",\n        \"createdAt\": \"2025-09-26T10:00:00.000Z\"\n      }\n    ],\n    \"pagination\": {\n      \"page\": 1,\n      \"limit\": 10,\n      \"total\": 25,\n      \"pages\": 3\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get All Customers (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/installed-users/customers?page=1&limit=10&search=event&status=ACTIVE",
+              "host": ["{{base_url}}"],
+              "path": ["api", "installed-users", "customers"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "search",
+                  "value": "event"
+                },
+                {
+                  "key": "status",
+                  "value": "ACTIVE"
+                }
+              ]
+            },
+            "description": "Get all customers with pagination and filtering (Admin only)"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer admin-token-here"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/installed-users/customers?page=1&limit=10",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "installed-users", "customers"],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Customers fetched successfully\",\n  \"data\": {\n    \"customers\": [\n      {\n        \"id\": \"customer-id-456\",\n        \"name\": \"John's Event Planning\",\n        \"email\": \"business@example.com\",\n        \"phone\": \"+1234567890\",\n        \"businessName\": \"John's Event Planning\",\n        \"businessEmail\": \"business@example.com\",\n        \"businessPhone\": \"+1234567890\",\n        \"businessWebsite\": \"https://johnevents.com\",\n        \"businessAddress\": \"123 Main St, City, State\",\n        \"businessDescription\": \"Professional event planning services\",\n        \"businessCategory\": \"Event Planners\",\n        \"subscriptionStatus\": \"ACTIVE\",\n        \"subscriptionStartDate\": \"2025-09-26T10:00:00.000Z\",\n        \"subscriptionEndDate\": \"2026-09-26T10:00:00.000Z\",\n        \"subscriptionAmount\": 1999,\n        \"paymentMethod\": \"CREDIT_CARD\",\n        \"createdAt\": \"2025-09-26T10:00:00.000Z\",\n        \"selectedBusinessCategory\": {\n          \"id\": \"category-id-123\",\n          \"name\": \"Event Planners\",\n          \"description\": \"Event planning services\"\n        },\n        \"subscriptions\": [\n          {\n            \"id\": \"subscription-id-789\",\n            \"plan\": \"YEARLY\",\n            \"status\": \"ACTIVE\",\n            \"amount\": 1999,\n            \"startDate\": \"2025-09-26T10:00:00.000Z\",\n            \"endDate\": \"2026-09-26T10:00:00.000Z\",\n            \"paymentMethod\": \"CREDIT_CARD\"\n          }\n        ]\n      }\n    ],\n    \"pagination\": {\n      \"page\": 1,\n      \"limit\": 10,\n      \"total\": 25,\n      \"pages\": 3\n    }\n  }\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-generate device ID if not set",
+          "if (!pm.variables.get('device_id') || pm.variables.get('device_id') === 'test-device-123') {",
+          "    pm.variables.set('device_id', 'device-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9));",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-extract customer ID from conversion response",
+          "if (pm.response.code === 201 && pm.response.json().customer) {",
+          "    pm.variables.set('customer_id', pm.response.json().customer.id);",
+          "}"
+        ]
+      }
+    }
+  ]
+}
