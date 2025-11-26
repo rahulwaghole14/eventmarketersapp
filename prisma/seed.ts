@@ -129,6 +129,48 @@ async function main() {
       console.log('✅ Sample image created:', image.title);
     }
 
+    // Create calendar posters
+    const calendarPosters = [
+      {
+        id: 'calendar-2025-11-26',
+        name: 'Constitution Day Tribute',
+        title: 'Constitution Day Greetings',
+        description: 'Celebrate the spirit of the Indian Constitution with this commemorative poster.',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=400',
+        imageUrl: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=1200',
+        category: 'CALENDAR',
+        tags: 'calendar,festival,2025-11-26,constitution-day,india',
+        date: '2025-11-26',
+        festivalName: 'Constitution Day',
+        festivalEmoji: '📜',
+        isActive: true
+      },
+      {
+        id: 'calendar-2025-12-03',
+        name: 'Inclusion Awareness Poster',
+        title: 'International Day of Persons with Disabilities',
+        description: 'Promote inclusion and accessibility on International Day of Persons with Disabilities.',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400',
+        imageUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=1200',
+        category: 'CALENDAR',
+        tags: 'calendar,festival,2025-12-03,disability-awareness,inclusion',
+        date: '2025-12-03',
+        festivalName: 'International Day of Persons with Disabilities',
+        festivalEmoji: '♿',
+        isActive: true
+      }
+    ];
+
+    for (const posterData of calendarPosters) {
+      const { id, ...posterUpdateData } = posterData;
+      const poster = await prisma.calendarPoster.upsert({
+        where: { id },
+        update: posterUpdateData,
+        create: posterData
+      });
+      console.log('✅ Calendar poster ensured:', poster.date);
+    }
+
     console.log('🎉 Database seeding completed successfully!');
     console.log('\n📋 Login Credentials:');
     console.log('Admin: admin@eventmarketers.com / admin123');
