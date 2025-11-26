@@ -39,6 +39,7 @@ const transactions_1 = __importDefault(require("./routes/mobile/transactions"));
 const downloads_1 = __importDefault(require("./routes/mobile/downloads"));
 const likes_1 = __importDefault(require("./routes/mobile/likes"));
 const posters_1 = __importDefault(require("./routes/mobile/posters")); // Added posters routes
+const calendar_1 = __importDefault(require("./routes/mobile/calendar")); // Added calendar routes
 const subscription_1 = require("./middleware/subscription"); // Added subscription middleware
 // Load environment variables
 dotenv_1.default.config();
@@ -155,6 +156,7 @@ app.use('/api/mobile/transactions', transactions_1.default);
 app.use('/api/mobile/downloads', downloads_1.default);
 app.use('/api/mobile/likes', likes_1.default); // Added likes route
 app.use('/api/mobile/posters', posters_1.default); // Added posters route
+app.use('/api/mobile/calendar', calendar_1.default); // Added calendar route
 // Mobile API aliases (cleaner paths for mobile app)
 app.use('/api/v1', mobileApiAliases_1.default);
 // Temporary API endpoints for testing

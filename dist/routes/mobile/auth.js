@@ -8,8 +8,13 @@ const client_1 = require("@prisma/client");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const cuid2_1 = require("@paralleldrive/cuid2");
+const emailService_1 = require("../../services/emailService");
 const router = (0, express_1.Router)();
 const prisma = new client_1.PrismaClient();
+const prismaAny = prisma;
+const RESET_CODE_EXPIRY_MINUTES = parseInt(process.env.PASSWORD_RESET_CODE_EXPIRY_MINUTES || '15', 10);
+const MAX_RESET_ATTEMPTS = parseInt(process.env.PASSWORD_RESET_MAX_ATTEMPTS || '5', 10);
+const generateResetCode = () => Math.floor(100000 + Math.random() * 900000).toString();
 // Middleware to extract user ID from JWT token (placeholder for mobile users)
 const extractUserId = (req, res, next) => {
     // TODO: Implement actual JWT verification for mobile users
@@ -382,21 +387,49 @@ router.post('/forgot-password', async (req, res) => {
                 error: 'User with this email not found'
             });
         }
-        // Generate reset token (in a real app, you'd send this via email)
-        const resetToken = jsonwebtoken_1.default.sign({
-            id: mobileUser.id,
-            type: 'password_reset'
-        }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        // In a real implementation, you would:
-        // 1. Store the reset token in database
-        // 2. Send email with reset link
-        // 3. Return success without exposing the token
+        if (!mobileUser.password) {
+            return res.status(400).json({
+                success: false,
+                error: 'Account was created without password. Please register again.'
+            });
+        }
+        const code = generateResetCode();
+        const expiresAt = new Date(Date.now() + RESET_CODE_EXPIRY_MINUTES * 60 * 1000);
+        await prismaAny.mobilePasswordResetCode.upsert({
+            where: { mobileUserId: mobileUser.id },
+            update: {
+                code,
+                email,
+                expiresAt,
+                attempts: 0,
+                verifiedAt: null
+            },
+            create: {
+                mobileUserId: mobileUser.id,
+                email,
+                code,
+                expiresAt
+            }
+        });
+        const emailSent = await (0, emailService_1.sendPasswordResetCodeEmail)({
+            to: email,
+            code,
+            minutesValid: RESET_CODE_EXPIRY_MINUTES
+        });
+        if (!emailSent) {
+            return res.status(500).json({
+                success: false,
+                error: 'Unable to send verification email. Please try again later.'
+            });
+        }
+        const responseData = {};
+        if (process.env.NODE_ENV !== 'production') {
+            responseData.debugCode = code;
+        }
         res.json({
             success: true,
-            message: 'Password reset instructions sent to your email',
-            data: {
-                resetToken // Remove this in production - only for testing
-            }
+            message: 'Verification code sent to your email',
+            data: responseData
         });
     }
     catch (error) {
@@ -408,16 +441,103 @@ router.post('/forgot-password', async (req, res) => {
     }
 });
 /**
+ * POST /api/mobile/auth/verify-reset-code
+ * Verify 6-digit reset code before allowing password update
+ */
+router.post('/verify-reset-code', async (req, res) => {
+    try {
+        const { email, code } = req.body;
+        if (!email || !code) {
+            return res.status(400).json({
+                success: false,
+                error: 'Email and code are required'
+            });
+        }
+        if (!/^\d{6}$/.test(code)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid verification code format'
+            });
+        }
+        const mobileUser = await prisma.mobileUser.findUnique({
+            where: { email }
+        });
+        if (!mobileUser) {
+            return res.status(404).json({
+                success: false,
+                error: 'User with this email not found'
+            });
+        }
+        const resetRecord = await prismaAny.mobilePasswordResetCode.findUnique({
+            where: { mobileUserId: mobileUser.id }
+        });
+        if (!resetRecord) {
+            return res.status(400).json({
+                success: false,
+                error: 'No active reset request found. Please request a new code.'
+            });
+        }
+        if (resetRecord.expiresAt < new Date()) {
+            await prismaAny.mobilePasswordResetCode.delete({
+                where: { mobileUserId: mobileUser.id }
+            });
+            return res.status(400).json({
+                success: false,
+                error: 'Verification code has expired. Please request a new one.'
+            });
+        }
+        if (resetRecord.attempts >= MAX_RESET_ATTEMPTS) {
+            await prismaAny.mobilePasswordResetCode.delete({
+                where: { mobileUserId: mobileUser.id }
+            });
+            return res.status(429).json({
+                success: false,
+                error: 'Maximum verification attempts exceeded. Please request a new code.'
+            });
+        }
+        if (resetRecord.code !== code) {
+            await prismaAny.mobilePasswordResetCode.update({
+                where: { mobileUserId: mobileUser.id },
+                data: {
+                    attempts: { increment: 1 }
+                }
+            });
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid verification code'
+            });
+        }
+        await prismaAny.mobilePasswordResetCode.update({
+            where: { mobileUserId: mobileUser.id },
+            data: {
+                verifiedAt: new Date(),
+                attempts: 0
+            }
+        });
+        res.json({
+            success: true,
+            message: 'Verification code confirmed'
+        });
+    }
+    catch (error) {
+        console.error('Verify reset code error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to verify code'
+        });
+    }
+});
+/**
  * POST /api/mobile/auth/reset-password
  * Reset password using reset token
  */
 router.post('/reset-password', async (req, res) => {
     try {
-        const { token, newPassword, confirmPassword } = req.body;
-        if (!token || !newPassword || !confirmPassword) {
+        const { email, code, newPassword, confirmPassword } = req.body;
+        if (!email || !code || !newPassword || !confirmPassword) {
             return res.status(400).json({
                 success: false,
-                error: 'Token, new password, and confirm password are required'
+                error: 'Email, code, new password, and confirm password are required'
             });
         }
         if (newPassword !== confirmPassword) {
@@ -426,17 +546,8 @@ router.post('/reset-password', async (req, res) => {
                 error: 'Passwords do not match'
             });
         }
-        // Verify reset token
-        const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET);
-        if (decoded.type !== 'password_reset') {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid reset token'
-            });
-        }
-        // Find user
         const mobileUser = await prisma.mobileUser.findUnique({
-            where: { id: decoded.id }
+            where: { email }
         });
         if (!mobileUser) {
             return res.status(404).json({
@@ -444,14 +555,41 @@ router.post('/reset-password', async (req, res) => {
                 error: 'User not found'
             });
         }
+        const resetRecord = await prismaAny.mobilePasswordResetCode.findUnique({
+            where: { mobileUserId: mobileUser.id }
+        });
+        if (!resetRecord) {
+            return res.status(400).json({
+                success: false,
+                error: 'No active reset request found. Please request a new code.'
+            });
+        }
+        if (resetRecord.expiresAt < new Date()) {
+            await prismaAny.mobilePasswordResetCode.delete({
+                where: { mobileUserId: mobileUser.id }
+            });
+            return res.status(400).json({
+                success: false,
+                error: 'Verification code has expired. Please request a new one.'
+            });
+        }
+        if (resetRecord.code !== code) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid verification code'
+            });
+        }
         // Hash new password
         const hashedPassword = await bcryptjs_1.default.hash(newPassword, 12);
-        // Update user password (you might need to add password field to MobileUser model)
-        // For now, we'll just return success
-        // await prisma.mobileUser.update({
-        //   where: { id: mobileUser.id },
-        //   data: { password: hashedPassword }
-        // });
+        await prisma.$transaction([
+            prisma.mobileUser.update({
+                where: { id: mobileUser.id },
+                data: { password: hashedPassword }
+            }),
+            prismaAny.mobilePasswordResetCode.delete({
+                where: { mobileUserId: mobileUser.id }
+            })
+        ]);
         res.json({
             success: true,
             message: 'Password reset successfully'
