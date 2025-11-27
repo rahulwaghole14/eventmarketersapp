@@ -1980,6 +1980,7 @@ app.post('/api/mobile/auth/logout', async (req, res) => {
       data: {
         mobileUserId: userId,
         action: 'LOGOUT',
+        resource: 'Auth',
         resourceType: 'Auth',
         resourceId: userId
       }
