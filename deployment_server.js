@@ -9,7 +9,7 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const { PrismaClient } = require('@prisma/client');
 const Razorpay = require('razorpay');
 const bcrypt = require('bcryptjs');
-const fetch = require('node-fetch');
+const axios = require('axios');
 
 // Configure Cloudinary
 const cloudinary = require('cloudinary').v2;
@@ -150,25 +150,17 @@ const sendPasswordResetCodeEmail = async ({ to, code, minutesValid = RESET_CODE_
     };
 
     // Use EmailJS REST API for server-side usage
-    const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-      method: 'POST',
+    const response = await axios.post('https://api.emailjs.com/api/v1.0/email/send', {
+      service_id: process.env.EMAILJS_SERVICE_ID,
+      template_id: process.env.EMAILJS_TEMPLATE_ID,
+      user_id: process.env.EMAILJS_USER_ID,
+      template_params: templateParams
+    }, {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env.EMAILJS_PRIVATE_KEY}`
-      },
-      body: JSON.stringify({
-        service_id: process.env.EMAILJS_SERVICE_ID,
-        template_id: process.env.EMAILJS_TEMPLATE_ID,
-        user_id: process.env.EMAILJS_USER_ID,
-        template_params: templateParams
-      })
+      }
     });
-
-    const responseData = await response.json();
-
-    if (!response.ok) {
-      throw new Error(`EmailJS API error: ${response.status} - ${JSON.stringify(responseData)}`);
-    }
 
     console.log(`[EMAILJS] Reset code email sent to ${to} (Status: ${response.status})`);
     return true;

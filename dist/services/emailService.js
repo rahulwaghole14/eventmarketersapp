@@ -1,6 +1,10 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendPasswordResetCodeEmail = void 0;
+const axios_1 = __importDefault(require("axios"));
 const isEmailJSConfigured = () => Boolean(process.env.EMAILJS_PRIVATE_KEY &&
     process.env.EMAILJS_SERVICE_ID &&
     process.env.EMAILJS_TEMPLATE_ID &&
@@ -19,23 +23,17 @@ const sendPasswordResetCodeEmail = async ({ to, code, minutesValid = Number(proc
             app_name: 'Event Marketers'
         };
         // Use EmailJS REST API for server-side usage
-        const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-            method: 'POST',
+        const response = await axios_1.default.post('https://api.emailjs.com/api/v1.0/email/send', {
+            service_id: process.env.EMAILJS_SERVICE_ID,
+            template_id: process.env.EMAILJS_TEMPLATE_ID,
+            user_id: process.env.EMAILJS_USER_ID,
+            template_params: templateParams
+        }, {
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${process.env.EMAILJS_PRIVATE_KEY}`
-            },
-            body: JSON.stringify({
-                service_id: process.env.EMAILJS_SERVICE_ID,
-                template_id: process.env.EMAILJS_TEMPLATE_ID,
-                user_id: process.env.EMAILJS_USER_ID,
-                template_params: templateParams
-            })
+            }
         });
-        const responseData = await response.json();
-        if (!response.ok) {
-            throw new Error(`EmailJS API error: ${response.status} - ${JSON.stringify(responseData)}`);
-        }
         console.log(`[EMAILJS] Reset code email sent to ${to} (Status: ${response.status})`);
         return true;
     }
