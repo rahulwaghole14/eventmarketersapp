@@ -1,5 +1,3 @@
-import emailjs from '@emailjs/nodejs';
-
 type ResetCodeParams = {
   to: string;
   code: string;
@@ -7,9 +5,10 @@ type ResetCodeParams = {
 };
 
 const isEmailJSConfigured = () => Boolean(
-  process.env.EMAILJS_PUBLIC_KEY &&
+  process.env.EMAILJS_PRIVATE_KEY &&
   process.env.EMAILJS_SERVICE_ID &&
-  process.env.EMAILJS_TEMPLATE_ID
+  process.env.EMAILJS_TEMPLATE_ID &&
+  process.env.EMAILJS_USER_ID
 );
 
 export const sendPasswordResetCodeEmail = async ({
@@ -31,21 +30,33 @@ export const sendPasswordResetCodeEmail = async ({
       app_name: 'Event Marketers'
     };
 
-    const response = await emailjs.send(
-      process.env.EMAILJS_SERVICE_ID!,
-      process.env.EMAILJS_TEMPLATE_ID!,
-      templateParams,
-      {
-        publicKey: process.env.EMAILJS_PUBLIC_KEY!
-      }
-    );
+    // Use EmailJS REST API for server-side usage
+    const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.EMAILJS_PRIVATE_KEY}`
+      },
+      body: JSON.stringify({
+        service_id: process.env.EMAILJS_SERVICE_ID,
+        template_id: process.env.EMAILJS_TEMPLATE_ID,
+        user_id: process.env.EMAILJS_USER_ID,
+        template_params: templateParams
+      })
+    });
 
-    console.log(`[EMAILJS] Reset code email sent to ${to} (Status: ${response.status}, Text: ${response.text})`);
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      throw new Error(`EmailJS API error: ${response.status} - ${JSON.stringify(responseData)}`);
+    }
+
+    console.log(`[EMAILJS] Reset code email sent to ${to} (Status: ${response.status})`);
     return true;
   } catch (error: any) {
     console.error(`[EMAILJS] Failed to send reset code email to ${to}`, error);
-    if (error.response) {
-      console.error(`[EMAILJS] Error details:`, error.response.data);
+    if (error.message) {
+      console.error(`[EMAILJS] Error details:`, error.message);
     }
     return false;
   }

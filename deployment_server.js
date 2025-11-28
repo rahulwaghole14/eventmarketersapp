@@ -8,8 +8,8 @@ const crypto = require('crypto');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const { PrismaClient } = require('@prisma/client');
 const Razorpay = require('razorpay');
-const emailjs = require('@emailjs/nodejs');
 const bcrypt = require('bcryptjs');
+const fetch = require('node-fetch');
 
 // Configure Cloudinary
 const cloudinary = require('cloudinary').v2;
@@ -128,9 +128,10 @@ const MAX_RESET_ATTEMPTS = parseInt(process.env.PASSWORD_RESET_MAX_ATTEMPTS || '
 const generateResetCode = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 const isEmailJSConfigured = () => Boolean(
-  process.env.EMAILJS_PUBLIC_KEY &&
+  process.env.EMAILJS_PRIVATE_KEY &&
   process.env.EMAILJS_SERVICE_ID &&
-  process.env.EMAILJS_TEMPLATE_ID
+  process.env.EMAILJS_TEMPLATE_ID &&
+  process.env.EMAILJS_USER_ID
 );
 
 const sendPasswordResetCodeEmail = async ({ to, code, minutesValid = RESET_CODE_EXPIRY_MINUTES }) => {
@@ -148,21 +149,33 @@ const sendPasswordResetCodeEmail = async ({ to, code, minutesValid = RESET_CODE_
       app_name: 'Event Marketers'
     };
 
-    const response = await emailjs.send(
-      process.env.EMAILJS_SERVICE_ID,
-      process.env.EMAILJS_TEMPLATE_ID,
-      templateParams,
-      {
-        publicKey: process.env.EMAILJS_PUBLIC_KEY
-      }
-    );
+    // Use EmailJS REST API for server-side usage
+    const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.EMAILJS_PRIVATE_KEY}`
+      },
+      body: JSON.stringify({
+        service_id: process.env.EMAILJS_SERVICE_ID,
+        template_id: process.env.EMAILJS_TEMPLATE_ID,
+        user_id: process.env.EMAILJS_USER_ID,
+        template_params: templateParams
+      })
+    });
 
-    console.log(`[EMAILJS] Reset code email sent to ${to} (Status: ${response.status}, Text: ${response.text})`);
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      throw new Error(`EmailJS API error: ${response.status} - ${JSON.stringify(responseData)}`);
+    }
+
+    console.log(`[EMAILJS] Reset code email sent to ${to} (Status: ${response.status})`);
     return true;
   } catch (error) {
     console.error(`[EMAILJS] Failed to send reset code email to ${to}`, error);
-    if (error.response) {
-      console.error(`[EMAILJS] Error details:`, error.response.data);
+    if (error.message) {
+      console.error(`[EMAILJS] Error details:`, error.message);
     }
     return false;
   }
