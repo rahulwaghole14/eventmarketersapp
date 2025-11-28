@@ -39,6 +39,7 @@ import mobileDownloadsRoutes from './routes/mobile/downloads';
 import mobileLikesRoutes from './routes/mobile/likes';
 import mobilePostersRoutes from './routes/mobile/posters'; // Added posters routes
 import mobileCalendarRoutes from './routes/mobile/calendar'; // Added calendar routes
+import adminCalendarRoutes from './routes/admin/calendar'; // Added admin calendar routes
 import { checkSubscription } from './middleware/subscription'; // Added subscription middleware
 
 // Load environment variables
@@ -139,6 +140,7 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin/calendar', adminCalendarRoutes); // Admin calendar poster management
 app.use('/api/admin/customers', customerRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/mobile', mobileRoutes);
