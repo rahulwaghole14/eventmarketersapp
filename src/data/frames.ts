@@ -435,7 +435,7 @@ export const FRAME_LAYOUTS: FrameLayouts = {
     { key: 'logo', x: 23, y: 391, size: { width: 55, height: 55 }, circular:true }, // Updated to position logo at (x: 12.8, y: 273.2) on canvas
   ],
   frame54: [
-    { key: 'companyName', x: 443, y: 11, color: 'black' }, // Updated to position companyName at (x: 211.2, y: 7.8) on canvas
+    { key: 'companyName', x: 443, y: 11,}, // Updated to position companyName at (x: 211.2, y: 7.8) on canvas
     { key: 'phone', x: 70, y: 409,  }, // Updated to position phone at (x: 33.4, y: 288.0) on canvas
     { key: 'email', x: 254, y: 409, }, // Updated to position email at (x: 121.2, y: 288.0) on canvas
     { key: 'website', x: 402, y: 450, }, // Updated to position website at (x: 191.7, y: 317.2) on canvas
