@@ -729,75 +729,79 @@ const RecentSearchList: React.FC<RecentSearchListProps> = React.memo(({
   
   if (recentSearches.length === 0) {
     return (
+      <TouchableWithoutFeedback onPress={() => {}}>
+        <View style={[styles.recentSearchesContainer, { backgroundColor: theme.colors.cardBackground }]}>
+          <View style={styles.recentSearchesHeader}>
+            <Text style={[styles.recentSearchesTitle, { color: theme.colors.text }]}>
+              Recent Searches
+            </Text>
+          </View>
+          <Text style={[styles.recentSearchesText, { color: theme.colors.textSecondary, textAlign: 'center', paddingVertical: 16 }]}>
+            No recent searches yet
+          </Text>
+        </View>
+      </TouchableWithoutFeedback>
+    );
+  }
+
+  return (
+    <TouchableWithoutFeedback onPress={() => {}}>
       <View style={[styles.recentSearchesContainer, { backgroundColor: theme.colors.cardBackground }]}>
         <View style={styles.recentSearchesHeader}>
           <Text style={[styles.recentSearchesTitle, { color: theme.colors.text }]}>
             Recent Searches
           </Text>
+
         </View>
-        <Text style={[styles.recentSearchesText, { color: theme.colors.textSecondary, textAlign: 'center', paddingVertical: 16 }]}>
-          No recent searches yet
-        </Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={[styles.recentSearchesContainer, { backgroundColor: theme.colors.cardBackground }]}>
-      <View style={styles.recentSearchesHeader}>
-        <Text style={[styles.recentSearchesTitle, { color: theme.colors.text }]}>
-          Recent Searches
-        </Text>
-
-      </View>
-      <ScrollView 
-        style={{ maxHeight: moderateScale(250) }} 
-        showsVerticalScrollIndicator={false}
-        nestedScrollEnabled={true}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.recentSearchesList}>
-          {recentSearches.map((search, index) => (
-            <View key={`${search}-${index}`} style={[styles.recentSearchItem, { borderBottomColor: theme.colors.border }]}>
-              <TouchableOpacity
-                style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
-                onPress={() => {
-                  {__DEV__ && console.log('👆 RecentSearchItem pressed:', search)}
-                  onSelectSearch(search)
-                }}
-                activeOpacity={0.7}
-              >
-                <Icon 
-                  name="history" 
-                  size={moderateScale(16)} 
-                  color={theme.colors.textSecondary} 
-                  style={styles.recentSearchIcon}
-                />
-                <Text style={[styles.recentSearchText, { color: theme.colors.text, flex: 1 }]}>
-                  {search}
-                </Text>
-              </TouchableOpacity>
-              {onRemoveItem && (
+        <ScrollView 
+          style={{ maxHeight: moderateScale(250) }} 
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled={true}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.recentSearchesList}>
+            {recentSearches.map((search, index) => (
+              <View key={`${search}-${index}`} style={[styles.recentSearchItem, { borderBottomColor: theme.colors.border }]}>
                 <TouchableOpacity
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
                   onPress={() => {
-                    {__DEV__ && console.log('🗑️ Remove recent search:', search)}
-                    onRemoveItem(search)
+                    {__DEV__ && console.log('👆 RecentSearchItem pressed:', search)}
+                    onSelectSearch(search)
                   }}
                   activeOpacity={0.7}
-                  style={styles.recentSearchRemoveButton}
                 >
-                  <MaterialCommunityIcons 
-                    name="close" 
+                  <Icon 
+                    name="history" 
                     size={moderateScale(16)} 
                     color={theme.colors.textSecondary} 
+                    style={styles.recentSearchIcon}
                   />
+                  <Text style={[styles.recentSearchText, { color: theme.colors.text, flex: 1 }]}>
+                    {search}
+                  </Text>
                 </TouchableOpacity>
-              )}
-            </View>
-          ))}
-        </View>
-      </ScrollView>
-    </View>
+                {onRemoveItem && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      {__DEV__ && console.log('🗑️ Remove recent search:', search)}
+                      onRemoveItem(search)
+                    }}
+                    activeOpacity={0.7}
+                    style={styles.recentSearchRemoveButton}
+                  >
+                    <MaterialCommunityIcons 
+                      name="close" 
+                      size={moderateScale(16)} 
+                      color={theme.colors.textSecondary} 
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
+    </TouchableWithoutFeedback>
   );
 }, (prevProps, nextProps) => {
   // Custom comparison function - only re-render if props actually changed
@@ -9515,10 +9519,8 @@ const styles = StyleSheet.create({
     right: 0,
     marginTop: -moderateScale(10),
     zIndex: 999,
-    width: '100%',
-    maxWidth: 600,
-    alignSelf: 'center',
-    paddingHorizontal: moderateScale(12),
+    alignItems: 'center', // Properly center dropdown on tablets
+    paddingHorizontal: moderateScale(12), // Match searchContainer padding
   },
   recentSearchesContainer: {
     marginTop: 0,
@@ -9526,6 +9528,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: moderateScale(12),
     padding: moderateScale(16),
     width: '100%',
+    maxWidth: 600, // Match searchContainer maxWidth
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
