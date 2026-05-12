@@ -443,6 +443,159 @@ export const FRAME_LAYOUTS: FrameLayouts = {
     { key: 'category', x: 497, y: 409 }, // Updated to position category at (x: 236.8, y: 288.0) on canvas
     { key: 'logo', x: 302, y: 11, size: { width: 55, height: 55 }, circular: true }, // Updated to position logo at (x: 144.2, y: 7.7) on canvas
   ],
+  frame55: [
+    { key: 'companyName', x: 20, y: 8, }, // Default position - no manual position provided
+    { key: 'phone', x: 138, y: 398, color: 'black' }, // Updated to position phone at (x: 66.0, y: 280.0) on canvas
+    { key: 'email', x: 138, y: 424, color: 'black' }, // Updated to position email at (x: 66.0, y: 304.0) on canvas
+    { key: 'website', x: 402, y: 395, color: 'black' }, // Updated to position website at (x: 171.7, y: 278.1) on canvas
+    { key: 'address', x: 138, y: 454, color: 'black' }, // Updated to position address at (x: 66.0, y: 320.0) on canvas
+    { key: 'category', x: 402, y: 424, color: 'black' }, // Updated to position category at (x: 191.7, y: 303.9) on canvas
+    { key: 'logo', x: 16, y: 365, size: { width: 45, height: 45 }, borderRadius:4 }, // Updated to position logo at (x: 0.0, y: 252.3) on canvas
+  ],
+  frame56: [
+    { key: 'companyName', x: 20, y: 8,  }, // Default position - no manual position provided
+    { key: 'phone', x: 184, y: 398, color: '#EFF921' }, // Updated to position phone at (x: 87.7, y: 280.0) on canvas
+    { key: 'email', x: 184, y: 420, color: '#EFF921' }, // Updated to position email at (x: 87.8, y: 296.0) on canvas
+    { key: 'website', x: 402, y: 398, color: '#EFF921' }, // Updated to position website at (x: 191.7, y: 280.0) on canvas
+    { key: 'address', x: 184, y: 442, color: '#EFF921' }, // Updated to position address at (x: 87.8, y: 312.0) on canvas
+    { key: 'category', x: 421, y: 420, color: '#EFF921' }, // Updated to position category at (x: 200.9, y: 296.0) on canvas
+    { key: 'logo', x: 32, y: 378, size: { width: 68, height: 68}, circular:true }, // Updated to position logo at (x: 19.2, y: 279.9) on canvas
+  ],
+  frame57: [
+    { key: 'companyName', x: 20, y: 8,  }, // Default position - no manual position provided
+    { key: 'phone', x: 140, y: 420, color: 'black' }, // Default position - no manual position provided
+    { key: 'email', x: 299, y: 420, color: 'black' }, // Updated to position email at (x: 142.6, y: 296.0) on canvas
+    { key: 'website', x: 357, y: 449, color: 'black' }, // Updated to position website at (x: 171.7, y: 312.0) on canvas
+    { key: 'address', x: 140, y: 449, color: 'black' }, // Updated to position address at (x: 66.8, y: 312.0) on canvas
+    { key: 'category', x: 482, y: 465, color: 'grey' }, // Updated to position category at (x: 230.0, y: 327.4) on canvas
+    { key: 'logo', x: 13, y: 401, size: { width: 56.5, height: 53 }, borderRadius:8 }, // Updated to position logo at (x: 0.0, y: 267.4) on canvas
+  ],
+  frame58: [
+    { key: 'companyName', x: 10, y: 445,  }, // Updated to position companyName at (x: 0.5, y: 313.4) on canvas
+    { key: 'phone', x: 140, y: 28, color: 'black' }, // Updated to position phone at (x: 76.6, y: 19.5) on canvas
+    { key: 'email', x: 140, y: 50, color: 'black' }, // Updated to position email at (x: 76.3, y: 35.3) on canvas
+    { key: 'website', x: 410, y: 28, color: 'black' }, // Updated to position website at (x: 195.5, y: 19.7) on canvas
+    { key: 'address', x: 410, y: 50, color: 'black' }, // Updated to position address at (x: 195.5, y: 35.5) on canvas
+    { key: 'category', x: 513, y: 465, color: 'grey' }, // Updated to position category at (x: 244.5, y: 327.4) on canvas
+    { key: 'logo', x: 10, y: 13, size: { width: 56.5, height: 53 }, circular: true }, // Updated to position logo at (x: 0.5, y: 8.8) on canvas
+  ],
+  frame59: [
+    { key: 'companyName', x: 442, y: 13, }, // Updated to position companyName at (x: 210.9, y: 9.0) on canvas
+    { key: 'phone', x: 41, y: 409, color: 'black' }, // Updated to position phone at (x: 19.7, y: 288.3) on canvas
+    { key: 'email', x: 231, y: 409, color: 'black' }, // Updated to position email at (x: 110.4, y: 288.0) on canvas
+    { key: 'website', x: 272, y: 450, color: 'black' }, // Updated to position website at (x: 129.7, y: 317.2) on canvas
+    { key: 'address', x: 41, y: 450, color: 'black' }, // Updated to position address at (x: 19.7, y: 317.2) on canvas
+    { key: 'category', x: 496, y: 450, color: 'black' }, // Updated to position category at (x: 236.8, y: 317.2) on canvas
+    { key: 'logo', x: 20, y: 17, size: { width: 45, height: 45 }, circular: true }, // Updated to position logo at (x: 5.1, y: 8.7) on canvas
+  ],
+  frame60: [
+    { key: 'companyName', x: 10, y: 445, }, // Updated to position companyName at (x: 108.8, y: 111.7) on canvas
+    { key: 'phone', x: 175, y: 25, color: 'black' }, // Updated to position phone at (x: 83.6, y: 17.9) on canvas
+    { key: 'email', x: 175, y: 53, color: 'black' }, // Updated to position email at (x: 83.6, y: 33.9) on canvas
+    { key: 'website', x: 458, y: 25, color: 'black' }, // Updated to position website at (x: 218.6, y: 17.9) on canvas
+    { key: 'address', x: 175, y: 80, color: 'black' }, // Updated to position address at (x: 83.6, y: 59.5) on canvas
+    { key: 'category', x: 458, y: 53, color: 'black' }, // Updated to position category at (x: 218.6, y: 35.5) on canvas
+    { key: 'logo', x: 52, y: 9, size: { width: 42, height: 42 }, borderRadius: 8 }, // Updated to position logo at (x: 17.8, y: 0.0) on canvas
+  ],
+  frame61: [
+    { key: 'companyName', x: 20, y: 8, color: 'grey' }, // Default position - no manual position provided
+    { key: 'phone', x: 561, y: 465, color: '#FF8B00' }, // Updated to position phone at (x: 267.5, y: 327.4) on canvas
+    { key: 'email', x: 243, y: 453, color: '#FF8B00' }, // Updated to position email at (x: 115.9, y: 319.3) on canvas
+    { key: 'website', x: 470, y: 420, color: 'grey' }, // Default position - no manual position provided
+    { key: 'address', x: 2, y: 450, color: '#FF8B00' }, // Updated to position address at (x: 0.9, y: 317.2) on canvas
+    { key: 'category', x: 0, y: 420, color: 'grey' }, // Updated to position category at (x: 0.0, y: 296.1) on canvas
+    { key: 'logo', x: 593, y: 12, size: { width: 52, height: 52 }, circular: true }, // Updated to position logo at (x: 289.2, y: 14.2) on canvas
+  ],
+  frame62: [
+    { key: 'companyName', x: 435, y: 13, color: 'grey' }, // Updated to position companyName at (x: 207.8, y: 9.2) on canvas
+    { key: 'phone', x: 0, y: 450, color: 'green' }, // Updated to position phone at (x: 0.0, y: 317.2) on canvas
+    { key: 'email', x: 0, y: 427, color: 'green' }, // Updated to position email at (x: 0.0, y: 301.2) on canvas
+    { key: 'website', x: 490, y: 427, color: '#EFF921' }, // Updated to position website at (x: 233.7, y: 301.2) on canvas
+    { key: 'address', x: 175, y: 465, color: '#EFF921' }, // Updated to position address at (x: 82.0, y: 327.4) on canvas
+    { key: 'category', x: 490, y: 465, color: '#EFF921' }, // Updated to position category at (x: 233.7, y: 327.4) on canvas
+    { key: 'logo', x: 17, y: 12, size: { width: 52, height: 52 }, circular: true }, // Updated to position logo at (x: 21.7, y: 0.0) on canvas
+  ],
+  frame63: [
+    { key: 'companyName', x: 449, y: 12, color: 'grey' }, // Updated to position companyName at (x: 214.4, y: 8.6) on canvas
+    { key: 'phone', x: 23, y: 452, color: 'black' }, // Updated to position phone at (x: 11.2, y: 318.2) on canvas
+    { key: 'email', x: 182, y: 452, color: 'black' }, // Updated to position email at (x: 87.0, y: 318.2) on canvas
+    { key: 'website', x: 449, y: 452, color: 'black' }, // Updated to position website at (x: 214.4, y: 318.2) on canvas
+    { key: 'address', x: 23, y: 429, color: 'grey' }, // Updated to position address at (x: 11.2, y: 302.2) on canvas
+    { key: 'category', x: 449, y: 429, color: 'grey' }, // Updated to position category at (x: 214.4, y: 302.2) on canvas
+    { key: 'logo', x: 12, y: 8, size: { width: 45, height: 45 }, borderRadius: 6 }, // Updated to position logo at (x: 10.8, y: 8.6) on canvas
+  ],
+  frame64: [
+    { key: 'companyName', x: 20, y: 8, color: 'grey' }, // Default position - no manual position provided
+    { key: 'phone', x: 137, y: 410, color: 'black' }, // Updated to position phone at (x: 65.4, y: 289.1) on canvas
+    { key: 'email', x: 333, y: 409, color: 'black' }, // Updated to position email at (x: 158.9, y: 288.0) on canvas
+    { key: 'website', x: 228, y: 450, color: 'black' }, // Updated to position website at (x: 108.9, y: 317.2) on canvas
+    { key: 'address', x: 0, y: 450, color: 'black' }, // Updated to position address at (x: 0.0, y: 317.1) on canvas
+    { key: 'category', x: 492, y: 450, color: 'black' }, // Updated to position category at (x: 234.6, y: 317.2) on canvas
+    { key: 'logo', x: 22, y: 368, size: { width: 48, height: 48 }, borderRadius: 2 }, // Updated to position logo at (x: 12.3, y: 266.6) on canvas
+  ],
+  frame65: [
+    { key: 'companyName', x: 20, y: 8, color: 'grey' }, // Default position - no manual position provided
+    { key: 'phone', x: 42, y: 420, color: 'grey' }, // Updated to position phone at (x: 20.0, y: 296.0) on canvas
+    { key: 'email', x: 241, y: 420, color: 'grey' }, // Updated to position email at (x: 114.9, y: 296.0) on canvas
+    { key: 'website', x: 360, y: 449, color: 'grey' }, // Updated to position website at (x: 171.7, y: 317.2) on canvas
+    { key: 'address', x: 42, y: 450, color: 'grey' }, // Updated to position address at (x: 20.0, y: 317.2) on canvas
+    { key: 'category', x: 474, y: 420, color: 'grey' }, // Updated to position category at (x: 226.1, y: 296.1) on canvas
+    { key: 'logo', x: 589, y: 10, size: { width: 55, height: 55 }, circular: true }, // Updated to position logo at (x: 290.2, y: 11.2) on canvas
+  ],
+  frame66: [
+    { key: 'companyName', x: 10, y: 445, color: 'grey' }, // Updated to position companyName at (x: 0.0, y: 313.4) on canvas
+    { key: 'phone', x: 169, y: 29, color: 'yellow' }, // Updated to position phone at (x: 80.7, y: 20.3) on canvas
+    { key: 'email', x: 169, y: 56, color: 'yellow' }, // Updated to position email at (x: 80.7, y: 39.7) on canvas
+    { key: 'website', x: 360, y: 29, color: 'yellow' }, // Updated to position website at (x: 171.7, y: 20.3) on canvas
+    { key: 'address', x: 133, y: 90, color: '#140F35' }, // Updated to position address at (x: 63.6, y: 67.2) on canvas
+    { key: 'category', x: 451, y: 56, color: 'yellow' }, // Updated to position category at (x: 215.3, y: 39.7) on canvas
+    { key: 'logo', x: 44, y: 17, size: { width: 55, height: 55 }, circular: true }, // Updated to position logo at (x: 25.7, y: 8.7) on canvas
+  ],
+  frame67: [
+    { key: 'companyName', x: 20, y: 8, color: 'grey' }, // Default position - no manual position provided
+    { key: 'phone', x: 299, y: 408, color: 'yellow' }, // Updated to position phone at (x: 138.8, y: 280.6) on canvas
+    { key: 'email', x: 481, y: 408, color: 'yellow' }, // Updated to position email at (x: 223.5, y: 280.6) on canvas
+    { key: 'website', x: 479, y: 438, color: 'yellow' }, // Updated to position website at (x: 222.5, y: 301.8) on canvas
+    { key: 'address', x: 202, y: 468, color: 'yellow' }, // Updated to position address at (x: 93.7, y: 318.8) on canvas
+    { key: 'category', x: 252, y: 440, color: 'yellow' }, // Updated to position category at (x: 117.2, y: 302.8) on canvas
+    { key: 'logo', x: 22, y: 403, size: { width: 55, height: 55 }, circular: true }, // Updated to position logo at (x: 14.8, y: 270.2) on canvas
+  ],
+  frame68: [
+    { key: 'companyName', x: 18, y: 443, color: 'grey' }, // Updated to position companyName at (x: 8.5, y: 304.6) on canvas
+    { key: 'phone', x: 160, y: 30, color: 'yellow' }, // Updated to position phone at (x: 74.4, y: 20.9) on canvas
+    { key: 'email', x: 153, y: 3, color: 'yellow' }, // Updated to position email at (x: 71.0, y: 1.9) on canvas
+    { key: 'website', x: 500, y: 464, color: 'grey' }, // Updated to position website at (x: 232.7, y: 318.6) on canvas
+    { key: 'address', x: 160, y: 54, color: 'yellow' }, // Updated to position address at (x: 74.4, y: 36.9) on canvas
+    { key: 'category', x: 500, y: 54, color: 'grey' }, // Updated to position category at (x: 232.7, y: 36.9) on canvas
+    { key: 'logo', x: 2, y: 1, size: { width: 72, height: 72 }, circular: true }, // Updated to position logo at (x: 8.4, y: 9.1) on canvas
+  ],
+  frame69: [
+    { key: 'companyName', x: 20, y: 8, color: 'grey' }, // Default position - no manual position provided
+    { key: 'phone', x: 164, y: 399, color: 'yellow' }, // Updated to position phone at (x: 76.3, y: 272.3) on canvas
+    { key: 'email', x: 170, y: 427, color: '#140F35' }, // Updated to position email at (x: 79.0, y: 293.2) on canvas
+    { key: 'website', x: 452, y: 426, color: '#140F35' }, // Updated to position website at (x: 210.2, y: 293.2) on canvas
+    { key: 'address', x: 170, y: 462, color: '#F0C421' }, // Updated to position address at (x: 79.0, y: 317.2) on canvas
+    { key: 'category', x: 486, y: 459, color: '#F0C421' }, // Updated to position category at (x: 226.2, y: 315.2) on canvas
+    { key: 'logo', x: 15, y: 392, size: { width: 62, height: 62 }, circular: true }, // Updated to position logo at (x: 7.0, y: 262.8) on canvas
+  ],
+  frame70: [
+    { key: 'companyName', x: 20, y: 8, color: 'grey' }, // Default position - no manual position provided
+    { key: 'phone', x: 111, y: 409, color: 'yellow' }, // Updated to position phone at (x: 51.5, y: 280.6) on canvas
+    { key: 'email', x: 313, y: 409, color: 'yellow' }, // Updated to position email at (x: 145.7, y: 280.6) on canvas
+    { key: 'website', x: 282, y: 462, color: '#140F35' }, // Updated to position website at (x: 131.1, y: 317.2) on canvas
+    { key: 'address', x: 72, y: 462, color: '#140F35' }, // Updated to position address at (x: 33.7, y: 317.2) on canvas
+    { key: 'category', x: 492, y: 462, color: '#140F35' }, // Updated to position category at (x: 228.6, y: 317.2) on canvas
+    { key: 'logo', x: 594, y: 10, size: { width: 53, height: 54 },  }, // Updated to position logo at (x: 271.3, y: 3.4) on canvas
+  ],
+  // frame71: [
+  //   { key: 'companyName', x: 190, y: 50 }, // Default position
+  //   { key: 'phone', x: 420, y: 420 }, // Default position
+  //   { key: 'email', x: 520, y: 420 }, // Default position
+  //   { key: 'website', x: 670, y: 420 }, // Default position
+  //   { key: 'address', x: 370, y: 450 }, // Default position
+  //   { key: 'category', x: 520, y: 450 }, // Default position
+  //   { key: 'logo', x: 710, y: 40 }, // Default position
+  // ],
   // Add more frame layouts as needed
 };
 
@@ -495,6 +648,23 @@ export const FRAME_ASSETS: FrameAssets = {
   frame52: require('../assets/frames/f52.png'),
   frame53: require('../assets/frames/f53.png'),
   frame54: require('../assets/frames/f54.png'),
+  frame55: require('../assets/frames/f55.png'),
+  frame56: require('../assets/frames/f56.png'),
+  frame57: require('../assets/frames/f57.png'),
+  frame58: require('../assets/frames/f58.png'),
+  frame59: require('../assets/frames/f59.png'),
+  frame60: require('../assets/frames/f60.png'),
+  frame61: require('../assets/frames/f61.png'),
+  frame62: require('../assets/frames/f62.png'),
+  frame63: require('../assets/frames/f63.png'),
+  frame64: require('../assets/frames/f64.png'),
+  frame65: require('../assets/frames/f65.png'),
+  frame66: require('../assets/frames/f66.png'),
+  frame67: require('../assets/frames/f67.png'),
+  frame68: require('../assets/frames/f68.png'),
+  frame69: require('../assets/frames/f69.png'),
+  frame70: require('../assets/frames/f70.png'),
+  // frame71: require('../assets/frames/f71.png'),
   // Add more frame assets as needed
 };
 
