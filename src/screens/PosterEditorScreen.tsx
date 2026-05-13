@@ -272,8 +272,8 @@ const getResponsiveButtonSize = () => {
 };
 
 const getResponsiveIconSize = () => {
-  if (isLandscape) {
-    return Math.max(12, (isTablet ? 20 : 16) * 0.8);
+  if (isLandscape || isFoldableUnfolded) {
+    return Math.max(10, (isTablet ? 18 : 14) * 0.75);
   }
   return Math.max(11, (isUltraSmallScreen ? 14 : isSmallScreen ? 16 : isMediumScreen ? 18 : isLargeScreen ? 20 : 22) * 0.8);
 };
@@ -345,8 +345,8 @@ const getToolbarButtonSize = () => {
 };
 
 const getToolbarButtonTextSize = () => {
-  if (isLandscape) {
-    return Math.max(8, (isTablet ? 12 : 10) * 0.85);
+  if (isLandscape || isFoldableUnfolded) {
+    return Math.max(7.5, (isTablet ? 11 : 9) * 0.8);
   }
   return Math.max(7, (isUltraSmallScreen ? 8 : isSmallScreen ? 9 : isMediumScreen ? 10 : isLargeScreen ? 11 : 12) * 0.85);
 };
@@ -372,9 +372,9 @@ interface Layer {
 }
 
 // Memoized Template Item Component for optimization
-const TemplateItem = React.memo(({ option, isSelected, onPress, styles, templateStyle }: { 
-  option: any, 
-  isSelected: boolean, 
+const TemplateItem = React.memo(({ option, isSelected, onPress, styles, templateStyle }: {
+  option: any,
+  isSelected: boolean,
   onPress: () => void,
   styles: any,
   templateStyle: any
@@ -409,11 +409,11 @@ const TemplateItem = React.memo(({ option, isSelected, onPress, styles, template
 ));
 
 // Memoized Frame Item Component for optimization
-const FrameItem = React.memo(({ frame, isSelected, onPress, styles }: { 
-  frame: any, 
-  isSelected: boolean, 
+const FrameItem = React.memo(({ frame, isSelected, onPress, styles }: {
+  frame: any,
+  isSelected: boolean,
   onPress: () => void,
-  styles: any 
+  styles: any
 }) => (
   <TouchableOpacity
     style={[
@@ -586,16 +586,16 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   // Handle frame removal modal actions
   const handleRemoveFrameOnly = () => {
     setShowFrameRemovalModal(false);
-    
+
     console.log('🖼️ [FRAME REMOVAL] Starting frame removal process:', {
       currentFrame: selectedFrame,
       originalLayersCount: originalLayers.length
     });
-    
+
     // Restore original layers before removing frame
     if (originalLayers.length > 0) {
       const restoredLayers = [...originalLayers];
-      
+
       console.log('🖼️ [FRAME REMOVAL] Restoring original layers:', {
         originalLayersCount: originalLayers.length,
         removedFrame: selectedFrame,
@@ -634,11 +634,11 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
 
       // Restore footer background visibility
       setVisibleFields(prev => ({ ...prev, footerBackground: true }));
-      
+
       console.log('🖼️ [FRAME REMOVAL] Original layers restored successfully:', resetLayers.length);
     } else {
       console.log('🖼️ [FRAME REMOVAL] No original layers to restore for frame:', selectedFrame);
-      
+
       // Still restore footer background even if no original layers
       setVisibleFields(prev => ({ ...prev, footerBackground: true }));
     }
@@ -772,13 +772,13 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
     // Make canvas square: width = height (1:1 aspect ratio for 1024x1024 images)
     // Add vertical constraint for square-ish devices (foldables)
     let canvasWidth = Math.min(availableWidth * canvasWidthRatio, currentScreenWidth * canvasWidthRatio);
-    
+
     // Safety check: Ensure canvas doesn't take more than 45% of height on square-ish screens
     const maxHeightAllowed = availableHeight * (isFoldableExpanded ? 0.42 : 0.5);
     if (canvasWidth > maxHeightAllowed) {
       canvasWidth = maxHeightAllowed;
     }
-    
+
     const canvasHeight = canvasWidth; // Square canvas!
 
     return {
@@ -2238,7 +2238,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         newX = Number.isFinite(newX) ? newX : 0;
         newY = Number.isFinite(newY) ? newY : 0;
 
-          // Debug: Log the current position and field type
+        // Debug: Log the current position and field type
         console.log(`🎯 DEBUG: ${currentLayer.fieldType || 'Unknown Field'} moved to position:`);
         console.log(`   📍 X: ${newX.toFixed(1)}, Y: ${newY.toFixed(1)}`);
         console.log(`   📏 Canvas Size: ${canvasWidth}x${canvasHeight}`);
@@ -3360,16 +3360,8 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Wrap content in ScrollView ONLY for Unfolded Z Fold / Tablets to ensure all sections are visible */}
-      {isFoldableExpanded ? (
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ flexGrow: 1 }}
-          showsVerticalScrollIndicator={true}
-          bounces={true}
-        >
-          {/* Canvas Container */}
-          <View style={styles.canvasContainer}>
+      {/* Canvas Container */}
+      <View style={styles.canvasContainer}>
         {/* ViewShot wrapper for capturing the visible canvas */}
         <ViewShot
           ref={visibleCanvasRef}
@@ -3497,12 +3489,9 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                   ]}
                 />
               ))}
-
-
             </View>
           </TouchableWithoutFeedback>
         </ViewShot>
-
 
         {/* Instructions */}
         {layers.length === 0 && !loadingProfiles && (
@@ -3532,7 +3521,6 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         )}
       </View>
 
-
       {/* Controls Container - Fixed layout with responsive heights */}
       <View
         style={[
@@ -3546,7 +3534,6 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
           }
         ]}
       >
-
         {/* Toolbar Below Canvas */}
         <View style={styles.bottomToolbar}>
           <ScrollView
@@ -3579,7 +3566,6 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                 <Text style={styles.toolbarButtonText}>Font</Text>
               </LinearGradient>
             </TouchableOpacity>
-
 
             {selectedLayer && (
               <TouchableOpacity
@@ -3787,427 +3773,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
             removeClippedSubviews={true} // Important for Android memory
           />
         </View>
-
-        </View>
-      </ScrollView>
-    ) : (
-        <>
-          {/* Canvas Container */}
-          <View style={styles.canvasContainer}>
-            {/* ViewShot wrapper for capturing the visible canvas */}
-            <ViewShot
-              ref={visibleCanvasRef}
-              style={[styles.viewShotContainer, { width: canvasWidth, height: canvasHeight, backgroundColor: 'transparent' }]}
-              options={{
-                format: 'png',
-                quality: 1.0,
-                result: 'tmpfile'
-              }}
-            >
-              {/* Visible Canvas for editing */}
-              <TouchableWithoutFeedback onPress={() => setSelectedLayer(null)}>
-                <View style={[
-                  styles.canvas,
-                  selectedTemplate !== 'business' && styles.canvasWithFrame,
-                  selectedTemplate === 'business' && styles.businessFrame,
-                  selectedTemplate === 'event' && styles.eventFrame,
-                  selectedTemplate === 'restaurant' && styles.restaurantFrame,
-                  selectedTemplate === 'fashion' && styles.fashionFrame,
-                  selectedTemplate === 'real-estate' && styles.realEstateFrame,
-                  selectedTemplate === 'education' && styles.educationFrame,
-                  selectedTemplate === 'healthcare' && styles.healthcareFrame,
-                  selectedTemplate === 'fitness' && styles.fitnessFrame,
-                  selectedTemplate === 'wedding' && styles.weddingFrame,
-                  selectedTemplate === 'birthday' && styles.birthdayFrame,
-                  selectedTemplate === 'corporate' && styles.corporateFrame,
-                  selectedTemplate === 'creative' && styles.creativeFrame,
-                  selectedTemplate === 'minimal' && styles.minimalFrame,
-                  selectedTemplate === 'luxury' && styles.luxuryFrame,
-                  selectedTemplate === 'vintage' && styles.vintageFrame,
-                  selectedTemplate === 'retro' && styles.retroFrame,
-                  selectedTemplate === 'elegant' && styles.elegantFrame,
-                  selectedTemplate === 'tech' && styles.techFrame,
-                  selectedTemplate === 'ocean' && styles.oceanFrame,
-                  selectedTemplate === 'sunset' && styles.sunsetFrame,
-                  selectedTemplate === 'artistic' && styles.artisticFrame,
-                  selectedTemplate === 'ombre-sunset' && styles.ombreSunsetFrame,
-                  selectedTemplate === 'ombre-ocean' && styles.ombreOceanFrame,
-                  selectedTemplate === 'ombre-purple' && styles.ombrePurpleFrame,
-                  selectedTemplate === 'ombre-forest' && styles.ombreForestFrame,
-                  selectedTemplate === 'ombre-fire' && styles.ombreFireFrame,
-                  selectedTemplate === 'ombre-night' && styles.ombreNightFrame,
-                  selectedTemplate === 'ombre-tropical' && styles.ombreTropicalFrame,
-                  selectedTemplate === 'ombre-autumn' && styles.ombreAutumnFrame,
-                  selectedTemplate === 'ombre-rose' && styles.ombreRoseFrame,
-                  selectedTemplate === 'ombre-galaxy' && styles.ombreGalaxyFrame,
-                  {
-                    width: canvasWidth,
-                    height: canvasHeight,
-                    backgroundColor: '#ffffff'
-                  },
-                ]}
-                >
-                  {/* Background Image (always show the poster image) */}
-                  <View style={styles.backgroundImageContainer}>
-                    <Image
-                      source={{ uri: getHighQualityImageUrl(selectedImage.uri), cache: 'force-cache' }}
-                      style={styles.backgroundImage}
-                      resizeMode="contain"
-                    />
-                    {/* ✅ FRAME integrated into background layer - won't interfere with text */}
-                    {selectedFrame && (
-                      <Image
-                        source={FRAME_OPTIONS.find(f => f.id === selectedFrame)?.source}
-                        style={styles.frameIntegrated}
-                        resizeMode="contain"
-                        pointerEvents="none"
-                      />
-                    )}
-                  </View>
-
-                  {/* ✅ TEXT LAYERS - now always on top since frame is in background */}
-                  {layers.map((layer) => {
-                    if (layer.fieldType === 'footerBackground') {
-                      return (
-                        <View key={layer.id} pointerEvents="none">
-                          {renderLayer(layer)}
-                        </View>
-                      );
-                    }
-                    return (
-                      <PinchGestureHandler
-                        key={layer.id}
-                        onGestureEvent={onPinchGestureEvent(layer.id)}
-                        onHandlerStateChange={onPinchHandlerStateChange(layer.id)}
-                      >
-                        <Animated.View>
-                          <PanGestureHandler
-                            onGestureEvent={onPanGestureEvent(layer.id)}
-                            onHandlerStateChange={onHandlerStateChange(layer.id)}
-                          >
-                            <Animated.View>
-                              {renderLayer(layer)}
-                            </Animated.View>
-                          </PanGestureHandler>
-                        </Animated.View>
-                      </PinchGestureHandler>
-                    );
-                  })}
-
-                  {alignmentGuides.vertical.map((xPos, index) => (
-                    <View
-                      key={`alignment-vertical-${index}`}
-                      pointerEvents="none"
-                      style={[
-                        styles.alignmentGuideVertical,
-                        {
-                          left: xPos - 0.5,
-                          height: canvasHeight
-                        }
-                      ]}
-                    />
-                  ))}
-
-                  {alignmentGuides.horizontal.map((yPos, index) => (
-                    <View
-                      key={`alignment-horizontal-${index}`}
-                      pointerEvents="none"
-                      style={[
-                        styles.alignmentGuideHorizontal,
-                        {
-                          top: yPos - 0.5,
-                          width: canvasWidth
-                        }
-                      ]}
-                    />
-                  ))}
-                </View>
-              </TouchableWithoutFeedback>
-            </ViewShot>
-
-            {/* Instructions */}
-            {layers.length === 0 && !loadingProfiles && (
-              <View style={styles.instructionsContainer}>
-                <Icon name="info" size={24} color="#667eea" />
-                <Text style={styles.instructionsText}>
-                  {businessProfiles.length === 0
-                    ? 'No business profiles found. Please create a business profile first.'
-                    : 'Business profile data has been applied to your poster'
-                  }
-                </Text>
-                <Text style={[styles.instructionsText, { marginTop: 10, fontSize: 12, color: '#ff6b6b' }]}>
-                  {businessProfiles.length === 0
-                    ? 'Please create a business profile first to generate poster content.'
-                    : 'No content applied. Try selecting a different business profile.'
-                  }
-                </Text>
-              </View>
-            )}
-
-            {/* Loading indicator */}
-            {loadingProfiles && (
-              <View style={styles.loadingContainer}>
-                <Icon name="hourglass-empty" size={24} color="#667eea" />
-                <Text style={styles.loadingText}>Loading business profiles...</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Controls Container - Fixed layout with responsive heights */}
-          <View
-            style={[
-              styles.controlsContainer,
-              {
-                paddingBottom: isUltraSmallScreen
-                  ? insets.bottom + 20
-                  : isSmallScreen
-                    ? insets.bottom + 16
-                    : Math.max(insets.bottom + responsiveSpacing.md, responsiveSpacing.lg)
-              }
-            ]}
-          >
-            {/* Toolbar Below Canvas */}
-            <View style={styles.bottomToolbar}>
-              <ScrollView
-                horizontal={true}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.toolbarScrollContent}
-              >
-                <TouchableOpacity
-                  style={styles.toolbarButton}
-                  onPress={() => setShowTextModal(true)}
-                >
-                  <LinearGradient
-                    colors={['#667eea', '#764ba2']}
-                    style={styles.toolbarButtonGradient}
-                  >
-                    <Icon name="text-fields" size={getResponsiveIconSize()} color="#ffffff" />
-                    <Text style={styles.toolbarButtonText}>Text</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.toolbarButton}
-                  onPress={() => setShowFontStyleModal(true)}
-                >
-                  <LinearGradient
-                    colors={['#667eea', '#764ba2']}
-                    style={styles.toolbarButtonGradient}
-                  >
-                    <Icon name="format-size" size={getResponsiveIconSize()} color="#ffffff" />
-                    <Text style={styles.toolbarButtonText}>Font</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-
-                {selectedLayer && (
-                  <TouchableOpacity
-                    style={styles.toolbarButton}
-                    onPress={() => setShowDeleteElementModal(true)}
-                  >
-                    <LinearGradient
-                      colors={['#ff4757', '#ff3742']}
-                      style={styles.toolbarButtonGradient}
-                    >
-                      <Icon name="delete" size={getResponsiveIconSize()} color="#ffffff" />
-                      <Text style={styles.toolbarButtonText}>Delete</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                )}
-
-                {selectedFrame && (
-                  <TouchableOpacity
-                    style={styles.toolbarButton}
-                    onPress={handleRemoveFrameOnly}
-                  >
-                    <LinearGradient
-                      colors={['#ff6b6b', '#ff5252']}
-                      style={styles.toolbarButtonGradient}
-                    >
-                      <Icon name="close" size={getResponsiveIconSize()} color="#ffffff" />
-                      <Text style={styles.toolbarButtonText}>Remove Frame</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                )}
-              </ScrollView>
-            </View>
-
-            {/* Field Toggle Buttons */}
-            <View style={styles.fieldToggleSection}>
-              <View style={styles.fieldToggleHeader}>
-                <Text style={styles.fieldToggleTitle}>Toggle Fields</Text>
-                <Text style={styles.fieldToggleSubtitle}>Click to show/hide elements</Text>
-              </View>
-              <ScrollView
-                style={styles.fieldToggleContent}
-                horizontal={true}
-                showsHorizontalScrollIndicator={false}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.fieldToggleScrollContent}
-              >
-                <TouchableOpacity
-                  style={[
-                    styles.fieldToggleButton,
-                    visibleFields.footerBackground && styles.fieldToggleButtonActive,
-                    selectedFrame && styles.fieldToggleButtonDisabled
-                  ]}
-                  onPress={() => !selectedFrame && toggleFieldVisibility('footerBackground')}
-                  disabled={!!selectedFrame}
-                >
-                  <Icon
-                    name="format-color-fill"
-                    size={getResponsiveIconSize()}
-                    color={
-                      selectedFrame
-                        ? "#999999"
-                        : visibleFields.footerBackground
-                          ? "#ffffff"
-                          : "#667eea"
-                    }
-                  />
-                  <Text style={[
-                    styles.fieldToggleButtonText,
-                    visibleFields.footerBackground && styles.fieldToggleButtonTextActive,
-                    selectedFrame && styles.fieldToggleButtonTextDisabled
-                  ]}>
-                    Footer BG {selectedFrame && '(Frame)'}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.fieldToggleButton, getEffectiveToggleValue('logo') && styles.fieldToggleButtonActive]}
-                  onPress={() => toggleFieldVisibility('logo')}
-                >
-                  <Icon name="account-balance" size={getResponsiveIconSize()} color={getEffectiveToggleValue('logo') ? "#ffffff" : "#667eea"} />
-                  <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('logo') && styles.fieldToggleButtonTextActive]}>
-                    Logo
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.fieldToggleButton, getEffectiveToggleValue('companyName') && styles.fieldToggleButtonActive]}
-                  onPress={() => toggleFieldVisibility('companyName')}
-                >
-                  <Icon name="title" size={getResponsiveIconSize()} color={getEffectiveToggleValue('companyName') ? "#ffffff" : "#667eea"} />
-                  <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('companyName') && styles.fieldToggleButtonTextActive]}>
-                    Company Name
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.fieldToggleButton, getEffectiveToggleValue('phone') && styles.fieldToggleButtonActive]}
-                  onPress={() => toggleFieldVisibility('phone')}
-                >
-                  <Icon name="call" size={getResponsiveIconSize()} color={getEffectiveToggleValue('phone') ? "#ffffff" : "#667eea"} />
-                  <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('phone') && styles.fieldToggleButtonTextActive]}>
-                    Phone
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.fieldToggleButton, getEffectiveToggleValue('email') && styles.fieldToggleButtonActive]}
-                  onPress={() => toggleFieldVisibility('email')}
-                >
-                  <Icon name="mail" size={getResponsiveIconSize()} color={getEffectiveToggleValue('email') ? "#ffffff" : "#667eea"} />
-                  <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('email') && styles.fieldToggleButtonTextActive]}>
-                    Email
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.fieldToggleButton, getEffectiveToggleValue('website') && styles.fieldToggleButtonActive]}
-                  onPress={() => toggleFieldVisibility('website')}
-                >
-                  <Icon name="public" size={getResponsiveIconSize()} color={getEffectiveToggleValue('website') ? "#ffffff" : "#667eea"} />
-                  <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('website') && styles.fieldToggleButtonTextActive]}>
-                    Website
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.fieldToggleButton, getEffectiveToggleValue('category') && styles.fieldToggleButtonActive]}
-                  onPress={() => toggleFieldVisibility('category')}
-                >
-                  <Icon name="business-center" size={getResponsiveIconSize()} color={getEffectiveToggleValue('category') ? "#ffffff" : "#667eea"} />
-                  <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('category') && styles.fieldToggleButtonTextActive]}>
-                    Category
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.fieldToggleButton, getEffectiveToggleValue('address') && styles.fieldToggleButtonActive]}
-                  onPress={() => toggleFieldVisibility('address')}
-                >
-                  <Icon name="place" size={getResponsiveIconSize()} color={getEffectiveToggleValue('address') ? "#ffffff" : "#667eea"} />
-                  <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('address') && styles.fieldToggleButtonTextActive]}>
-                    Address
-                  </Text>
-                </TouchableOpacity>
-              </ScrollView>
-            </View>
-
-            {/* Templates Section */}
-            <View style={styles.templatesSection}>
-              <View style={styles.templatesHeader}>
-                <Text style={styles.templatesTitle}>Templates</Text>
-              </View>
-              <FlatList
-                data={TEMPLATE_OPTIONS}
-                renderItem={({ item: option }) => (
-                  <TemplateItem
-                    option={option}
-                    isSelected={selectedTemplate === option.id}
-                    onPress={() => applyTemplate(option.id)}
-                    styles={styles}
-                    templateStyle={TEMPLATE_FOOTER_STYLES[option.id]}
-                  />
-                )}
-                keyExtractor={item => item.id}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.templatesScrollContent}
-                initialNumToRender={5}
-                maxToRenderPerBatch={3}
-                windowSize={3}
-                removeClippedSubviews={true}
-              />
-            </View>
-
-            {/* Frames Section */}
-            <View style={styles.framesSection}>
-              <View style={styles.framesHeader}>
-                <Text style={styles.framesTitle}>Frames</Text>
-              </View>
-              <FlatList
-                data={FRAME_OPTIONS}
-                renderItem={({ item: frame }) => (
-                  <FrameItem
-                    frame={frame}
-                    isSelected={selectedFrame === frame.id}
-                    onPress={() => {
-                      if (selectedFrame === frame.id) {
-                        // If same frame is selected, remove it with proper restoration
-                        handleRemoveFrameOnly();
-                      } else {
-                        setSelectedFrame(frame.id);
-                        setVisibleFields(prev => ({ ...prev, footerBackground: false }));
-                        applyFrameLayout(frame.id);
-                      }
-                    }}
-                    styles={styles}
-                  />
-                )}
-                keyExtractor={item => item.id}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.framesScrollContent}
-                initialNumToRender={6}
-                maxToRenderPerBatch={4}
-                windowSize={3}
-                removeClippedSubviews={true} // Important for Android memory
-              />
-            </View>
-          </View>
-        </>
-      )}
+      </View>
 
       {/* Business Profile Selection Modal */}
       <Modal
@@ -5116,16 +4682,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: isLandscape ? (isTablet ? responsiveSpacing.sm : responsiveSpacing.xs) : (isUltraSmallScreen ? 1 : isSmallScreen ? 2 : responsiveSpacing.xs),
     paddingBottom: isLandscape ? (isTablet ? responsiveSpacing.sm : responsiveSpacing.xs) : (isUltraSmallScreen ? 1 : isSmallScreen ? 2 : responsiveSpacing.xs),
-    marginBottom: isTablet ? responsiveSpacing.md : isLandscape ? responsiveSpacing.sm : isUltraSmallScreen ? responsiveSpacing.sm : responsiveSpacing.md,
+    marginBottom: (isTablet || isFoldableUnfolded) ? 4 : isLandscape ? responsiveSpacing.sm : isUltraSmallScreen ? responsiveSpacing.sm : responsiveSpacing.md,
     maxHeight: isLandscape
       ? screenHeight * 0.65
-      : isTablet || isFoldableUnfolded
-        ? screenHeight * 0.38 // Further reduced from 0.42 to ensure all controls fit
-        : isUltraSmallScreen
+      : isFoldableUnfolded
+        ? screenHeight * 0.35 // Extreme reduction to 35% for foldables
+        : isTablet
           ? screenHeight * 0.42
-          : isSmallScreen
-            ? screenHeight * 0.44
-            : screenHeight * 0.45,
+          : isUltraSmallScreen
+            ? screenHeight * 0.42
+            : isSmallScreen
+              ? screenHeight * 0.44
+              : screenHeight * 0.45,
   },
   controlsContainer: {
     flex: 0, // Don't use flex to prevent expansion
@@ -5270,12 +4838,12 @@ const styles = StyleSheet.create({
   // Bottom toolbar styles (replacing floating toolbar) - Fully responsive
   bottomToolbar: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: isTablet ? 16 : (screenWidth > screenHeight) ? 12 : (screenWidth < 360) ? 6 : (screenWidth >= 360 && screenWidth < 375) ? 8 : 12,
-    paddingHorizontal: isTablet ? 12 : (screenWidth > screenHeight) ? 8 : (screenWidth < 360) ? 4 : (screenWidth >= 360 && screenWidth < 375) ? 6 : 8,
-    paddingVertical: isTablet ? 12 : (screenWidth > screenHeight) ? 8 : (screenWidth < 360) ? 3 : (screenWidth >= 360 && screenWidth < 375) ? 4 : 6,
-    marginTop: isTablet ? 40 : (screenWidth > screenHeight) ? 35 : (screenWidth < 360) ? 25 : (screenWidth >= 360 && screenWidth < 375) ? 30 : 35,
-    marginBottom: isTablet ? 12 : (screenWidth > screenHeight) ? 8 : (screenWidth < 360) ? 4 : (screenWidth >= 360 && screenWidth < 375) ? 5 : 10,
-    marginHorizontal: isTablet ? 12 : (screenWidth > screenHeight) ? 8 : (screenWidth < 360) ? 4 : (screenWidth >= 360 && screenWidth < 375) ? 6 : 8,
+    borderRadius: (isTablet || isFoldableUnfolded) ? 12 : (screenWidth > screenHeight) ? 12 : (screenWidth < 360) ? 6 : (screenWidth >= 360 && screenWidth < 375) ? 8 : 12,
+    paddingHorizontal: (isTablet || isFoldableUnfolded) ? 8 : (screenWidth > screenHeight) ? 8 : (screenWidth < 360) ? 4 : (screenWidth >= 360 && screenWidth < 375) ? 6 : 8,
+    paddingVertical: (isTablet || isFoldableUnfolded) ? 4 : (screenWidth > screenHeight) ? 8 : (screenWidth < 360) ? 3 : (screenWidth >= 360 && screenWidth < 375) ? 4 : 6,
+    marginTop: isFoldableUnfolded ? 15 : isTablet ? 40 : (screenWidth > screenHeight) ? 35 : (screenWidth < 360) ? 25 : (screenWidth >= 360 && screenWidth < 375) ? 30 : 35,
+    marginBottom: (isTablet || isFoldableUnfolded) ? 5 : (screenWidth > screenHeight) ? 8 : (screenWidth < 360) ? 4 : (screenWidth >= 360 && screenWidth < 375) ? 5 : 10,
+    marginHorizontal: (isTablet || isFoldableUnfolded) ? 8 : (screenWidth > screenHeight) ? 8 : (screenWidth < 360) ? 4 : (screenWidth >= 360 && screenWidth < 375) ? 6 : 8,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -5300,8 +4868,8 @@ const styles = StyleSheet.create({
     paddingVertical: isLandscape ? (isTablet ? 12 : 10) : (isUltraSmallScreen ? 6 : isSmallScreen ? 8 : isMediumScreen ? 10 : isLargeScreen ? 12 : 14),
     paddingHorizontal: isLandscape ? (isTablet ? 16 : 12) : (isUltraSmallScreen ? 8 : isSmallScreen ? 10 : isMediumScreen ? 12 : isLargeScreen ? 14 : 16),
     borderRadius: isLandscape ? (isTablet ? 12 : 10) : (isUltraSmallScreen ? 6 : isSmallScreen ? 8 : isMediumScreen ? 10 : isLargeScreen ? 12 : 14),
-    minWidth: isLandscape ? (isTablet ? 80 : 70) : (isFoldableUnfolded ? 60 : isUltraSmallScreen ? 55 : isSmallScreen ? 60 : isMediumScreen ? 65 : isLargeScreen ? 70 : 75),
-    minHeight: isLandscape ? (isTablet ? 50 : 45) : (isFoldableUnfolded ? 38 : isUltraSmallScreen ? 36 : isSmallScreen ? 38 : isMediumScreen ? 42 : isLargeScreen ? 45 : 48),
+    minWidth: isLandscape ? (isTablet ? 80 : 70) : (isFoldableUnfolded ? 55 : isUltraSmallScreen ? 55 : isSmallScreen ? 60 : isMediumScreen ? 65 : isLargeScreen ? 70 : 75),
+    minHeight: isLandscape ? (isTablet ? 50 : 45) : (isFoldableUnfolded ? 32 : isUltraSmallScreen ? 36 : isSmallScreen ? 38 : isMediumScreen ? 42 : isLargeScreen ? 45 : 48),
   },
   toolbarButtonText: {
     fontSize: getToolbarButtonTextSize(),
@@ -5666,7 +5234,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: isTablet ? 16 : isLandscape ? 12 : isUltraSmallScreen ? 6 : isSmallScreen ? 8 : 12,
     paddingHorizontal: isTablet ? 12 : isLandscape ? 8 : isUltraSmallScreen ? 4 : isSmallScreen ? 6 : 8,
-    paddingVertical: (isTablet || isFoldableUnfolded) ? 4 : isLandscape ? 8 : isUltraSmallScreen ? 3 : isSmallScreen ? 4 : 6,
+    paddingVertical: isFoldableUnfolded ? 2 : isTablet ? 4 : isLandscape ? 8 : isUltraSmallScreen ? 3 : isSmallScreen ? 4 : 6,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -5677,7 +5245,7 @@ const styles = StyleSheet.create({
     elevation: 8,
     borderWidth: 1,
     borderColor: '#e9ecef',
-    marginBottom: (isTablet || isFoldableUnfolded) ? 6 : isLandscape ? 8 : isUltraSmallScreen ? 4 : isSmallScreen ? 5 : 10,
+    marginBottom: isFoldableUnfolded ? 3 : isTablet ? 6 : isLandscape ? 8 : isUltraSmallScreen ? 4 : isSmallScreen ? 5 : 10,
     marginHorizontal: (isTablet || isFoldableUnfolded) ? 8 : isLandscape ? 8 : isUltraSmallScreen ? 4 : isSmallScreen ? 6 : 8,
   },
   fieldToggleHeader: {
@@ -5697,7 +5265,7 @@ const styles = StyleSheet.create({
     marginTop: isLandscape ? (isTablet ? responsiveSpacing.xs : 0) : (isUltraSmallScreen ? 0 : isSmallScreen ? 0 : 1),
   },
   fieldToggleContent: {
-    height: isFoldableUnfolded ? 48 : isTablet ? 60 : isLandscape ? 55 : isUltraSmallScreen ? 45 : isSmallScreen ? 50 : 55,
+    height: isFoldableUnfolded ? 38 : isTablet ? 60 : isLandscape ? 55 : isUltraSmallScreen ? 45 : isSmallScreen ? 50 : 55,
   },
   fieldToggleScrollContent: {
     paddingHorizontal: 5,
@@ -5705,22 +5273,22 @@ const styles = StyleSheet.create({
   },
   fieldToggleButton: {
     alignItems: 'center',
-    paddingVertical: isSmallScreen ? 6 : 10,
-    paddingHorizontal: isSmallScreen ? 8 : 14,
-    borderRadius: isSmallScreen ? 8 : 16,
+    paddingVertical: (isSmallScreen || isFoldableUnfolded) ? 6 : 10,
+    paddingHorizontal: (isSmallScreen || isFoldableUnfolded) ? 8 : 14,
+    borderRadius: (isSmallScreen || isFoldableUnfolded) ? 8 : 16,
     backgroundColor: '#e9ecef',
-    marginHorizontal: isSmallScreen ? 2 : 4,
+    marginHorizontal: (isSmallScreen || isFoldableUnfolded) ? 2 : 4,
     flexDirection: 'row',
-    minWidth: isSmallScreen ? 60 : 85,
+    minWidth: (isSmallScreen || isFoldableUnfolded) ? 60 : 85,
     justifyContent: 'center',
   },
   fieldToggleButtonActive: {
     backgroundColor: '#667eea',
   },
   fieldToggleButtonText: {
-    fontSize: isSmallScreen ? 9 : 12,
+    fontSize: (isSmallScreen || isFoldableUnfolded) ? 9 : 12,
     color: '#666666',
-    marginLeft: isSmallScreen ? 3 : 6,
+    marginLeft: (isSmallScreen || isFoldableUnfolded) ? 3 : 6,
     fontWeight: '500',
   },
   fieldToggleButtonTextActive: {
@@ -6455,7 +6023,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: isTablet ? 16 : isLandscape ? 12 : isUltraSmallScreen ? 6 : isSmallScreen ? 8 : 12,
     paddingHorizontal: isTablet ? 12 : isLandscape ? 8 : isUltraSmallScreen ? 4 : isSmallScreen ? 6 : 8,
-    paddingVertical: (isTablet || isFoldableUnfolded) ? 4 : isLandscape ? 8 : isUltraSmallScreen ? 3 : isSmallScreen ? 4 : 6,
+    paddingVertical: isFoldableUnfolded ? 2 : isTablet ? 4 : isLandscape ? 8 : isUltraSmallScreen ? 3 : isSmallScreen ? 4 : 6,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -6466,7 +6034,7 @@ const styles = StyleSheet.create({
     elevation: 8,
     borderWidth: 1,
     borderColor: '#e9ecef',
-    marginBottom: (isTablet || isFoldableUnfolded) ? 6 : isLandscape ? 8 : isUltraSmallScreen ? 4 : isSmallScreen ? 5 : 10,
+    marginBottom: isFoldableUnfolded ? 3 : isTablet ? 6 : isLandscape ? 8 : isUltraSmallScreen ? 4 : isSmallScreen ? 5 : 10,
     marginHorizontal: (isTablet || isFoldableUnfolded) ? 8 : isLandscape ? 8 : isUltraSmallScreen ? 4 : isSmallScreen ? 6 : 8,
   },
   framesHeader: {
@@ -6486,7 +6054,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   framesContent: {
-    height: isFoldableUnfolded ? 58 : isTablet ? 70 : isLandscape ? 65 : isUltraSmallScreen ? 55 : isSmallScreen ? 60 : 65,
+    height: isFoldableUnfolded ? 48 : isTablet ? 70 : isLandscape ? 65 : isUltraSmallScreen ? 55 : isSmallScreen ? 60 : 65,
   },
   framesScrollContent: {
     paddingHorizontal: 5,
@@ -6692,7 +6260,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: isTablet ? 16 : isLandscape ? 12 : isUltraSmallScreen ? 6 : isSmallScreen ? 8 : 12,
     paddingHorizontal: isTablet ? 12 : isLandscape ? 8 : isUltraSmallScreen ? 4 : isSmallScreen ? 6 : 8,
-    paddingVertical: (isTablet || isFoldableUnfolded) ? 4 : isLandscape ? 8 : isUltraSmallScreen ? 3 : isSmallScreen ? 4 : 6,
+    paddingVertical: isFoldableUnfolded ? 2 : isTablet ? 4 : isLandscape ? 8 : isUltraSmallScreen ? 3 : isSmallScreen ? 4 : 6,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -6703,7 +6271,7 @@ const styles = StyleSheet.create({
     elevation: 8,
     borderWidth: 1,
     borderColor: '#e9ecef',
-    marginBottom: (isTablet || isFoldableUnfolded) ? 6 : isLandscape ? 8 : isUltraSmallScreen ? 4 : isSmallScreen ? 5 : 10,
+    marginBottom: isFoldableUnfolded ? 3 : isTablet ? 6 : isLandscape ? 8 : isUltraSmallScreen ? 4 : isSmallScreen ? 5 : 10,
     marginHorizontal: (isTablet || isFoldableUnfolded) ? 8 : isLandscape ? 8 : isUltraSmallScreen ? 4 : isSmallScreen ? 6 : 8,
   },
   templatesHeader: {
@@ -6723,7 +6291,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   templatesContent: {
-    height: isFoldableUnfolded ? 58 : isTablet ? 70 : isLandscape ? 65 : isUltraSmallScreen ? 55 : isSmallScreen ? 60 : 65,
+    height: isFoldableUnfolded ? 48 : isTablet ? 70 : isLandscape ? 65 : isUltraSmallScreen ? 55 : isSmallScreen ? 60 : 65,
   },
   templatesScrollContent: {
     paddingHorizontal: 5,
