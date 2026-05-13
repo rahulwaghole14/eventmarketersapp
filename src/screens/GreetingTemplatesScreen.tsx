@@ -125,8 +125,8 @@ const RecentSearchList: React.FC<RecentSearchListProps> = React.memo(({
           Recent Searches
         </Text>
       </View>
-      <ScrollView 
-        style={{ maxHeight: moderateScale(250) }} 
+      <ScrollView
+        style={{ maxHeight: moderateScale(250) }}
         showsVerticalScrollIndicator={false}
         nestedScrollEnabled={true}
         keyboardShouldPersistTaps="handled"
@@ -137,24 +137,24 @@ const RecentSearchList: React.FC<RecentSearchListProps> = React.memo(({
               key={`${search}-${index}`}
               style={[styles.recentSearchItem, { borderBottomColor: theme.colors.border }]}
               onPress={() => {
-                {__DEV__ && console.log('👆 RecentSearchItem pressed:', search)}
+                { __DEV__ && console.log('👆 RecentSearchItem pressed:', search) }
                 onSelectSearch(search)
               }}
               activeOpacity={0.7}
             >
-              <Icon 
-                name="history" 
-                size={moderateScale(16)} 
-                color={theme.colors.textSecondary} 
+              <Icon
+                name="history"
+                size={moderateScale(16)}
+                color={theme.colors.textSecondary}
                 style={styles.recentSearchIcon}
               />
               <Text style={[styles.recentSearchText, { color: theme.colors.text, flex: 1 }]}>
                 {search}
               </Text>
-              <Icon 
-                name="arrow-forward" 
-                size={moderateScale(14)} 
-                color={theme.colors.textSecondary} 
+              <Icon
+                name="arrow-forward"
+                size={moderateScale(14)}
+                color={theme.colors.textSecondary}
                 style={styles.recentSearchArrowIcon}
               />
             </TouchableOpacity>
@@ -210,7 +210,7 @@ const GreetingTemplatesScreen: React.FC = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchVisible, setIsSearchVisible] = useState(false);
-  
+
   // Recent searches state
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [isSearchInputFocused, setIsSearchInputFocused] = useState(false);
@@ -234,16 +234,16 @@ const GreetingTemplatesScreen: React.FC = () => {
   // Recent searches AsyncStorage functions
   const loadRecentSearches = useCallback(async () => {
     try {
-      {__DEV__ && console.log('🔍 Loading recent searches from AsyncStorage...')}
+      { __DEV__ && console.log('🔍 Loading recent searches from AsyncStorage...') }
       const stored = await AsyncStorage.getItem('GREETING_TEMPLATES_RECENT_SEARCHES');
-      {__DEV__ && console.log('🔍 AsyncStorage result:', stored)}
+      { __DEV__ && console.log('🔍 AsyncStorage result:', stored) }
       if (stored) {
         const searches = JSON.parse(stored);
         const validSearches = Array.isArray(searches) ? searches : [];
-        {__DEV__ && console.log('🔍 Setting recent searches:', validSearches)}
+        { __DEV__ && console.log('🔍 Setting recent searches:', validSearches) }
         setRecentSearches(validSearches);
       } else {
-        {__DEV__ && console.log('🔍 No recent searches found in AsyncStorage')}
+        { __DEV__ && console.log('🔍 No recent searches found in AsyncStorage') }
         setRecentSearches([]);
       }
     } catch (error) {
@@ -254,17 +254,17 @@ const GreetingTemplatesScreen: React.FC = () => {
 
   const saveRecentSearch = useCallback(async (query: string) => {
     if (!query || query.trim().length < 3) return;
-    
+
     const trimmedQuery = query.trim();
-    
+
     try {
       setRecentSearches(prev => {
         const filtered = prev.filter(search => search !== trimmedQuery);
         const updated = [trimmedQuery, ...filtered].slice(0, 5);
-        
+
         AsyncStorage.setItem('GREETING_TEMPLATES_RECENT_SEARCHES', JSON.stringify(updated))
           .catch(error => console.warn('Failed to save recent searches:', error));
-        
+
         return updated;
       });
     } catch (error) {
@@ -282,12 +282,12 @@ const GreetingTemplatesScreen: React.FC = () => {
       const parentCategoryMatch = category.parentCategoryName?.toLowerCase().includes(lowerQuery);
       return nameMatch || parentCategoryMatch;
     });
-    
+
     // Save recent search when results are successfully found
     if (results.length > 0) {
       saveRecentSearch(normalizedSearchQuery);
     }
-    
+
     return results;
   }, [categories, normalizedSearchQuery, saveRecentSearch]);
   const isSearching = normalizedSearchQuery.length > 0;
@@ -297,13 +297,13 @@ const GreetingTemplatesScreen: React.FC = () => {
     if (filteredCategories.length === 0) {
       return [];
     }
-    
+
     // Recalculate columns here to ensure we always use the current screenWidth
     // This prevents stale closure issues
     const cols = screenWidth >= 768 ? 4 : 2;
-    
+
     const groups: Record<string, GreetingCategory[]> = {};
-    
+
     filteredCategories.forEach(category => {
       // Use 'General' for categories without parentCategoryName (null, undefined, or empty string)
       const parentName = (category.parentCategoryName && category.parentCategoryName.trim()) || 'General';
@@ -312,7 +312,7 @@ const GreetingTemplatesScreen: React.FC = () => {
       }
       groups[parentName].push(category);
     });
-    
+
     // Convert to SectionList format with rows for proper grid layout
     const sections = Object.keys(groups)
       .sort((a, b) => {
@@ -335,7 +335,7 @@ const GreetingTemplatesScreen: React.FC = () => {
         };
       })
       .filter(section => section.data.length > 0); // Filter out empty sections
-    
+
     return sections;
   }, [filteredCategories, screenWidth]);
 
@@ -357,67 +357,67 @@ const GreetingTemplatesScreen: React.FC = () => {
     const preloadCriticalImages = async () => {
       try {
         const criticalImages: string[] = [];
-        
+
         // Get cached preview images for initial visible categories
         const initialVisibleCount = Math.min(categoryColumns * 3, categories.length);
         const initialVisibleCategories = categories.slice(0, initialVisibleCount);
-        
+
         initialVisibleCategories.forEach(category => {
           const cachedUri = previewCacheRef.current[category.id];
           if (cachedUri && !prefetchedImagesRef.current.has(cachedUri)) {
             criticalImages.push(cachedUri);
           }
         });
-        
+
         // Preload critical images immediately
         if (criticalImages.length > 0) {
           await Promise.allSettled(
             criticalImages.map(url => {
               prefetchedImagesRef.current.add(url);
-              return Image.prefetch(url).catch(() => {});
+              return Image.prefetch(url).catch(() => { });
             })
           );
         }
-        
+
         // Phase 2: HIGH PRIORITY - Preload newly fetched preview images
         setTimeout(() => {
           if (imagePreloadRef.current.high) return;
           imagePreloadRef.current.high = true;
-          
+
           const highPriorityImages: string[] = [];
           Object.values(categoryPreviewImages).forEach(uri => {
             if (uri && !prefetchedImagesRef.current.has(uri)) {
               highPriorityImages.push(uri);
             }
           });
-          
+
           if (highPriorityImages.length > 0) {
             Promise.allSettled(
               highPriorityImages.map(url => {
                 prefetchedImagesRef.current.add(url);
-                return Image.prefetch(url).catch(() => {});
+                return Image.prefetch(url).catch(() => { });
               })
             );
           }
         }, 300); // Start after 300ms
-        
+
         // Phase 3: MEDIUM PRIORITY - Preload remaining preview images
         setTimeout(() => {
           if (imagePreloadRef.current.medium) return;
           imagePreloadRef.current.medium = true;
-          
+
           const mediumPriorityImages: string[] = [];
           Object.values(categoryPreviewImages).forEach(uri => {
             if (uri && !prefetchedImagesRef.current.has(uri)) {
               mediumPriorityImages.push(uri);
             }
           });
-          
+
           if (mediumPriorityImages.length > 0) {
             Promise.allSettled(
               mediumPriorityImages.map(url => {
                 prefetchedImagesRef.current.add(url);
-                return Image.prefetch(url).catch(() => {});
+                return Image.prefetch(url).catch(() => { });
               })
             );
           }
@@ -426,7 +426,7 @@ const GreetingTemplatesScreen: React.FC = () => {
         // Error in critical image preloading - silently continue
       }
     };
-    
+
     preloadCriticalImages();
   }, [categories, categoryColumns, categoryPreviewImages]);
 
@@ -470,7 +470,7 @@ const GreetingTemplatesScreen: React.FC = () => {
           .replace(/[^a-z0-9\s]/g, ' ')
           .replace(/\s+/g, ' ')
           .trim();
-        
+
         const categoryWords = normalizedCategory.split(/\s+/).filter(word => word.length > 0);
         const searchVariations = [
           categoryName.toLowerCase(),
@@ -496,21 +496,21 @@ const GreetingTemplatesScreen: React.FC = () => {
             }
             const templateAny = template as any;
             const templateTags = Array.isArray(templateAny.tags) ? templateAny.tags : [];
-            
+
             // More lenient matching - check category and tags against variations
             const templateCategoryLower = template.category?.toLowerCase() || '';
             const categoryMatch = templateCategoryLower.includes(categoryNameLower) ||
-                                 templateCategoryLower.includes(normalizedCategory) ||
-                                 categoryWords.some(word => templateCategoryLower.includes(word));
-            
+              templateCategoryLower.includes(normalizedCategory) ||
+              categoryWords.some(word => templateCategoryLower.includes(word));
+
             const tagMatch = templateTags.some((tag: string) => {
               if (typeof tag !== 'string') return false;
               const tagLower = tag.toLowerCase();
               return tagLower.includes(categoryNameLower) ||
-                     tagLower.includes(normalizedCategory) ||
-                     categoryWords.some(word => tagLower.includes(word) || word.includes(tagLower));
+                tagLower.includes(normalizedCategory) ||
+                categoryWords.some(word => tagLower.includes(word) || word.includes(tagLower));
             });
-            
+
             return categoryMatch || tagMatch;
           });
 
@@ -543,19 +543,19 @@ const GreetingTemplatesScreen: React.FC = () => {
 
               const templateAny = template as any;
               const templateTags = Array.isArray(templateAny.tags) ? templateAny.tags : [];
-              
+
               // More lenient matching
               const templateCategoryLower = template.category?.toLowerCase() || '';
               const categoryMatch = templateCategoryLower.includes(categoryNameLower) ||
-                                   templateCategoryLower.includes(normalizedCategory) ||
-                                   categoryWords.some(word => templateCategoryLower.includes(word));
+                templateCategoryLower.includes(normalizedCategory) ||
+                categoryWords.some(word => templateCategoryLower.includes(word));
 
               const tagMatch = templateTags.some((tag: string) => {
                 if (typeof tag !== 'string') return false;
                 const tagLower = tag.toLowerCase();
                 return tagLower.includes(categoryNameLower) ||
-                       tagLower.includes(normalizedCategory) ||
-                       categoryWords.some(word => tagLower.includes(word) || word.includes(tagLower));
+                  tagLower.includes(normalizedCategory) ||
+                  categoryWords.some(word => tagLower.includes(word) || word.includes(tagLower));
               });
 
               return categoryMatch || tagMatch;
@@ -577,7 +577,7 @@ const GreetingTemplatesScreen: React.FC = () => {
                 PREVIEW_TIMEOUT_MS,
                 []
               );
-              
+
               if (fallbackTemplates && fallbackTemplates.length > 0) {
                 // Find any template with a valid preview that's not already used
                 selectedTemplate = fallbackTemplates.find(template => {
@@ -592,12 +592,12 @@ const GreetingTemplatesScreen: React.FC = () => {
         }
 
         const previewUri = extractTemplatePreview(selectedTemplate);
-        
+
         // Track this preview URI as used if we have a set to track
         if (previewUri && usedPreviewUris) {
           usedPreviewUris.add(previewUri);
         }
-        
+
         // Prefetch image immediately when preview URI is found (non-blocking)
         if (previewUri && !prefetchedImagesRef.current.has(previewUri)) {
           prefetchedImagesRef.current.add(previewUri);
@@ -605,7 +605,7 @@ const GreetingTemplatesScreen: React.FC = () => {
             // Silently fail - prefetch is best effort
           });
         }
-        
+
         return previewUri;
       } catch (error) {
         // Error fetching preview for category - return null
@@ -639,7 +639,7 @@ const GreetingTemplatesScreen: React.FC = () => {
             cachedToAdd[categoryId] = cached;
           }
         });
-        
+
         if (Object.keys(cachedToAdd).length > 0) {
           setCategoryPreviewImages(prev => ({ ...prev, ...cachedToAdd }));
         }
@@ -730,7 +730,7 @@ const GreetingTemplatesScreen: React.FC = () => {
       };
 
       const workers = Array.from({ length: Math.min(concurrency, queue.length) }, () => worker());
-      const workersPromise = Promise.all(workers).then(() => {}) as Promise<void>;
+      const workersPromise = Promise.all(workers).then(() => { }) as Promise<void>;
       workersPromise.finally(() => {
         if (batchTimer) {
           clearTimeout(batchTimer);
@@ -767,7 +767,7 @@ const GreetingTemplatesScreen: React.FC = () => {
           if (Array.isArray(parsedCategories) && parsedCategories.length > 0) {
             setCategories(parsedCategories);
             setInitialLoading(false);
-            
+
             // IMMEDIATE: Prefetch cached preview images for visible categories
             // Calculate initial visible count (first 2-3 rows)
             const initialVisibleCount = Math.min(
@@ -775,14 +775,14 @@ const GreetingTemplatesScreen: React.FC = () => {
               parsedCategories.length
             );
             const initialVisibleCategories = parsedCategories.slice(0, initialVisibleCount);
-            
+
             // Prefetch cached preview images immediately
             if (cachedPreviews && isActive) {
               const parsedPreviews: Record<string, string | null> = JSON.parse(cachedPreviews);
               if (parsedPreviews && typeof parsedPreviews === 'object') {
                 previewCacheRef.current = parsedPreviews;
                 setCategoryPreviewImages(parsedPreviews);
-                
+
                 // IMMEDIATE: Prefetch images for visible categories from cache
                 const imagesToPrefetch: string[] = [];
                 initialVisibleCategories.forEach(category => {
@@ -792,16 +792,16 @@ const GreetingTemplatesScreen: React.FC = () => {
                     prefetchedImagesRef.current.add(cachedUri);
                   }
                 });
-                
+
                 // Prefetch immediately (non-blocking)
                 if (imagesToPrefetch.length > 0) {
                   Promise.allSettled(
-                    imagesToPrefetch.map(url => Image.prefetch(url).catch(() => {}))
+                    imagesToPrefetch.map(url => Image.prefetch(url).catch(() => { }))
                   );
                 }
               }
             }
-            
+
             // IMMEDIATE: Start fetching previews for visible categories (even if not cached)
             setTimeout(() => {
               if (isActive && initialVisibleCategories.length > 0) {
@@ -913,7 +913,7 @@ const GreetingTemplatesScreen: React.FC = () => {
         setCategories(mergedCategories || []);
         setInitialLoading(false);
         if (mergedCategories && mergedCategories.length > 0) {
-          AsyncStorage.setItem(CATEGORIES_CACHE_KEY, JSON.stringify(mergedCategories)).catch(() => {});
+          AsyncStorage.setItem(CATEGORIES_CACHE_KEY, JSON.stringify(mergedCategories)).catch(() => { });
         }
       }
     } catch (error) {
@@ -970,10 +970,10 @@ const GreetingTemplatesScreen: React.FC = () => {
     if (visibleCategoryIds.size === 0 || categories.length === 0) return;
 
     const visibleIds = Array.from(visibleCategoryIds);
-    
+
     // IMMEDIATE: Fetch previews for visible categories
     fetchPreviewsForCategories(visibleIds, 'high');
-    
+
     // IMMEDIATE: Prefetch images for visible categories that already have preview URIs
     const imagesToPrefetch: string[] = [];
     visibleIds.forEach(categoryId => {
@@ -983,11 +983,11 @@ const GreetingTemplatesScreen: React.FC = () => {
         prefetchedImagesRef.current.add(previewUri);
       }
     });
-    
+
     // Prefetch immediately (non-blocking)
     if (imagesToPrefetch.length > 0) {
       Promise.allSettled(
-        imagesToPrefetch.map(url => Image.prefetch(url).catch(() => {}))
+        imagesToPrefetch.map(url => Image.prefetch(url).catch(() => { }))
       );
     }
   }, [visibleCategoryIds, categories, fetchPreviewsForCategories, categoryPreviewImages]);
@@ -1005,7 +1005,7 @@ const GreetingTemplatesScreen: React.FC = () => {
     if (initialVisibleIds.length > 0) {
       // Start fetching immediately (no delay)
       fetchPreviewsForCategories(initialVisibleIds, 'high');
-      
+
       // IMMEDIATE: Prefetch cached preview images for visible categories
       const cachedImagesToPrefetch: string[] = [];
       initialVisibleIds.forEach(categoryId => {
@@ -1015,49 +1015,49 @@ const GreetingTemplatesScreen: React.FC = () => {
           prefetchedImagesRef.current.add(cachedUri);
         }
       });
-      
+
       // Prefetch cached images immediately (non-blocking)
       if (cachedImagesToPrefetch.length > 0) {
         Promise.allSettled(
-          cachedImagesToPrefetch.map(url => Image.prefetch(url).catch(() => {}))
+          cachedImagesToPrefetch.map(url => Image.prefetch(url).catch(() => { }))
         );
       }
     }
-    
+
     // PROGRESSIVE: Fetch previews for ALL remaining categories in batches
     // Only start if not already started and user hasn't navigated away
     if (!progressiveLoadingStartedRef.current && !hasNavigatedAwayRef.current) {
       progressiveLoadingStartedRef.current = true;
-      
+
       setTimeout(() => {
         const remainingCategories = categories.slice(initialVisibleCount);
         if (remainingCategories.length > 0 && !hasNavigatedAwayRef.current) {
           // Fetch in batches to avoid overwhelming the network
           const batchSize = 20;
           let batchIndex = 0;
-          
+
           const fetchNextBatch = () => {
             if (batchIndex >= remainingCategories.length || !isMountedRef.current || hasNavigatedAwayRef.current) return;
-            
+
             const batch = remainingCategories.slice(batchIndex, batchIndex + batchSize);
             const batchIds = batch.map(c => c.id);
-            
+
             // Fetch with low priority to not block visible items
             fetchPreviewsForCategories(batchIds, 'low');
-            
+
             batchIndex += batchSize;
-            
+
             // Schedule next batch after a delay
             if (batchIndex < remainingCategories.length) {
               setTimeout(fetchNextBatch, 500); // 500ms delay between batches
             }
           };
-          
+
           // Start fetching remaining batches after initial visible items
           setTimeout(fetchNextBatch, 1000); // Start after 1 second
         }
       }, 500);
-      
+
       // Start progressive image preloading for remaining categories
       setTimeout(() => {
         if (!hasNavigatedAwayRef.current) {
@@ -1066,13 +1066,13 @@ const GreetingTemplatesScreen: React.FC = () => {
       }, 300);
     }
   }, [initialLoading, categories, groupedCategories, categoryColumns, fetchPreviewsForCategories, startProgressiveImagePreloading]);
-  
+
   // Track navigation away/back to prevent re-triggering progressive loading
   useFocusEffect(
     useCallback(() => {
       // Screen is focused - reset navigation away flag
       hasNavigatedAwayRef.current = false;
-      
+
       return () => {
         // Screen is blurred (user navigated away)
         hasNavigatedAwayRef.current = true;
@@ -1084,7 +1084,7 @@ const GreetingTemplatesScreen: React.FC = () => {
   useFocusEffect(
     useCallback(() => {
       // This runs when screen comes into focus - no action needed
-      
+
       return () => {
         // This runs when screen loses focus - close searchbar
         if (isSearchVisible) {
@@ -1099,7 +1099,7 @@ const GreetingTemplatesScreen: React.FC = () => {
   // Initial cleanup and cache management
   // Use a ref to track previous category IDs to avoid unnecessary cleanup
   const previousCategoryIdsRef = useRef<Set<string>>(new Set());
-  
+
   useEffect(() => {
     if (categories.length === 0) {
       previewCacheRef.current = {};
@@ -1111,30 +1111,30 @@ const GreetingTemplatesScreen: React.FC = () => {
 
     const activeIds = new Set(categories.map(category => category.id));
     const previousIds = previousCategoryIdsRef.current;
-    
+
     // Initialize on first run
     if (previousIds.size === 0) {
       previousCategoryIdsRef.current = new Set(activeIds);
       return; // Don't clean up on first run
     }
-    
+
     // Only clean up if categories actually changed (not just reference change)
-    const idsChanged = 
+    const idsChanged =
       activeIds.size !== previousIds.size ||
       Array.from(activeIds).some(id => !previousIds.has(id)) ||
       Array.from(previousIds).some(id => !activeIds.has(id));
-    
+
     if (idsChanged) {
       // Clean up preview cache to only include active category IDs
       // But preserve existing previews - only remove ones for categories that no longer exist
       const removedIds = Array.from(previousIds).filter(id => !activeIds.has(id));
-      
+
       if (removedIds.length > 0) {
         // Only clean up removed category IDs
         removedIds.forEach(id => {
           delete previewCacheRef.current[id];
         });
-        
+
         setCategoryPreviewImages(prev => {
           const next = { ...prev };
           let changed = false;
@@ -1147,7 +1147,7 @@ const GreetingTemplatesScreen: React.FC = () => {
           return changed ? next : prev;
         });
       }
-      
+
       // Update previous IDs
       previousCategoryIdsRef.current = new Set(activeIds);
     }
@@ -1165,18 +1165,18 @@ const GreetingTemplatesScreen: React.FC = () => {
     const timer = setTimeout(() => {
       if (isMountedRef.current && Object.keys(previewCacheRef.current).length > 0) {
         AsyncStorage.setItem(CATEGORY_PREVIEWS_CACHE_KEY, JSON.stringify(previewCacheRef.current)).catch(
-          () => {},
+          () => { },
         );
       }
     }, 1000); // Debounce by 1 second
 
     return () => clearTimeout(timer);
   }, [categoryPreviewImages]);
-  
+
   // Preload images when categoryPreviewImages updates
   useEffect(() => {
     if (Object.keys(categoryPreviewImages).length === 0) return;
-    
+
     // Prefetch newly added preview images in batches
     const newImagesToPrefetch: string[] = [];
     Object.values(categoryPreviewImages).forEach(uri => {
@@ -1185,7 +1185,7 @@ const GreetingTemplatesScreen: React.FC = () => {
         prefetchedImagesRef.current.add(uri);
       }
     });
-    
+
     // Prefetch in batches to avoid overwhelming
     if (newImagesToPrefetch.length > 0) {
       const batchSize = 10;
@@ -1193,18 +1193,18 @@ const GreetingTemplatesScreen: React.FC = () => {
         const batch = newImagesToPrefetch.slice(i, i + batchSize);
         setTimeout(() => {
           Promise.allSettled(
-            batch.map(url => Image.prefetch(url).catch(() => {}))
+            batch.map(url => Image.prefetch(url).catch(() => { }))
           );
         }, i * 50); // Stagger batches by 50ms
       }
     }
   }, [categoryPreviewImages]);
-  
+
   // Ensure ALL categories eventually get their previews fetched
   // This is a fallback to ensure no categories are missed
   useEffect(() => {
     if (initialLoading || categories.length === 0) return;
-    
+
     // After 3 seconds, check if any categories are missing previews
     const checkMissingPreviews = setTimeout(() => {
       const missingCategories = categories.filter(category => {
@@ -1213,14 +1213,14 @@ const GreetingTemplatesScreen: React.FC = () => {
         const isQueued = previewFetchQueueRef.current.has(category.id);
         return !hasCache && !hasState && !isQueued;
       });
-      
+
       if (missingCategories.length > 0 && isMountedRef.current) {
         const missingIds = missingCategories.map(c => c.id);
         // Fetch missing previews with low priority
         fetchPreviewsForCategories(missingIds, 'low');
       }
     }, 3000);
-    
+
     return () => clearTimeout(checkMissingPreviews);
   }, [categories, initialLoading, categoryPreviewImages, fetchPreviewsForCategories]);
 
@@ -1229,7 +1229,7 @@ const GreetingTemplatesScreen: React.FC = () => {
   useEffect(() => {
     if (groupedCategories.length > 0 && !initialLoading) {
       const animationRefs: Animated.CompositeAnimation[] = [];
-      
+
       // Clean up animations for sections that no longer exist
       const currentSectionKeys = new Set(
         groupedCategories.map((_, index) => [`section-${index}`, `section-${index}-translate`]).flat()
@@ -1247,11 +1247,11 @@ const GreetingTemplatesScreen: React.FC = () => {
           sectionAnimations.delete(key);
         }
       });
-      
+
       groupedCategories.forEach((section, sectionIndex) => {
         const sectionKey = `section-${sectionIndex}`;
         const fullSectionKey = `${section.title}-${sectionIndex}`;
-        
+
         // Only animate if this section hasn't been animated before
         if (animatedSectionsRef.current.has(fullSectionKey)) {
           // Section already animated, just ensure values are set
@@ -1265,7 +1265,7 @@ const GreetingTemplatesScreen: React.FC = () => {
           }
           return;
         }
-        
+
         // Create animation values if they don't exist
         if (!sectionAnimations.has(sectionKey)) {
           sectionAnimations.set(sectionKey, new Animated.Value(0));
@@ -1273,14 +1273,14 @@ const GreetingTemplatesScreen: React.FC = () => {
         if (!sectionAnimations.has(`${sectionKey}-translate`)) {
           sectionAnimations.set(`${sectionKey}-translate`, new Animated.Value(30));
         }
-        
+
         const opacity = sectionAnimations.get(sectionKey)!;
         const translateAnim = sectionAnimations.get(`${sectionKey}-translate`)!;
-        
+
         // Stop any existing animations first
         opacity.stopAnimation();
         translateAnim.stopAnimation();
-        
+
         const animation = Animated.parallel([
           Animated.timing(opacity, {
             toValue: 1,
@@ -1297,14 +1297,14 @@ const GreetingTemplatesScreen: React.FC = () => {
             useNativeDriver: true,
           }),
         ]);
-        
+
         animationRefs.push(animation);
         animation.start(() => {
           // Mark as animated after completion
           animatedSectionsRef.current.add(fullSectionKey);
         });
       });
-      
+
       // Cleanup: stop all animations when component unmounts or dependencies change
       return () => {
         animationRefs.forEach(anim => {
@@ -1352,7 +1352,7 @@ const GreetingTemplatesScreen: React.FC = () => {
   }, []);
 
   const selectRecentSearch = useCallback((search: string) => {
-    {__DEV__ && console.log('🔍 Selected recent search:', search)}
+    { __DEV__ && console.log('🔍 Selected recent search:', search) }
     setSearchQuery(search);
     setIsSearchInputFocused(false);
     // The search will be triggered automatically by the filtering logic
@@ -1369,15 +1369,15 @@ const GreetingTemplatesScreen: React.FC = () => {
       // Clear ALL caches (in-memory + AsyncStorage) before fetching fresh data
       // This ensures a complete refresh with no stale data
       greetingTemplatesService.clearCache();
-      
+
       // Clear AsyncStorage caches
-      await AsyncStorage.multiRemove([CATEGORIES_CACHE_KEY, CATEGORY_PREVIEWS_CACHE_KEY]).catch(() => {});
+      await AsyncStorage.multiRemove([CATEGORIES_CACHE_KEY, CATEGORY_PREVIEWS_CACHE_KEY]).catch(() => { });
 
       // Reset all in-memory preview caches BEFORE fetching new categories
       // This ensures all categories will be marked as pending for preview fetching
       previewCacheRef.current = {};
       setCategoryPreviewImages({});
-      
+
       // Increment refresh key to force preview re-fetching
       previewRefreshKeyRef.current += 1;
 
@@ -1391,7 +1391,7 @@ const GreetingTemplatesScreen: React.FC = () => {
 
         // Persist fresh categories to AsyncStorage for faster next load
         if (mergedCategories && mergedCategories.length > 0) {
-          AsyncStorage.setItem(CATEGORIES_CACHE_KEY, JSON.stringify(mergedCategories)).catch(() => {});
+          AsyncStorage.setItem(CATEGORIES_CACHE_KEY, JSON.stringify(mergedCategories)).catch(() => { });
         }
       }
     } catch (error) {
@@ -1407,7 +1407,7 @@ const GreetingTemplatesScreen: React.FC = () => {
   const handleCategoryPress = useCallback((category: GreetingCategory) => {
     // Get the preview image for this category if available
     const previewUri = categoryPreviewImages[category.id] || null;
-    
+
     // Create placeholder poster with preview image (if available)
     // PosterPlayerScreen will fetch the actual templates when greetingCategory is provided
     // No need to block navigation with API calls - navigate immediately for better UX
@@ -1464,7 +1464,7 @@ const GreetingTemplatesScreen: React.FC = () => {
     const isLastInRow = isLastInRowProp !== undefined ? isLastInRowProp : (index + 1) % categoryColumns === 0;
     const isEmoji = Boolean(item.icon && EMOJI_REGEX.test(item.icon));
     const initials = item.name?.slice(0, 2).toUpperCase() || 'GC';
-    
+
     return (
       <TouchableOpacity
         style={[
@@ -1484,9 +1484,9 @@ const GreetingTemplatesScreen: React.FC = () => {
           <OptimizedImage uri={previewUri} style={styles.categoryImage} resizeMode="cover" />
         ) : (
           <View style={[styles.categoryFallback, { backgroundColor: addOpacityToColor(cardColor, 0.15) }]}>
-            <ActivityIndicator 
-              size="large" 
-              color={cardColor} 
+            <ActivityIndicator
+              size="large"
+              color={cardColor}
               style={styles.categoryLoadingIndicator}
             />
           </View>
@@ -1547,7 +1547,7 @@ const GreetingTemplatesScreen: React.FC = () => {
       >
         <View style={styles.categorySectionHeaderWrapper}>
           <LinearGradient
-            colors={isDarkMode 
+            colors={isDarkMode
               ? [theme.colors.primary + '30', theme.colors.secondary + '20', 'transparent']
               : [theme.colors.primary + '18', theme.colors.secondary + '10', 'transparent']
             }
@@ -1602,17 +1602,17 @@ const GreetingTemplatesScreen: React.FC = () => {
     if (!item || item.length === 0) {
       return null;
     }
-    
+
     return (
-      <View style={[styles.categoryRow, { 
-        flexDirection: 'row', 
+      <View style={[styles.categoryRow, {
+        flexDirection: 'row',
         flexWrap: 'nowrap',
         width: '100%',
       }]}>
         {item.map((category, categoryIndex) => {
           const previewUri = categoryPreviewImages[category.id] || null;
           const isLastInRow = categoryIndex === item.length - 1;
-          
+
           return (
             <CategoryCard
               key={category.id}
@@ -1669,13 +1669,13 @@ const GreetingTemplatesScreen: React.FC = () => {
           if (newlyVisible.length > 0) {
             // IMMEDIATE: Fetch previews for newly visible items with high priority
             fetchPreviewsForCategories(newlyVisible, 'high');
-            
+
             // IMMEDIATE: Prefetch images for newly visible categories that already have preview URIs
             newlyVisible.forEach(categoryId => {
               const previewUri = categoryPreviewImages[categoryId] || previewCacheRef.current[categoryId];
               if (previewUri && !prefetchedImagesRef.current.has(previewUri)) {
                 prefetchedImagesRef.current.add(previewUri);
-                Image.prefetch(previewUri).catch(() => {});
+                Image.prefetch(previewUri).catch(() => { });
               }
             });
           }
@@ -1689,7 +1689,7 @@ const GreetingTemplatesScreen: React.FC = () => {
         const prefetchAheadRows = 2; // Prefetch 2 rows ahead
         const categoriesPerRow = categoryColumns;
         const prefetchAheadCount = prefetchAheadRows * categoriesPerRow;
-        
+
         // Calculate which categories are ahead of visible area
         const allCategories: GreetingCategory[] = [];
         groupedCategories.forEach(section => {
@@ -1699,12 +1699,12 @@ const GreetingTemplatesScreen: React.FC = () => {
             });
           });
         });
-        
+
         // Get categories ahead of current scroll position
         const startIndex = maxVisibleIndex + 1;
         const endIndex = Math.min(startIndex + prefetchAheadCount, allCategories.length);
         const aheadCategories = allCategories.slice(startIndex, endIndex);
-        
+
         if (aheadCategories.length > 0) {
           const aheadIds = aheadCategories.map(c => c.id);
           // Fetch previews for ahead categories with lower priority (non-blocking)
@@ -1754,16 +1754,16 @@ const GreetingTemplatesScreen: React.FC = () => {
   ), [initialLoading, isSearching, theme.colors.primary, theme.colors.text, theme.colors.textSecondary]);
 
   return (
-    <SafeAreaView 
+    <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.gradient[0] || '#e8e8e8' }]}
       edges={safeAreaEdges}
     >
-      <StatusBar 
+      <StatusBar
         barStyle={isDarkMode ? "light-content" : "dark-content"}
-        backgroundColor="transparent" 
+        backgroundColor="transparent"
         translucent={true}
       />
-      
+
       <TouchableWithoutFeedback onPress={() => {
         setIsSearchInputFocused(false);
         // Close searchbar if it's visible and user taps anywhere on screen
@@ -1778,153 +1778,153 @@ const GreetingTemplatesScreen: React.FC = () => {
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
-        <View
-          style={[
-          styles.header, 
-          { 
-            paddingTop: isSmallScreen ? moderateScale(57) : insets.top + moderateScale(2),
-            paddingBottom: isSmallScreen ? moderateScale(2) : moderateScale(3),
-            paddingHorizontal: moderateScale(4),
-            },
-          ]}
-        >
-          <View style={[styles.headerContent, { paddingHorizontal: moderateScale(2) }]}>
-            <Text
-              style={[
-              styles.headerTitle,
-              { 
-                fontSize: isSmallScreen ? Math.max(moderateScale(16), 18) : Math.max(moderateScale(12), 14),
-                color: theme.colors.text,
-                },
-              ]}
-            >
-              General Categories
-            </Text>
-            <TouchableOpacity
-              style={styles.headerIconButton}
-              onPress={toggleSearchBar}
-              activeOpacity={0.7}
-            >
-              <Icon
-                name={isSearchVisible ? 'close' : 'search'}
-                size={isSmallScreen ? moderateScale(20) : moderateScale(14)}
-                color={theme.colors.text}
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {isSearchVisible && (
           <View
             style={[
-          styles.searchContainer, 
-          { 
-            marginHorizontal: moderateScale(8),
-            marginVertical: moderateScale(3),
-            position: 'relative', // Ensure relative parent for absolute dropdown
-            zIndex: 10,
-                },
-              ]}
-            >
+              styles.header,
+              {
+                paddingTop: isSmallScreen ? moderateScale(57) : insets.top + moderateScale(2),
+                paddingBottom: isSmallScreen ? moderateScale(2) : moderateScale(3),
+                paddingHorizontal: moderateScale(4),
+              },
+            ]}
+          >
+            <View style={[styles.headerContent, { paddingHorizontal: moderateScale(2) }]}>
+              <Text
+                style={[
+                  styles.headerTitle,
+                  {
+                    fontSize: isSmallScreen ? Math.max(moderateScale(16), 18) : Math.max(moderateScale(12), 14),
+                    color: theme.colors.text,
+                  },
+                ]}
+              >
+                General Categories
+              </Text>
+              <TouchableOpacity
+                style={styles.headerIconButton}
+                onPress={toggleSearchBar}
+                activeOpacity={0.7}
+              >
+                <Icon
+                  name={isSearchVisible ? 'close' : 'search'}
+                  size={isSmallScreen ? moderateScale(20) : moderateScale(14)}
+                  color={theme.colors.text}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {isSearchVisible && (
             <View
               style={[
-                styles.searchBar, 
-                { 
-                  backgroundColor: theme.colors.cardBackground,
+                styles.searchContainer,
+                {
+                  marginHorizontal: moderateScale(8),
+                  marginVertical: moderateScale(3),
+                  position: 'relative', // Ensure relative parent for absolute dropdown
+                  zIndex: 10,
                 },
               ]}
             >
-              <Icon
-                name="search"
-                size={moderateScale(14)}
-                color={theme.colors.textSecondary}
-                style={{ marginLeft: moderateScale(2), marginRight: moderateScale(4) }}
-              />
-              <TextInput
-                style={[styles.searchInput, { color: theme.colors.text }]}
-                placeholder="Search categories..."
-                placeholderTextColor={theme.colors.textSecondary}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                onFocus={() => setIsSearchInputFocused(true)}
-                onBlur={() => setIsSearchInputFocused(false)}
-                autoFocus
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Icon
-                    name="clear"
-                    size={moderateScale(14)}
-                    color={theme.colors.textSecondary}
-                    style={{
-                      marginLeft: moderateScale(4),
-                      marginRight: moderateScale(4),
-                      padding: moderateScale(2),
-                    }}
+              <View
+                style={[
+                  styles.searchBar,
+                  {
+                    backgroundColor: theme.colors.cardBackground,
+                  },
+                ]}
+              >
+                <Icon
+                  name="search"
+                  size={moderateScale(14)}
+                  color={theme.colors.textSecondary}
+                  style={{ marginLeft: moderateScale(2), marginRight: moderateScale(4) }}
+                />
+                <TextInput
+                  style={[styles.searchInput, { color: theme.colors.text }]}
+                  placeholder="Search categories..."
+                  placeholderTextColor={theme.colors.textSecondary}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  onFocus={() => setIsSearchInputFocused(true)}
+                  onBlur={() => setIsSearchInputFocused(false)}
+                  autoFocus
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearchQuery('')}>
+                    <Icon
+                      name="clear"
+                      size={moderateScale(14)}
+                      color={theme.colors.textSecondary}
+                      style={{
+                        marginLeft: moderateScale(4),
+                        marginRight: moderateScale(4),
+                        padding: moderateScale(2),
+                      }}
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Floating Recent Searches Dropdown */}
+              {searchQuery.trim() === '' && (
+                <View style={styles.dropdown}>
+                  <RecentSearchList
+                    recentSearches={recentSearches}
+                    onSelectSearch={selectRecentSearch}
+                    onClearAll={clearRecentSearches}
+                    theme={theme}
                   />
-                </TouchableOpacity>
+                </View>
               )}
             </View>
-
-            {/* Floating Recent Searches Dropdown */}
-            {searchQuery.trim() === '' && (
-              <View style={styles.dropdown}>
-                <RecentSearchList
-                  recentSearches={recentSearches}
-                  onSelectSearch={selectRecentSearch}
-                  onClearAll={clearRecentSearches}
-                  theme={theme}
-                />
-              </View>
-            )}
-          </View>
-        )}
+          )}
 
 
 
-        <SectionList
-          sections={groupedCategories}
-          keyExtractor={(item, index) => {
-            // item is a row (array of categories), create a unique key from all category IDs in the row
-            if (!item || !Array.isArray(item)) {
-              return `row-${index}-empty`;
+          <SectionList
+            sections={groupedCategories}
+            keyExtractor={(item, index) => {
+              // item is a row (array of categories), create a unique key from all category IDs in the row
+              if (!item || !Array.isArray(item)) {
+                return `row-${index}-empty`;
+              }
+              return `row-${index}-${item.map(c => c?.id || '').filter(Boolean).join('-')}`;
+            }}
+            key={`category-grid-${categoryColumns}`}
+            renderItem={renderCategoryCard}
+            renderSectionHeader={renderSectionHeader}
+            contentContainerStyle={[
+              styles.categoriesList,
+              {
+                paddingBottom: Math.max(insets.bottom, moderateScale(12)),
+                // Prevent bounce-back on small screens by ensuring content fills screen when empty
+                flexGrow: filteredCategories.length === 0 ? 1 : undefined,
+                // Ensure minimum content height to prevent bounce-back
+                minHeight: filteredCategories.length > 0 ? screenHeight * 0.5 : undefined,
+              },
+            ]}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={listEmptyComponent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                colors={[theme.colors.primary]}
+                tintColor={theme.colors.primary}
+              />
             }
-            return `row-${index}-${item.map(c => c?.id || '').filter(Boolean).join('-')}`;
-          }}
-          key={`category-grid-${categoryColumns}`}
-          renderItem={renderCategoryCard}
-          renderSectionHeader={renderSectionHeader}
-          contentContainerStyle={[
-            styles.categoriesList,
-            {
-              paddingBottom: Math.max(insets.bottom, moderateScale(12)),
-              // Prevent bounce-back on small screens by ensuring content fills screen when empty
-              flexGrow: filteredCategories.length === 0 ? 1 : undefined,
-              // Ensure minimum content height to prevent bounce-back
-              minHeight: filteredCategories.length > 0 ? screenHeight * 0.5 : undefined,
-            },
-          ]}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={listEmptyComponent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              colors={[theme.colors.primary]}
-              tintColor={theme.colors.primary}
-            />
-          }
-          stickySectionHeadersEnabled={false}
-          // Enhanced performance optimizations for faster initial render
-          removeClippedSubviews={true}
-          maxToRenderPerBatch={Math.max(categoryColumns * 3, 12)} // Increased for better initial coverage
-          windowSize={3} // Reduced from 5 for faster initial render
-          initialNumToRender={Math.max(categoryColumns * 4, 16)} // Increased for immediate visibility
-          updateCellsBatchingPeriod={50} // Reduced from 80ms for faster updates
-          // Lazy loading for thumbnails
-          onViewableItemsChanged={onViewableItemsChanged}
-          viewabilityConfig={viewabilityConfig}
-        />
+            stickySectionHeadersEnabled={false}
+            // Enhanced performance optimizations for faster initial render
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={Math.max(categoryColumns * 3, 12)} // Increased for better initial coverage
+            windowSize={3} // Reduced from 5 for faster initial render
+            initialNumToRender={Math.max(categoryColumns * 4, 16)} // Increased for immediate visibility
+            updateCellsBatchingPeriod={50} // Reduced from 80ms for faster updates
+            // Lazy loading for thumbnails
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig}
+          />
         </LinearGradient>
       </TouchableWithoutFeedback>
     </SafeAreaView>
@@ -2103,7 +2103,7 @@ const styles = StyleSheet.create({
     marginTop: moderateScale(8),
     fontSize: moderateScale(10),
   },
-  
+
   // Recent Searches Styles
   dropdown: {
     position: 'absolute',
