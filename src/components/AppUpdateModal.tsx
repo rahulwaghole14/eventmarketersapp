@@ -8,11 +8,15 @@ import {
   Dimensions,
   Linking,
   Platform,
+  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../context/ThemeContext';
 import { moderateScale, responsiveModal, responsiveText, responsiveShadow } from '../utils/responsiveUtils';
+
+// Import App Icon
+import AppIcon from '../assets/MainLogo/App_icon.png';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -29,7 +33,7 @@ const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
   onLater,
   forceUpdate = false,
 }) => {
-  const { theme } = useTheme();
+  const { isDarkMode, theme } = useTheme();
 
   return (
     <Modal
@@ -54,14 +58,24 @@ const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
             end={{ x: 1, y: 1 }}
             style={styles.headerGradient}
           >
-            <View style={styles.iconContainer}>
-              <Icon name="rocket-launch" size={moderateScale(40)} color="#FFFFFF" />
+            <View style={[
+              styles.iconContainer, 
+              { 
+                backgroundColor: isDarkMode ? theme.colors.cardBackground : '#FFFFFF',
+                borderColor: isDarkMode ? theme.colors.border : 'rgba(255, 255, 255, 0.5)'
+              }
+            ]}>
+              <Image 
+                source={AppIcon} 
+                style={styles.appIcon} 
+                resizeMode="contain"
+              />
             </View>
           </LinearGradient>
 
           <View style={styles.contentContainer}>
             <Text style={[styles.title, { color: theme.colors.text }]}>
-              Update Available 🚀
+              Update Available 
             </Text>
             
             <Text style={[styles.description, { color: theme.colors.textSecondary }]}>
@@ -119,11 +133,16 @@ const styles = StyleSheet.create({
     width: moderateScale(80),
     height: moderateScale(80),
     borderRadius: moderateScale(40),
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    padding: moderateScale(10),
+    overflow: 'hidden',
+  },
+  appIcon: {
+    width: '100%',
+    height: '100%',
+    borderRadius: moderateScale(30),
   },
   contentContainer: {
     padding: moderateScale(24),
