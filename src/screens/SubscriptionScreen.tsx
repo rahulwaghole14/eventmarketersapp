@@ -160,6 +160,13 @@ const SubscriptionScreen: React.FC = () => {
     }
   }, [status]);
 
+  // Trigger success modal based on active status and payment transition
+  useEffect(() => {
+    if (isActiveStatus && (isPaymentSuccess || isReturningFromPayment)) {
+      setIsSuccessModalVisible(true);
+    }
+  }, [isActiveStatus, isPaymentSuccess, isReturningFromPayment]);
+
   // Dynamic dimensions for responsive layout (matching HomeScreen)
   const [dimensions, setDimensions] = useState(() => {
     const { width, height } = Dimensions.get('window');
@@ -213,6 +220,7 @@ const SubscriptionScreen: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isErrorModalVisible, setIsErrorModalVisible] = useState(false);
   const [isProcessingModalVisible, setIsProcessingModalVisible] = useState(false);
+  const [isSuccessModalVisible, setIsSuccessModalVisible] = useState(false);
   const [errorModalData, setErrorModalData] = useState({
     title: '',
     message: '',
@@ -1763,14 +1771,14 @@ const SubscriptionScreen: React.FC = () => {
         animationType="fade"
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
+          <View style={[styles.modalContainer, { backgroundColor: theme.colors.cardBackground }]}>
             <ActivityIndicator size="large" color="#667eea" />
             
-            <Text style={styles.modalTitle}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
               Payment in Progress
             </Text>
             
-            <Text style={styles.modalSubtitle}>
+            <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
               Please wait while we confirm your payment...
             </Text>
             
@@ -1782,6 +1790,42 @@ const SubscriptionScreen: React.FC = () => {
               }}
             >
               <Text style={styles.modalOkButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Success Modal */}
+      <Modal
+        visible={isSuccessModalVisible}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, { backgroundColor: theme.colors.cardBackground }]}>
+            <Icon name="check-circle" size={dynamicModerateScale(60)} color="#28a745" />
+            
+            <Text style={[styles.modalTitle, { color: theme.colors.text, marginTop: dynamicModerateScale(16) }]}>
+              Payment Successful
+            </Text>
+            
+            <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary, marginBottom: dynamicModerateScale(8) }]}>
+              Business Profile Activated
+            </Text>
+            
+            <TouchableOpacity
+              style={[styles.modalOkButton, { backgroundColor: '#28a745', minWidth: dynamicModerateScale(120) }]}
+              onPress={() => {
+                setIsSuccessModalVisible(false);
+                // If coming from business profile selection, go back there
+                if (isBusinessProfileMode) {
+                  navigation.navigate('BusinessProfiles' as any);
+                } else {
+                  navigation.goBack();
+                }
+              }}
+            >
+              <Text style={styles.modalOkButtonText}>Great!</Text>
             </TouchableOpacity>
           </View>
         </View>
