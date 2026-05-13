@@ -153,8 +153,12 @@ const PosterCanvas: React.FC<PosterCanvasProps> = ({
               fontWeight: layer.style?.fontWeight || 'normal',
               textAlign: layer.style?.textAlign || 'left',
               backgroundColor: layer.style?.backgroundColor,
+              width: '100%', // Ensure it uses the container width for scaling
             },
           ]}
+          numberOfLines={1}
+          adjustsFontSizeToFit={true}
+          minimumFontScale={0.4}
         >
           {layer.content}
         </Text>

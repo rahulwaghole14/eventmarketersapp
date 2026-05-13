@@ -2835,7 +2835,6 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
       minWidth: 10,
       maxWidth: layer.size?.width ?? 'auto',
       alignSelf: 'flex-start',
-      flexWrap: 'nowrap',
     };
 
     const handleLayerPress = () => {
@@ -2954,19 +2953,21 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
               onPress={handleLayerPress}
               style={{ alignSelf: 'flex-start' }}
             >
-              <Text style={{
-                fontSize: layer.style?.fontSize,
-                color: layer.style?.color,
-                fontFamily: layer.style?.fontFamily,
-                fontWeight: layer.style?.fontWeight as any,
-                padding: 0,
-                margin: 0,
-                flexWrap: 'nowrap',
-                width: 'auto',
-                alignSelf: 'flex-start',
-              }}
+              <Text
+                style={{
+                  fontSize: layer.style?.fontSize,
+                  color: layer.style?.color,
+                  fontFamily: layer.style?.fontFamily,
+                  fontWeight: layer.style?.fontWeight as any,
+                  padding: 0,
+                  margin: 0,
+                  width: '100%', // Take full width of container for adjustsFontSizeToFit
+                  alignSelf: 'flex-start',
+                }}
                 numberOfLines={1}
-                ellipsizeMode="clip">
+                adjustsFontSizeToFit={true}
+                minimumFontScale={0.4}
+              >
                 {layer.content}
               </Text>
             </TouchableOpacity>
