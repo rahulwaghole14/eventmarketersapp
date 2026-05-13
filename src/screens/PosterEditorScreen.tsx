@@ -1759,11 +1759,16 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
     // Add company logo on top right with responsive sizing
     if (profile.companyLogo || profile.logo) {
       const logoSize = Math.max(40, Math.min(80, canvasWidth * 0.15)); // Responsive logo size
+      
+      // Calculate responsive position for top right
+      // Base reference: 285.67 for a standard 375px wide screen
+      const responsiveX = (285.6769230769231 / 375) * canvasWidth;
+      
       const logoLayer: Layer = {
         id: generateId(),
         type: 'logo',
         content: profile.companyLogo || profile.logo || 'https://via.placeholder.com/80x80/667eea/ffffff?text=LOGO',
-        position: { x: 285.6769230769231, y: 5.638499431602881 }, // Updated position
+        position: { x: Math.min(responsiveX, canvasWidth - logoSize - 10), y: 5.638499431602881 }, // Clamped responsive position
         size: { width: logoSize, height: logoSize }, // Responsive size
         rotation: 0,
         zIndex: 10,
@@ -1775,11 +1780,15 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
     // Add company name on top left with responsive font size
     if (profile.name) {
       const companyNameSize = Math.max(16, Math.min(24, canvasWidth * 0.06)); // Responsive font size
+      
+      // Calculate responsive position for top left
+      const responsiveX = (9.538461538461538 / 375) * canvasWidth;
+      
       const companyNameLayer: Layer = {
         id: generateId(),
         type: 'text',
         content: profile.name,
-        position: { x: 9.538461538461538, y: 5.638499431602881 }, // Updated position
+        position: { x: Math.min(responsiveX, canvasWidth * 0.05), y: 5.638499431602881 }, // Clamped responsive position
         size: { width: canvasWidth - 140, height: 60 }, // Keep same size
         rotation: 0,
         zIndex: 10,
@@ -2117,6 +2126,40 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
       [fieldType]: !prev[fieldType]
     }));
   };
+
+  // ✅ FIX FOR ELEMENT OVERFLOW ON UNFOLDED FOLDABLES/TABLETS
+  // Enforce canvas boundaries when dimensions change, especially for Z Fold unfolded mode
+  useEffect(() => {
+    if ((isFoldableExpanded || isTabletDevice) && layers.length > 0) {
+      let changed = false;
+      const clampedLayers = layers.map(layer => {
+        const { width: elementWidth, height: elementHeight } = getLayerEffectiveSize(layer);
+        const maxX = Math.max(0, canvasWidth - elementWidth);
+        const maxY = Math.max(0, canvasHeight - elementHeight);
+        
+        const newX = Math.max(0, Math.min(layer.position.x, maxX));
+        const newY = Math.max(0, Math.min(layer.position.y, maxY));
+        
+        if (newX !== layer.position.x || newY !== layer.position.y) {
+          changed = true;
+          
+          // Update animated values to keep them in sync with the state position
+          if (layerAnimations[layer.id]) {
+            layerAnimations[layer.id].x.setValue(newX);
+            layerAnimations[layer.id].y.setValue(newY);
+          }
+          
+          return { ...layer, position: { x: newX, y: newY } };
+        }
+        return layer;
+      });
+      
+      if (changed) {
+        console.log('🛡️ [BOUNDARY CLAMPING] Clamping elements to canvas on foldable/tablet device');
+        setLayers(clampedLayers);
+      }
+    }
+  }, [canvasWidth, canvasHeight, isFoldableExpanded, isTabletDevice, layers]);
 
   // Handle pan gesture for dragging layers
   const getLayerEffectiveSize = useCallback((layer: Layer) => {
