@@ -53,7 +53,9 @@ import { RequestDeduplication } from '../utils/requestDeduplication';
 // import SimpleFestivalCalendar from '../components/SimpleFestivalCalendar';
 import OptimizedImage from '../components/OptimizedImage';
 import ComingSoonModal from '../components/ComingSoonModal';
+import AppUpdateModal from '../components/AppUpdateModal';
 import HorizontalFestivalCalendar from '../components/HorizontalFestivalCalendar';
+import VersionCheck from 'react-native-version-check';
 import BusinessCategoriesSection from '../components/sections/BusinessCategoriesSection';
 import GeneralCategoriesSection from '../components/sections/GeneralCategoriesSection';
 import responsiveUtils, {
@@ -813,6 +815,8 @@ const RecentSearchList: React.FC<RecentSearchListProps> = React.memo(({
     prevProps.theme === nextProps.theme
   );
 });
+// Track if we've already checked for updates in this app session (global to persist across remounts)
+let hasCheckedForUpdate = false;
 
 const HomeScreen: React.FC = React.memo(() => {
   const { isDarkMode, theme } = useTheme();
@@ -878,6 +882,8 @@ const HomeScreen: React.FC = React.memo(() => {
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isUpdateModalVisible, setIsUpdateModalVisible] = useState(false);
+  const [updateUrl, setUpdateUrl] = useState('');
 
   const normalizeCategoryData = useCallback((data: any, categoryType: 'business' | 'general'): HierarchicalSearchResult => {
     return {
@@ -922,7 +928,41 @@ const HomeScreen: React.FC = React.memo(() => {
   }, []);
 
   // --- End Relocated Block ---
+  
+  // App Update Check Logic
+  useEffect(() => {
+    // Only run the check once per app session
+    if (hasCheckedForUpdate) return;
+    
+    const checkForUpdates = async () => {
+      try {
+        hasCheckedForUpdate = true;
+        const currentVersion = VersionCheck.getCurrentVersion();
+        const latestVersion = await VersionCheck.getLatestVersion();
 
+        console.log(`[UpdateCheck] Current Version: ${currentVersion}`);
+        console.log(`[UpdateCheck] Latest Play Store Version: ${latestVersion}`);
+
+        const updateNeeded = await VersionCheck.needUpdate();
+
+        if (updateNeeded && updateNeeded.isNeeded) {
+          console.log('[UpdateCheck] Update status: AVAILABLE');
+          const storeUrl = await VersionCheck.getStoreUrl();
+          setUpdateUrl(storeUrl);
+          setIsUpdateModalVisible(true);
+        } else {
+          console.log('[UpdateCheck] Update status: NOT NEEDED');
+        }
+      } catch (error) {
+        console.error('[UpdateCheck] Error checking for updates:', error);
+      }
+    };
+
+    // Run check after component mounts and interaction manager is ready
+    InteractionManager.runAfterInteractions(() => {
+      checkForUpdates();
+    });
+  }, []);
 
   // Clear business profile selection when user changes
   useEffect(() => {
@@ -1046,6 +1086,21 @@ const HomeScreen: React.FC = React.memo(() => {
       setBusinessProfilesLoadingState(false);
     }
   }, [userProfile?.id, initializeSelectedProfile]);
+
+  const handleUpdateApp = useCallback(() => {
+    if (updateUrl) {
+      Linking.openURL(updateUrl).catch(err => {
+        console.error('[UpdateCheck] Error opening Play Store URL:', err);
+      });
+    } else {
+      // Fallback to default Play Store if URL is missing
+      VersionCheck.getStoreUrl().then(url => {
+        Linking.openURL(url);
+      }).catch(err => {
+        console.error('[UpdateCheck] Error getting store URL:', err);
+      });
+    }
+  }, [updateUrl]);
 
   const userName = useMemo(() => {
     return (
@@ -8188,7 +8243,12 @@ const HomeScreen: React.FC = React.memo(() => {
           </View>
         </View>
       </Modal>
-
+      <AppUpdateModal
+        isVisible={isUpdateModalVisible}
+        onUpdate={handleUpdateApp}
+        onLater={() => setIsUpdateModalVisible(false)}
+        forceUpdate={false} // Set to true if you want to force update
+      />
 
     </SafeAreaView>
   );
