@@ -2209,8 +2209,33 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
     if (layer.type === 'text') {
       const fontSize = layer.style?.fontSize ?? 16;
       const contentLength = layer.content?.length ?? 1;
-      const estimatedWidth = Math.min(canvasWidth, Math.max(fontSize, contentLength * fontSize * 0.55));
-      const estimatedHeight = Math.min(canvasHeight, fontSize * 1.3);
+
+      // Field-specific multipliers for precise boundary alignment
+      // Addresses have more spaces, Phones have wide digits, Emails are dense
+      let multiplier = 0.48;
+      let buffer = 4;
+
+      if (layer.fieldType === 'address') {
+        multiplier = 0.43;
+        buffer = 2;
+      } else if (layer.fieldType === 'phone') {
+        multiplier = 0.54; // Slightly wider for digits and icons
+        buffer = 8;
+      } else if (['email', 'website', 'category'].includes(layer.fieldType || '')) {
+        multiplier = 0.49; // Slightly denser for these fields
+        buffer = 5;
+      }
+
+      const contentWidthEstimate = (contentLength * fontSize * multiplier) + buffer;
+      const containerWidth = layer.size?.width || canvasWidth;
+
+      const estimatedWidth = Math.min(
+        canvasWidth,
+        Math.max(fontSize, Math.min(contentWidthEstimate, containerWidth))
+      );
+
+      const estimatedHeight = Math.min(layer.size?.height || canvasHeight, fontSize * 1.3);
+
       return {
         width: estimatedWidth,
         height: estimatedHeight
@@ -3063,6 +3088,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                   margin: 0,
                   width: '100%', // Take full width of container for adjustsFontSizeToFit
                   alignSelf: 'flex-start',
+                  includeFontPadding: false, // Remove extra padding for precise boundary alignment
                 }}
                 numberOfLines={1}
                 adjustsFontSizeToFit={true}
@@ -4887,10 +4913,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#FFFFFF',
     textAlign: 'left',
-    flexWrap: 'wrap', // Allow text to wrap
     textAlignVertical: 'top', // Align text to top
     padding: 0,
     margin: 0,
+    includeFontPadding: false,
   },
   layerImage: {
     width: '100%',
