@@ -37,7 +37,7 @@ import CategoryAccessMessage from '../components/CategoryAccessMessage';
 
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { MainStackParamList } from '../navigation/types';
 import { NavigationProp } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
@@ -459,9 +459,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   const insets = useSafeAreaInsets();
   const { selectedImage, selectedLanguage, selectedTemplateId, selectedTemplate: initialTemplate, posterCategory, type, categoryName, businessProfile, businessCategory, source } = route.params;
 
-  // ✅ ADD SAFE FALLBACK
-  const activeBusinessProfile =
-    route.params?.businessProfile ?? selectedBusinessProfile ?? null;
+
 
   const activeBusinessCategory =
     route.params?.businessCategory ?? selectedBusinessCategory ?? null;
@@ -488,6 +486,32 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   const { isSubscribed, checkPremiumAccess, refreshSubscription, isSubscriptionActive } = useSubscription();
   const { isDarkMode, theme } = useTheme();
   const { selectedBusinessProfile, selectedBusinessCategory, selectedBusinessId, isLoading: isContextLoading } = useBusinessProfile();
+
+  // ✅ FIX: Prefer fresh context data over stale params when they match
+  // Also check the local businessProfiles list which we refresh on focus
+  const activeBusinessProfile = useMemo(() => {
+    const profileId = route.params?.businessProfile?.id;
+    if (!profileId) return route.params?.businessProfile ?? selectedBusinessProfile ?? null;
+
+    // 1. Try context (if it's the currently selected one)
+    if (selectedBusinessProfile?.id === profileId) return selectedBusinessProfile;
+
+    // 2. Try the loaded profiles list (which we refresh on focus)
+    const profileFromList = businessProfiles.find(p => p.id === profileId);
+    if (profileFromList) return profileFromList;
+
+    // 3. Fallback to stale params
+    return route.params?.businessProfile ?? selectedBusinessProfile ?? null;
+  }, [selectedBusinessProfile, businessProfiles, route.params?.businessProfile]);
+
+  useEffect(() => {
+    console.log('🔍 [POSTER EDITOR] activeBusinessProfile Updated:', {
+      id: activeBusinessProfile?.id,
+      name: activeBusinessProfile?.name,
+      website: activeBusinessProfile?.website,
+      isFresh: (activeBusinessProfile === selectedBusinessProfile || !!businessProfiles.find(p => p === activeBusinessProfile))
+    });
+  }, [activeBusinessProfile, selectedBusinessProfile, businessProfiles]);
 
   // Get business subscription status for modal display
   const businessStatus = activeBusinessProfile?.businessSubscriptionStatus;
@@ -1477,6 +1501,14 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   // Generate unique ID
   const generateId = () => Math.random().toString(36).substr(2, 9);
 
+  // ✅ REFRESH ON FOCUS: Force refresh business profiles to catch updates from other screens
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🔄 [POSTER EDITOR] Screen focused - refreshing business profiles');
+      fetchBusinessProfiles();
+    }, [fetchBusinessProfiles])
+  );
+
   // Fetch business profiles on component mount
   useEffect(() => {
     fetchBusinessProfiles();
@@ -1496,7 +1528,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   }, []);
 
   // Fetch business profiles - simplified since context handles AsyncStorage
-  const fetchBusinessProfiles = async () => {
+  const fetchBusinessProfiles = useCallback(async () => {
     try {
       setLoadingProfiles(true);
 
@@ -1531,7 +1563,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
     } finally {
       setLoadingProfiles(false);
     }
-  };
+  }, []);
 
   // Note: AsyncStorage operations for business profile are now handled by BusinessProfileContext
   // This prevents duplicate saves and ensures single source of truth
@@ -2035,42 +2067,53 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
       return value;
     };
 
-    switch (fieldKey) {
-      case 'logo':
-        return !!(trimmedValue(profile.companyLogo) || trimmedValue(profile.logo));
-      case 'companyName':
-        return !!trimmedValue(profile.name);
-      case 'phone':
-        return !!trimmedValue(profile.phone);
-      case 'email':
-        return !!trimmedValue(profile.email);
-      case 'website':
-        return !!trimmedValue(profile.website);
-      case 'category':
-        return !!trimmedValue(profile.category);
-      case 'address':
-        return !!trimmedValue(profile.address);
-      case 'tagline':
-        return !!trimmedValue(profile.tagline);
-      case 'established':
-        return !!trimmedValue(profile.established);
-      case 'description':
-        return !!trimmedValue(profile.description);
-      case 'services':
-        return !!trimmedValue(profile.services);
-      case 'hours':
-        return !!trimmedValue(profile.hours);
-      case 'social':
-        return !!trimmedValue(profile.social);
-      case 'custom1':
-        return !!trimmedValue(profile.custom1);
-      case 'custom2':
-        return !!trimmedValue(profile.custom2);
-      case 'custom3':
-        return !!trimmedValue(profile.custom3);
-      default:
-        return false;
+    const result = (() => {
+      switch (fieldKey) {
+        case 'logo':
+          return !!(trimmedValue(profile.companyLogo) || trimmedValue(profile.logo));
+        case 'companyName':
+          return !!trimmedValue(profile.name);
+        case 'phone':
+          return !!trimmedValue(profile.phone);
+        case 'email':
+          return !!trimmedValue(profile.email);
+        case 'website':
+          return !!trimmedValue(profile.website);
+        case 'category':
+          return !!trimmedValue(profile.category);
+        case 'address':
+          return !!trimmedValue(profile.address);
+        case 'tagline':
+          return !!trimmedValue(profile.tagline);
+        case 'established':
+          return !!trimmedValue(profile.established);
+        case 'description':
+          return !!trimmedValue(profile.description);
+        case 'services':
+          return !!trimmedValue(profile.services);
+        case 'hours':
+          return !!trimmedValue(profile.hours);
+        case 'social':
+          return !!trimmedValue(profile.social);
+        case 'custom1':
+          return !!trimmedValue(profile.custom1);
+        case 'custom2':
+          return !!trimmedValue(profile.custom2);
+        case 'custom3':
+          return !!trimmedValue(profile.custom3);
+        default:
+          return false;
+      }
+    })();
+
+    if (fieldKey === 'website') {
+      console.log('🌐 [POSTER EDITOR] Website availability check:', {
+        website: profile.website,
+        available: result
+      });
     }
+
+    return result;
   };
 
   // Get the effective toggle value (state + data availability)
