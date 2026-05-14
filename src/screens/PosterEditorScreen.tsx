@@ -1791,11 +1791,11 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
     // Add company logo on top right with responsive sizing
     if (profile.companyLogo || profile.logo) {
       const logoSize = Math.max(40, Math.min(80, canvasWidth * 0.15)); // Responsive logo size
-      
+
       // Calculate responsive position for top right
       // Base reference: 285.67 for a standard 375px wide screen
       const responsiveX = (285.6769230769231 / 375) * canvasWidth;
-      
+
       const logoLayer: Layer = {
         id: generateId(),
         type: 'logo',
@@ -1812,10 +1812,10 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
     // Add company name on top left with responsive font size
     if (profile.name) {
       const companyNameSize = Math.max(16, Math.min(24, canvasWidth * 0.06)); // Responsive font size
-      
+
       // Calculate responsive position for top left
       const responsiveX = (9.538461538461538 / 375) * canvasWidth;
-      
+
       const companyNameLayer: Layer = {
         id: generateId(),
         type: 'text',
@@ -2179,24 +2179,24 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         const { width: elementWidth, height: elementHeight } = getLayerEffectiveSize(layer);
         const maxX = Math.max(0, canvasWidth - elementWidth);
         const maxY = Math.max(0, canvasHeight - elementHeight);
-        
+
         const newX = Math.max(0, Math.min(layer.position.x, maxX));
         const newY = Math.max(0, Math.min(layer.position.y, maxY));
-        
+
         if (newX !== layer.position.x || newY !== layer.position.y) {
           changed = true;
-          
+
           // Update animated values to keep them in sync with the state position
           if (layerAnimations[layer.id]) {
             layerAnimations[layer.id].x.setValue(newX);
             layerAnimations[layer.id].y.setValue(newY);
           }
-          
+
           return { ...layer, position: { x: newX, y: newY } };
         }
         return layer;
       });
-      
+
       if (changed) {
         console.log('🛡️ [BOUNDARY CLAMPING] Clamping elements to canvas on foldable/tablet device');
         setLayers(clampedLayers);
@@ -2353,13 +2353,6 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         newX = Number.isFinite(newX) ? newX : 0;
         newY = Number.isFinite(newY) ? newY : 0;
 
-        // Debug: Log the current position and field type
-        console.log(`🎯 DEBUG: ${currentLayer.fieldType || 'Unknown Field'} moved to position:`);
-        console.log(`   📍 X: ${newX.toFixed(1)}, Y: ${newY.toFixed(1)}`);
-        console.log(`   📏 Canvas Size: ${canvasWidth}x${canvasHeight}`);
-        console.log(`   🏷️ Field Type: ${currentLayer.fieldType || 'Unknown'}`);
-        console.log(`   📝 Content: ${currentLayer.content || 'No content'}`);
-        console.log(`   🔧 Position: x: ${newX.toFixed(0)}, y: ${newY.toFixed(0)}`);
 
         // Update the animated position values directly
         if (layerAnimations[layerId]) {
@@ -2371,15 +2364,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         // Update layer position in state
         setLayers(prev => prev.map(layer => {
           if (layer.id === layerId) {
-            // ✅ SPECIAL LOG FOR EMAIL ELEMENT POSITION CHANGES
-            if (layer.fieldType === 'email') {
-              console.log('🎯🎯🎯 [EMAIL POSITION CHANGED] Email element moved!');
-              console.log(`📍 [EMAIL MOVED] New position: x: ${newX.toFixed(1)}, y: ${newY.toFixed(1)}`);
-              console.log(`📝 [EMAIL CONTENT] Content: ${layer.content}`);
-              console.log(`🏷️ [EMAIL ID] Layer ID: ${layerId}`);
-              console.log('🎯🎯🎯 [EMAIL POSITION CHANGED] End of email position update');
 
-            }
 
             // ✅ UPDATE ANIMATED VALUES TO MATCH NEW POSITION
             if (layerAnimations[layerId]) {
