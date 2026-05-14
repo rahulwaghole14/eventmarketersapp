@@ -2210,20 +2210,24 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
       const fontSize = layer.style?.fontSize ?? 16;
       const contentLength = layer.content?.length ?? 1;
 
+      // Tablet/Foldable adjustment factor - fonts render slightly differently on larger screens
+      const deviceAdjust = (isTabletDevice || isFoldableExpanded) ? 1.15 : 1.0;
+
       // Field-specific multipliers for precise boundary alignment
       // Addresses have more spaces, Phones have wide digits, Emails are dense
-      let multiplier = 0.48;
+      let multiplier = 0.48 * deviceAdjust;
       let buffer = 4;
 
       if (layer.fieldType === 'address') {
-        multiplier = 0.43;
-        buffer = 2;
+        // Balanced multiplier to avoid both cutoff and excessive gap on tablets
+        multiplier = (isTabletDevice || isFoldableExpanded) ? 0.55 : 0.43;
+        buffer = 4;
       } else if (layer.fieldType === 'phone') {
-        multiplier = 0.54; // Slightly wider for digits and icons
-        buffer = 8;
+        multiplier = 0.54 * deviceAdjust; // Slightly wider for digits and icons
+        buffer = 10;
       } else if (['email', 'website', 'category'].includes(layer.fieldType || '')) {
-        multiplier = 0.49; // Slightly denser for these fields
-        buffer = 5;
+        multiplier = 0.50 * deviceAdjust; // Slightly denser for these fields
+        buffer = 8;
       }
 
       const contentWidthEstimate = (contentLength * fontSize * multiplier) + buffer;
@@ -2245,7 +2249,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
       width: layer.size?.width ?? 0,
       height: layer.size?.height ?? 0,
     };
-  }, [canvasWidth, canvasHeight]);
+  }, [canvasWidth, canvasHeight, isTabletDevice, isFoldableExpanded]);
 
   const onPanGestureEvent = useCallback((layerId: string) => {
     // Ensure translation values exist for this layer
