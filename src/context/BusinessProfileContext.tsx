@@ -13,6 +13,7 @@ interface BusinessProfileContextType {
   isLoading: boolean;
   // Global business selection state
   selectedBusinessCategory: string | null;
+  selectedBusinessCategoryId: string | null;
   setSelectedBusinessCategory: (category: string | null) => void;
   selectedBusinessId: string | null;
   selectedBusinessProfileId: string | null; // Alias for consistency with API requirements
@@ -29,6 +30,7 @@ const BusinessProfileContext = createContext<BusinessProfileContextType | undefi
 const SELECTED_PROFILE_KEY = '@selected_business_profile';
 const SELECTED_PROFILE_UID_KEY = '@selected_business_profile_uid';
 const SELECTED_BUSINESS_CATEGORY_KEY = '@selected_business_category';
+const SELECTED_BUSINESS_CATEGORY_ID_KEY = '@selected_business_category_id';
 
 interface BusinessProfileProviderProps {
   children: ReactNode;
@@ -37,6 +39,7 @@ interface BusinessProfileProviderProps {
 export const BusinessProfileProvider: React.FC<BusinessProfileProviderProps> = ({ children }) => {
   const [selectedBusinessProfile, setSelectedBusinessProfileState] = useState<BusinessProfile | null>(null);
   const [selectedBusinessCategory, setSelectedBusinessCategoryState] = useState<string | null>(null);
+  const [selectedBusinessCategoryId, setSelectedBusinessCategoryIdState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const isRefreshingRef = useRef<boolean>(false);
   
@@ -72,6 +75,7 @@ export const BusinessProfileProvider: React.FC<BusinessProfileProviderProps> = (
       await AsyncStorage.removeItem(SELECTED_PROFILE_KEY);
       await AsyncStorage.removeItem(SELECTED_PROFILE_UID_KEY);
       await AsyncStorage.removeItem(SELECTED_BUSINESS_CATEGORY_KEY);
+      await AsyncStorage.removeItem(SELECTED_BUSINESS_CATEGORY_ID_KEY);
       console.log(' [BUSINESS PROFILE CONTEXT] Cleared selected profile cache');
     } catch (e) {
       console.error(' [BUSINESS PROFILE CONTEXT] Error clearing cache:', e);
@@ -87,10 +91,11 @@ export const BusinessProfileProvider: React.FC<BusinessProfileProviderProps> = (
     }
 
     try {
-      const [storedProfile, storedUid, storedCategory] = await Promise.all([
+      const [storedProfile, storedUid, storedCategory, storedCategoryId] = await Promise.all([
         AsyncStorage.getItem(SELECTED_PROFILE_KEY),
         AsyncStorage.getItem(SELECTED_PROFILE_UID_KEY),
-        AsyncStorage.getItem(SELECTED_BUSINESS_CATEGORY_KEY)
+        AsyncStorage.getItem(SELECTED_BUSINESS_CATEGORY_KEY),
+        AsyncStorage.getItem(SELECTED_BUSINESS_CATEGORY_ID_KEY)
       ]);
 
       if (storedProfile) {
@@ -111,6 +116,10 @@ export const BusinessProfileProvider: React.FC<BusinessProfileProviderProps> = (
       if (storedCategory) {
         setSelectedBusinessCategoryState(storedCategory);
         console.log(' [BUSINESS PROFILE CONTEXT] Loaded selected business category from storage:', storedCategory);
+      }
+      if (storedCategoryId) {
+        setSelectedBusinessCategoryIdState(storedCategoryId);
+        console.log(' [BUSINESS PROFILE CONTEXT] Loaded selected business category ID from storage:', storedCategoryId);
       }
     } catch (error) {
       console.error(' [BUSINESS PROFILE CONTEXT] Error loading selected profile:', error);
@@ -344,6 +353,16 @@ export const BusinessProfileProvider: React.FC<BusinessProfileProviderProps> = (
 
         setSelectedBusinessCategoryState(displayCategory);
         await AsyncStorage.setItem(SELECTED_BUSINESS_CATEGORY_KEY, displayCategory);
+        
+        if (profile.businessCategoryId) {
+          setSelectedBusinessCategoryIdState(profile.businessCategoryId);
+          await AsyncStorage.setItem(SELECTED_BUSINESS_CATEGORY_ID_KEY, profile.businessCategoryId);
+          console.log(' [BUSINESS PROFILE CONTEXT] Auto-synced business category ID:', profile.businessCategoryId);
+        } else {
+          setSelectedBusinessCategoryIdState(null);
+          await AsyncStorage.removeItem(SELECTED_BUSINESS_CATEGORY_ID_KEY);
+        }
+        
         console.log(' [BUSINESS PROFILE CONTEXT] Auto-synced business category from profile:', displayCategory);
       }
 
@@ -495,6 +514,7 @@ export const BusinessProfileProvider: React.FC<BusinessProfileProviderProps> = (
     initializeSelectedProfile,
     isLoading,
     selectedBusinessCategory,
+    selectedBusinessCategoryId,
     setSelectedBusinessCategory,
     selectedBusinessId: selectedBusinessProfile?.id || null,
     selectedBusinessProfileId: selectedBusinessProfile?.id || null, // Alias for consistency with API requirements
@@ -510,6 +530,7 @@ export const BusinessProfileProvider: React.FC<BusinessProfileProviderProps> = (
     initializeSelectedProfile,
     isLoading,
     selectedBusinessCategory,
+    selectedBusinessCategoryId,
     setSelectedBusinessCategory,
     setActivationPending,
     isActivationPending,

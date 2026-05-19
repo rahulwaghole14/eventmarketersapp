@@ -8,6 +8,7 @@ export interface BusinessProfile {
   name: string;
   description: string;
   category: string;
+  businessCategoryId?: string;
   subCategory?: string; // User's selected subcategory during registration
   subcategory?: string; // Alternative field name for consistency
   address: string;
@@ -107,6 +108,7 @@ class BusinessProfileService {
                 name: profile.name || profile.businessName,
                 description: profile.description || '',
                 category: profile.category,
+                businessCategoryId: profile.businessCategoryId,
                 subCategory: profile.businessSubcategory || profile.subCategory || profile.subcategory,
                 subcategory: profile.businessSubcategory || profile.subCategory || profile.subcategory,
                 address: profile.address || '',

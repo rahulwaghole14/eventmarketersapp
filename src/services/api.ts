@@ -145,6 +145,9 @@ api.interceptors.request.use(
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+      if (__DEV__) {
+        console.log('📡 [API] Outgoing Request:', config.method?.toUpperCase(), config.baseURL + config.url);
+      }
     } catch (error) {
       console.error('Error getting auth token:', error);
     }

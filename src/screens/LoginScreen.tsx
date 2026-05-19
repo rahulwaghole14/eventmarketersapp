@@ -276,7 +276,7 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
               <FloatingInput
                 label="Email Address"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => setEmail(text.toLowerCase())}
                 onFocus={() => setEmailFocused(true)}
                 onBlur={() => setEmailFocused(false)}
                 isFocused={emailFocused}
