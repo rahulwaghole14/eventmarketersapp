@@ -6,7 +6,7 @@ import { Alert } from 'react-native';
 import loginAPIs from '../services/loginAPIs';
 import authService from '../services/auth';
 import OtpVerificationComponent from '../components/OtpVerificationComponent';
-import { RootStackParamList } from '../navigation/AppNavigator';
+import { RootStackParamList } from '../navigation/types';
 
 type EmailVerificationNavigationProp = StackNavigationProp<RootStackParamList, 'EmailVerification'>;
 type EmailVerificationRouteProp = RouteProp<RootStackParamList, 'EmailVerification'>;
@@ -17,49 +17,60 @@ type Props = {
 };
 
 const EmailVerificationScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { email } = route.params;
+  const { email, phone } = route.params;
 
   const handleVerify = useCallback(async (code: string) => {
-    console.log('api', { email, otpCode: code });
+    console.log('[EmailVerification] Verifying OTP:', { phone, otpCode: code });
     
     // Call email verification API
-    const response = await loginAPIs.verifyEmailCode({ email, otpCode: code });
+    const response = await loginAPIs.verifyEmailCode({ phone, otpCode: code });
     
-    console.log('Response', response);
+    console.log('[EmailVerification] API Response:', JSON.stringify(response));
     
-    if (response.success && response.token) {
+    const user = response.user || response.data?.user;
+    const token = response.token || response.data?.token;
+    
+    console.log('[EmailVerification] Extracted user:', JSON.stringify(user));
+    console.log('[EmailVerification] Extracted token:', token ? 'EXISTS' : 'MISSING');
+    
+    if (response.success && token) {
+      console.log('[EmailVerification] Save user to storage...');
       // Save token and user data
-      await authService.saveUserToStorage(response.user, response.token);
-      authService.setCurrentUser(response.user);
+      await authService.saveUserToStorage(user, token);
       
-      // Remove logout flag since user is now explicitly logged in
+      // Remove logout flag and registration steps since user is now explicitly logged in
       await AsyncStorage.removeItem('isLoggedOut');
+      await AsyncStorage.removeItem('registration_step');
       
+      authService.setCurrentUser(user);
+      
+      console.log('[EmailVerification] Notifying auth state listeners with user...');
       // Notify auth state listeners to trigger navigation
-      authService.notifyAuthStateListeners(response.user);
+      authService.notifyAuthStateListeners(user);
       
       // Navigation will be handled automatically by auth state change
     } else {
-      throw new Error('Email verification failed');
+      console.error('[EmailVerification] Verification failed. Success:', response.success, 'Token:', !!token);
+      throw new Error('Verification failed');
     }
-  }, [email, navigation]);
+  }, [phone, navigation]);
 
   const handleResend = useCallback(async () => {
-    console.log('api', { email });
+    console.log('api', { phone });
     
-    await loginAPIs.resendEmailVerification({ email });
+    await loginAPIs.resendEmailVerification({ phone });
     
     console.log('Response', 'Resend requested');
-  }, [email]);
+  }, [phone]);
 
   return (
     <OtpVerificationComponent
-      email={email}
+      email={email || phone || ''}
       onVerify={handleVerify}
       onResend={handleResend}
-      title="Verify Your Email"
-      subtitle="Enter the 6-digit code sent to your email"
-      buttonText="Verify Email"
+      title={phone ? "Verify Your Phone" : "Verify Your Email"}
+      subtitle={phone ? "Enter the 6-digit code sent to your WhatsApp" : "Enter the 6-digit code sent to your email"}
+      buttonText="Verify"
       resendCooldown={60}
     />
   );

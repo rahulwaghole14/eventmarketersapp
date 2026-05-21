@@ -57,7 +57,14 @@ class AuthService {
           const parsedUser = JSON.parse(storedUser);
 
           // Additional validation: Ensure user has required fields
-          if (parsedUser && parsedUser.email && parsedUser.id) {
+          if (parsedUser && (parsedUser.email || parsedUser.phone || parsedUser.phoneNumber) && parsedUser.id) {
+            // Check if registration wizard is still incomplete
+            const registrationStep = await AsyncStorage.getItem('registration_step');
+            if (registrationStep) {
+              parsedUser.isRegistrationPending = true;
+              console.log('⚠️ User is authenticated but registration wizard is incomplete at step:', registrationStep);
+            }
+
             this.currentUser = parsedUser;
             console.log('Loaded stored user:', this.currentUser.id || this.currentUser.uid);
             console.log('User email:', this.currentUser.email);
@@ -373,31 +380,13 @@ class AuthService {
       // STEP 3: Clear critical local data FIRST for instant UI update
       this.currentUser = null;
 
-      // STEP 4: Clear ALL auth state properly
-      const keysToRemove = [
-        'currentUser',
-        'authToken',
-        'refreshToken',
-        'userData',
-        'user',
-        'isDemoUser',
-        'user_likes',
-        'transaction_history',
-        'user_business_profiles',
-        'user_preferences',
-        'profile_cache_timestamp',
-        'profile_data',
-        'poster_stats',
-        'business_stats',
-        'download_stats',
-        'profile_cache_data',
-        'profile_cache_download_stats',
-        'profile_cache_business_stats',
-        'profile_cache_last_update',
-        'profile_cache_user_id',
-      ];
-
-      await AsyncStorage.multiRemove(keysToRemove);
+      // STEP 4: Capture theme preference to preserve it, then completely clear storage
+      const theme = await AsyncStorage.getItem('theme');
+      await AsyncStorage.clear();
+      
+      if (theme) {
+        await AsyncStorage.setItem('theme', theme);
+      }
 
       // STEP 4.5: Set logout flag to prevent auto-restore on next app launch
       await AsyncStorage.setItem('isLoggedOut', 'true');
@@ -416,8 +405,11 @@ class AuthService {
       // Even if there's an error, we should clear local data
       try {
         this.currentUser = null;
-        const keysToRemove = ['currentUser', 'authToken', 'user', 'isDemoUser'];
-        await AsyncStorage.multiRemove(keysToRemove);
+        const theme = await AsyncStorage.getItem('theme');
+        await AsyncStorage.clear();
+        if (theme) {
+          await AsyncStorage.setItem('theme', theme);
+        }
 
         // STEP 4.5: Also set logout flag in error scenario
         await AsyncStorage.setItem('isLoggedOut', 'true');
@@ -691,6 +683,26 @@ class AuthService {
         try {
           const greetingTemplatesService = require('./greetingTemplates').default;
           greetingTemplatesService.clearCache();
+        } catch (error) {
+          // Silent fail
+        }
+      })(),
+
+      // Calendar templates cache
+      (async () => {
+        try {
+          const calendarApiService = require('./calendarApi').default;
+          calendarApiService.clearCache();
+        } catch (error) {
+          // Silent fail
+        }
+      })(),
+
+      // CacheService clearAll
+      (async () => {
+        try {
+          const cacheService = require('./cacheService').default;
+          await cacheService.clearAll();
         } catch (error) {
           // Silent fail
         }

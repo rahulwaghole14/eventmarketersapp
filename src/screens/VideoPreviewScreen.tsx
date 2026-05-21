@@ -29,6 +29,73 @@ import RNFS from 'react-native-fs';
 import LinearGradient from 'react-native-linear-gradient';
 // import videoProcessingService from '../services/videoProcessingService'; // Removed - service deleted
 
+const OMBRE_GRADIENTS: Record<string, string[]> = {
+  'ombre-sunset': ['#FF6B6B', '#FFA500', '#FFD700'],
+  'ombre-ocean': ['#667eea', '#06b6d4', '#22c55e'],
+  'ombre-purple': ['#9333ea', '#ec4899', '#f43f5e'],
+  'ombre-forest': ['#065f46', '#059669', '#10b981'],
+  'ombre-fire': ['#dc2626', '#f59e0b', '#fbbf24'],
+  'ombre-night': ['#1e3a8a', '#7c3aed', '#ec4899'],
+  'ombre-tropical': ['#f472b6', '#fb923c', '#06b6d4'],
+  'ombre-autumn': ['#78350f', '#ea580c', '#dc2626'],
+  'ombre-rose': ['#be123c', '#f472b6', '#fda4af'],
+  'ombre-galaxy': ['#6366f1', '#8b5cf6', '#06b6d4'],
+};
+
+const toRgba = (color: string, alpha: number): string => {
+  if (!color) return `rgba(0,0,0,${alpha})`;
+  const trimmed = color.trim();
+  if (trimmed.startsWith('rgba')) {
+    const parts = trimmed.replace(/rgba\(|\)/g, '').split(',').map(p => p.trim());
+    const r = Number(parts[0]) || 0;
+    const g = Number(parts[1]) || 0;
+    const b = Number(parts[2]) || 0;
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+  if (trimmed.startsWith('rgb')) {
+    const parts = trimmed.replace(/rgb\(|\)/g, '').split(',').map(p => p.trim());
+    const r = Number(parts[0]) || 0;
+    const g = Number(parts[1]) || 0;
+    const b = Number(parts[2]) || 0;
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+  if (trimmed.startsWith('#')) {
+    const hex = trimmed.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16) || 0;
+    const g = parseInt(hex.substring(2, 4), 16) || 0;
+    const b = parseInt(hex.substring(4, 6), 16) || 0;
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+  return `rgba(0,0,0,${alpha})`;
+};
+
+const getOmbreColors = (base: string | undefined) => {
+  const color = base || '#000000';
+  return [
+    toRgba(color, 0.9),
+    toRgba(color, 0.45),
+    toRgba(color, 0),
+  ];
+};
+
+const getColorAlpha = (color?: string) => {
+  if (!color) return 1;
+  const trimmed = color.trim().toLowerCase();
+  if (trimmed.startsWith('rgba')) {
+    const match = trimmed.match(/rgba\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)\s*\)/i);
+    if (match) {
+      const alpha = Number(match[4]);
+      if (!Number.isNaN(alpha)) {
+        return alpha;
+      }
+    }
+  }
+  return 1;
+};
+
+const gradientHasTransparency = (colors?: string[]) =>
+  colors?.some(color => getColorAlpha(color) < 0.999) ?? false;
+
 const { width: initialScreenWidth, height: initialScreenHeight } = Dimensions.get('window');
 
 const COMPACT_MULTIPLIER = 0.5;
@@ -184,7 +251,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
         // For older versions, we might need WRITE_EXTERNAL_STORAGE
         const androidVersion = Platform.Version;
         console.log('Android version:', androidVersion);
-        
+
         if (androidVersion >= 33) {
           // Android 13+ - use READ_MEDIA_VIDEO permission
           const granted = await PermissionsAndroid.request(
@@ -229,14 +296,14 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
     if (useProcessedVideo && processedVideoPath) {
       return processedVideoPath;
     }
-    
+
     // Ensure we only use local asset URIs, never web URLs
     const fallbackUri = selectedVideo?.uri || 'asset://test.mp4';
     if (fallbackUri.startsWith('http://') || fallbackUri.startsWith('https://')) {
       console.warn('⚠️ Web URL detected, falling back to local test video');
       return 'asset://test.mp4';
     }
-    
+
     return fallbackUri;
   }, [useProcessedVideo, processedVideoPath, selectedVideo?.uri]);
 
@@ -248,14 +315,14 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
     console.log('- Use processed video:', useProcessedVideo);
     console.log('- Video error state:', videoError);
     console.log('- Layers count:', layers?.length || 0);
-    
+
     // Validate the processed video path format
     if (processedVideoPath) {
       console.log('✅ Processed video path validation:');
       console.log('- Path format:', processedVideoPath.startsWith('file://') ? 'Valid file:// URI' : 'Invalid format');
       console.log('- Path length:', processedVideoPath.length);
       console.log('- Platform:', Platform.OS);
-      
+
       // Log expected path patterns
       if (Platform.OS === 'android') {
         console.log('- Expected Android pattern: file:///data/user/0/com.marketbrand/files/...');
@@ -263,7 +330,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
         console.log('- Expected iOS pattern: file:///var/mobile/Containers/Data/Application/.../Documents/...');
       }
     }
-    
+
     // Ensure processed video is used when available
     if (processedVideoPath && !useProcessedVideo) {
       console.log('Processed video available, switching to processed video');
@@ -278,8 +345,9 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
         naturalVideoSizeRef.current = { width: naturalWidth, height: naturalHeight };
       }
 
-      const sourceSize =
-        naturalVideoSizeRef.current.width > 0 && naturalVideoSizeRef.current.height > 0
+      const sourceSize = canvasData && canvasData.width > 0 && canvasData.height > 0
+        ? { width: canvasData.width, height: canvasData.height }
+        : naturalVideoSizeRef.current.width > 0 && naturalVideoSizeRef.current.height > 0
           ? naturalVideoSizeRef.current
           : { width: videoWidth, height: videoHeight };
 
@@ -318,7 +386,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
     if (naturalWidth > 0 && naturalHeight > 0) {
       updateRenderedVideoSize(naturalWidth, naturalHeight);
     }
-    
+
     // Log success for processed video
     if (useProcessedVideo && processedVideoPath) {
       console.log('🎬 Processed video loaded successfully!');
@@ -341,9 +409,9 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
       platform: Platform.OS,
       useProcessedVideo,
     });
-    
+
     setVideoError(true);
-    
+
     // Check if this is a processed video file that failed to play
     const attemptedUri = getSafeVideoUri();
     if (attemptedUri && attemptedUri.includes('composed_video_')) {
@@ -352,14 +420,14 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
       setVideoError(false);
       return;
     }
-    
+
     // Only fall back to original video if processed video fails and we're currently using processed video
     if (useProcessedVideo && processedVideoPath) {
       console.log('🔄 Processed video failed, falling back to original video');
       console.log('🔄 Fallback URI:', getSafeVideoUri());
       setUseProcessedVideo(false);
       Alert.alert(
-        'Video Error', 
+        'Video Error',
         'The processed video encountered an error. Switching to original video.',
         [{ text: 'OK' }]
       );
@@ -376,10 +444,10 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
     try {
       // Use the processed video path if available, otherwise use original
       const videoPath = processedVideoPath || selectedVideo.uri;
-      
+
       // Check if it's a remote URL
       const isRemoteUrl = videoPath.startsWith('http://') || videoPath.startsWith('https://');
-      
+
       const shareOptions = {
         title: selectedVideo.title || 'Event Video',
         message: `Event Video: ${selectedVideo.title || 'Professional Event Content'}`,
@@ -389,7 +457,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
       // For remote URLs, we can share the URL directly
       if (isRemoteUrl) {
         const result = await Share.share(shareOptions);
-        
+
         if (result.action === Share.sharedAction) {
           // Successfully shared
         } else if (result.action === Share.dismissedAction) {
@@ -400,7 +468,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
         if (Platform.OS === 'ios') {
           // On iOS, we'll share the video file directly
           const result = await Share.share(shareOptions);
-          
+
           if (result.action === Share.sharedAction) {
             // Successfully shared
           } else if (result.action === Share.dismissedAction) {
@@ -409,7 +477,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
         } else {
           // For Android, we can share the file path
           const result = await Share.share(shareOptions);
-          
+
           if (result.action === Share.sharedAction) {
             // Successfully shared
           } else if (result.action === Share.dismissedAction) {
@@ -419,7 +487,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
       }
     } catch (error) {
       Alert.alert(
-        '❌ Share Failed', 
+        '❌ Share Failed',
         'We encountered an issue while sharing your video.\n\nPlease try again or check your internet connection.',
         [
           {
@@ -444,7 +512,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
       // Request storage permission first (but don't block if it fails)
       const hasPermission = await requestStoragePermission();
       console.log('Permission check result:', hasPermission);
-      
+
       // For newer Android versions, CameraRoll might work without explicit permissions
       // So we'll proceed even if permission request fails
       if (!hasPermission) {
@@ -458,7 +526,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
       // Check if video file exists
       if (!videoPath) {
         Alert.alert(
-          '❌ Video Not Found', 
+          '❌ Video Not Found',
           'The video file could not be located on your device.\n\nPlease try regenerating the video or check your internet connection.',
           [
             {
@@ -479,17 +547,17 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
       // If it's a remote URL, download it first
       if (videoPath.startsWith('http://') || videoPath.startsWith('https://')) {
         setDownloadProgress(40);
-        
+
         // Create a temporary file path
         const tempFileName = `temp_video_${Date.now()}.mp4`;
         const tempPath = `${RNFS.DocumentDirectoryPath}/${tempFileName}`;
-        
+
         // Download the video
         const downloadResult = await RNFS.downloadFile({
           fromUrl: videoPath,
           toFile: tempPath,
         }).promise;
-        
+
         if (downloadResult.statusCode === 200) {
           finalVideoPath = tempPath;
           setDownloadProgress(70);
@@ -503,11 +571,11 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
       } else if (videoPath.startsWith('asset://')) {
         // Handle asset videos - copy to temporary location
         setDownloadProgress(50);
-        
+
         // For asset videos, we need to copy them to a accessible location
         const tempFileName = `asset_video_${Date.now()}.mp4`;
         const tempPath = `${RNFS.DocumentDirectoryPath}/${tempFileName}`;
-        
+
         // Copy asset to temporary location
         await RNFS.copyFile(videoPath.replace('asset://', ''), tempPath);
         finalVideoPath = tempPath;
@@ -518,7 +586,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
 
       // Save to gallery using CameraRoll
       console.log('Attempting to save video to gallery:', finalVideoPath);
-      
+
       let result;
       try {
         // First try with album
@@ -538,7 +606,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
 
       // Show success message
       setShowDownloadSuccess(true);
-      
+
       // Hide success message after 3 seconds
       setTimeout(() => {
         setShowDownloadSuccess(false);
@@ -550,7 +618,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
       console.error('❌ Download failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       Alert.alert(
-        '❌ Download Failed', 
+        '❌ Download Failed',
         'We encountered an issue while saving your video to the gallery.\n\nPlease check your device storage and try again.',
         [
           {
@@ -595,15 +663,94 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
     handleDownload();
   };
 
-  // Render video layers
-  const renderLayer = (layer: any) => {
+  // Render video layers - mirrors DraggableLayer from VideoEditorScreen exactly
+  const renderLayer = (layer: any, index: number, selectedTemplate?: string) => {
     let scaleX = 1;
     let scaleY = 1;
 
     if (canvasData && canvasData.width && canvasData.height) {
-      scaleX = videoWidth / canvasData.width;
-      scaleY = videoHeight / canvasData.height;
+      scaleX = renderedVideoSize.width / canvasData.width;
+      scaleY = renderedVideoSize.height / canvasData.height;
     }
+
+    const left = Math.round((layer.position.x || 0) * scaleX);
+    const top = Math.round((layer.position.y || 0) * scaleY);
+    const explicitWidth = Math.max(0, Math.round((layer.size.width || 0) * scaleX));
+    const explicitHeight = Math.max(0, Math.round((layer.size.height || 0) * scaleY));
+
+    const isBackground = layer.type === 'text' && layer.content === '' && layer.fieldType === 'footerBackground';
+    const isTextLayer = layer.type === 'text' && !isBackground;
+    const zIndex = layer.zIndex ?? index + 1;
+    const avgScale = (scaleX + scaleY) / 2;
+
+    // Scale every text style property the same way DraggableLayer does
+    const getScaledTextStyle = () => {
+      const base = { ...(layer.style || {}) } as Record<string, any>;
+      if (scaleX === 1 && scaleY === 1) return base;
+      const adj = (v: any, f: number) => (typeof v === 'number' ? v * f : v);
+      return {
+        ...base,
+        fontSize: adj(base.fontSize, scaleY),
+        lineHeight: adj(base.lineHeight, scaleY),
+        letterSpacing: adj(base.letterSpacing, scaleX),
+        padding: adj(base.padding, avgScale),
+        margin: adj(base.margin, avgScale),
+        borderWidth: adj(base.borderWidth, avgScale),
+        borderRadius: adj(base.borderRadius, avgScale),
+        paddingHorizontal: adj(base.paddingHorizontal, scaleX),
+        paddingVertical: adj(base.paddingVertical, scaleY),
+        paddingTop: adj(base.paddingTop, scaleY),
+        paddingBottom: adj(base.paddingBottom, scaleY),
+        paddingLeft: adj(base.paddingLeft, scaleX),
+        paddingRight: adj(base.paddingRight, scaleX),
+        marginHorizontal: adj(base.marginHorizontal, scaleX),
+        marginVertical: adj(base.marginVertical, scaleY),
+        marginTop: adj(base.marginTop, scaleY),
+        marginBottom: adj(base.marginBottom, scaleY),
+        marginLeft: adj(base.marginLeft, scaleX),
+        marginRight: adj(base.marginRight, scaleX),
+        ...(base.shadowOffset && typeof base.shadowOffset === 'object'
+          ? { shadowOffset: { width: adj(base.shadowOffset.width, scaleX), height: adj(base.shadowOffset.height, scaleY) } }
+          : {}),
+      };
+    };
+
+    // Footer background gradient rendering (mirrors DraggableLayer exactly)
+    const renderFooterBackground = () => {
+      const tmpl = selectedTemplate || '';
+      const isOmbreTemplate = tmpl.startsWith('ombre-');
+      const gradientColors = (layer.style as any)?.gradientColors as string[] | undefined;
+      const baseColors =
+        gradientColors ||
+        (isOmbreTemplate ? OMBRE_GRADIENTS[tmpl] : undefined) ||
+        getOmbreColors(layer.style?.backgroundColor);
+
+      if (baseColors && baseColors.length >= 2) {
+        const gradientStart = isOmbreTemplate ? { x: 0, y: 0 } : { x: 0, y: 1 };
+        const gradientEnd = isOmbreTemplate ? { x: 1, y: 0 } : { x: 0, y: 0 };
+        return (
+          <LinearGradient
+            colors={baseColors}
+            start={gradientStart}
+            end={gradientEnd}
+            style={{ width: '100%', height: '100%' }}
+          />
+        );
+      }
+      return (
+        <View
+          style={{
+            width: '100%',
+            height: '100%',
+            backgroundColor: layer.style?.backgroundColor || 'rgba(0,0,0,0.6)',
+          }}
+        />
+      );
+    };
+
+    const imageRadius = layer.isCircular
+      ? explicitWidth / 2
+      : (layer.borderRadius ? layer.borderRadius * scaleX : 0);
 
     return (
       <View
@@ -611,46 +758,44 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
         style={[
           styles.layer,
           {
-            position: 'absolute',
-            left: layer.position.x * scaleX,
-            top: layer.position.y * scaleY,
-            width: layer.size.width * scaleX,
-            height: layer.size.height * scaleY,
-            zIndex: layer.zIndex || 1,
-            transform: [{ rotate: `${layer.rotation || 0}deg` }],
+            left,
+            top,
+            zIndex: zIndex + 5,
+            elevation: zIndex + 10,
+            overflow: 'visible',
+            borderRadius: layer.isCircular
+              ? explicitWidth / 2
+              : (layer.borderRadius ? layer.borderRadius * scaleX : 0),
           },
+          // Text layers size themselves; background/image/logo use explicit size
+          isTextLayer
+            ? { maxWidth: renderedVideoSize.width }
+            : { width: explicitWidth, height: explicitHeight },
         ]}
       >
         {layer.type === 'text' && (
-          layer.style?.backgroundColor ? (
-            // Background layer (footer background)
-            <View
-              style={[
-                {
-                  width: '100%',
-                  height: '100%',
-                  backgroundColor: layer.style.backgroundColor,
-                },
-              ]}
-            />
-          ) : (
-            // Text layer
-            <Text style={[styles.layerText, { ...layer.style, fontSize: (layer.style?.fontSize || 16) * scaleY }]}>
-              {layer.content}
-            </Text>
-          )
+          isBackground
+            ? renderFooterBackground()
+            : (
+              <Text
+                style={[styles.layerText, getScaledTextStyle()]}
+                allowFontScaling={false}
+              >
+                {layer.content}
+              </Text>
+            )
         )}
         {layer.type === 'image' && (
           <Image
             source={{ uri: layer.content }}
-            style={styles.layerImage}
+            style={[styles.layerImage, { borderRadius: imageRadius }]}
             resizeMode="cover"
           />
         )}
         {layer.type === 'logo' && (
           <Image
             source={{ uri: layer.content }}
-            style={styles.layerLogo}
+            style={[styles.layerLogo, { borderRadius: imageRadius }]}
             resizeMode="contain"
           />
         )}
@@ -688,7 +833,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
 
           {!useProcessedVideo && layers && layers.length > 0 && (
             <View style={styles.overlayContainer}>
-              {layers.map(renderLayer)}
+              {layers.map((layer, idx) => renderLayer(layer, idx, selectedTemplateId))}
             </View>
           )}
 

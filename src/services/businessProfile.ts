@@ -45,7 +45,7 @@ export interface CreateBusinessProfileData {
   address: string;                 // Company Address (required)
   phone: string;                   // Mobile Number (required)
   alternatePhone?: string;         // Alternative Mobile Number (optional)
-  email: string;                   // Email ID (required)
+  email?: string;                  // Email ID (optional)
   website?: string;                // Company Website URL (optional)
   companyLogo?: string;           // Company Logo (optional)
   logo?: string;                   // Alternative logo field name
@@ -269,15 +269,14 @@ class BusinessProfileService {
       const address = (data.address || '').trim();
       const alternatePhone = (data.alternatePhone || '').trim();
 
-      if (!businessName || !ownerName || !email || !phone || !category) {
+      if (!businessName || !ownerName || !phone || !category) {
         console.error('❌ [CREATE] Missing required fields:', {
           businessName,
           ownerName,
-          email,
           phone,
           category,
         });
-        throw new Error('Business name, owner name, email, phone, and category are required.');
+        throw new Error('Business name, owner name, phone, and category are required.');
       }
 
       // Check if logo is being uploaded (local file path)

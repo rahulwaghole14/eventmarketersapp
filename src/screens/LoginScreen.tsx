@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,8 @@ import {
   Platform,
   StatusBar,
   Dimensions,
-  Alert,
   Image,
   Modal,
-  Keyboard,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -38,137 +36,51 @@ import responsiveUtils, {
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-// Create a stable FloatingInput component outside the main component
-const FloatingInput = React.memo(({ 
-  label, 
-  value, 
-  onChangeText, 
-  onFocus, 
-  onBlur, 
-  isFocused, 
-  theme,
-  secureTextEntry = false,
-  keyboardType = 'default',
-  autoCapitalize = 'none',
-  inputRef,
-  returnKeyType = 'next',
-  onSubmitEditing,
-  blurOnSubmit = false,
-}: any) => (
-  <View style={styles.inputContainer}>
-         <Text style={[
-       styles.floatingLabel, 
-       { color: (isFocused || value) ? theme.colors.primary : theme.colors.textSecondary },
-       (isFocused || value) && styles.floatingLabelFocused
-     ]}>
-       {label}
-     </Text>
-           <TextInput
-        ref={inputRef}
-         style={[
-           styles.input, 
-           { 
-             borderColor: (isFocused || value) ? theme.colors.primary : theme.colors.border,
-             backgroundColor: theme.colors.inputBackground,
-             color: theme.colors.text
-           },
-           (isFocused || value) && styles.inputFocused
-         ]}
-              value={value}
-        onChangeText={onChangeText}
-        onFocus={onFocus}
-        onBlur={onBlur}
-        placeholder=" "
-        secureTextEntry={secureTextEntry}
-        keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize}
-        placeholderTextColor={theme.colors.textSecondary}
-        blurOnSubmit={blurOnSubmit}
-        returnKeyType={returnKeyType}
-        autoCorrect={false}
-        spellCheck={false}
-        textContentType="none"
-        onSubmitEditing={onSubmitEditing}
-    />
-  </View>
-));
-
 const LoginScreen: React.FC = ({ navigation }: any) => {
   const { isDarkMode, theme } = useTheme();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [emailFocused, setEmailFocused] = useState(false);
-  const [passwordFocused, setPasswordFocused] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [phoneFocused, setPhoneFocused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [errorType, setErrorType] = useState<'empty' | 'invalid_email' | 'invalid_password' | 'generic'>('generic');
-  const [showPassword, setShowPassword] = useState(false);
-  const inputRefs = useRef<Record<string, TextInput | null>>({});
+  const [errorType, setErrorType] = useState<'empty' | 'invalid_phone' | 'generic'>('generic');
+  const [phoneValidationError, setPhoneValidationError] = useState('');
 
-  // Memoized form validity check with email regex and password length
-  const isFormValid = useMemo(() => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email.trim()) && password.length >= 8;
-  }, [email, password]);
+  const isPhoneValid = useMemo(() => {
+    const digits = phone.trim().replace(/\D/g, '');
+    return digits.length === 10 && /^[6-9]\d{9}$/.test(digits);
+  }, [phone]);
 
-  const registerInputRef = (field: string) => (ref: TextInput | null) => {
-    inputRefs.current[field] = ref;
-  };
-
-  const focusField = (field: string) => {
-    const ref = inputRefs.current[field];
-    if (ref) {
-      ref.focus();
-    }
-  };
-
-  // Step 5: Optional safety - ensure login screen waits for user action
   useEffect(() => {
-    console.log('Login screen mounted - waiting for user action');
+    console.log('Login screen mounted - waiting for phone login action');
   }, []);
 
-  const handleSubmitEditing = (nextField?: string, action?: () => void) => () => {
-    if (nextField) {
-      focusField(nextField);
-    } else if (action) {
-      // Validate before calling action (e.g., handleSignIn)
-      if (action === handleSignIn && !isFormValid) {
-        // Don't proceed with login if form is invalid
-        Keyboard.dismiss();
-        return;
-      }
-      action();
-    } else {
-      Keyboard.dismiss();
-    }
+  const validatePhone = (phoneNumber: string): string => {
+    if (!phoneNumber || !phoneNumber.trim()) return 'Phone number is required';
+    const digits = phoneNumber.trim().replace(/\D/g, '');
+    if (digits.length !== 10) return 'Phone must be exactly 10 digits';
+    if (!/^[6-9]\d{9}$/.test(digits)) return 'Please enter a valid Indian mobile number starting with 6-9';
+    return '';
   };
 
-  // Centralized modal content mapping
   const getModalContent = useCallback((type: typeof errorType) => {
     switch (type) {
       case 'empty':
         return {
           title: 'Missing Information',
-          message: 'Please enter email and password',
+          message: 'Please enter your mobile number',
           icon: 'info' as const
         };
-      case 'invalid_email':
+      case 'invalid_phone':
         return {
-          title: 'Incorrect Email',
-          message: 'Please check your email',
-          icon: 'info' as const
-        };
-      case 'invalid_password':
-        return {
-          title: 'Incorrect Password',
-          message: 'Try again',
+          title: 'Incorrect Phone',
+          message: 'Please enter a valid 10-digit mobile number starting with 6-9',
           icon: 'info' as const
         };
       case 'generic':
       default:
         return {
-          title: 'Failed',
+          title: 'Login Failed',
           message: errorMessage,
           icon: 'info' as const
         };
@@ -176,52 +88,48 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
   }, [errorMessage]);
 
   const handleSignIn = useCallback(async () => {
-    if (!email?.trim() || !password?.trim()) {
-      setErrorType('empty');
-      setErrorMessage('Please enter email and password');
+    const error = validatePhone(phone);
+    if (error) {
+      setPhoneValidationError(error);
+      setErrorType('invalid_phone');
+      setErrorMessage(error);
       setShowErrorModal(true);
       return;
     }
-
-    console.log('🔐 Attempting login with:', { email: email.trim(), passwordLength: password.length });
+    setPhoneValidationError('');
     setIsLoading(true);
+
     try {
+      console.log('🔐 Attempting login for phone:', phone);
       const result = await loginAPIs.loginUser({
-        email: email.trim(),
-        password: password.trim(),
+        phone: phone.trim(),
       });
       
-      // Handle verification requirement
+      // Handle verification requirement (success path)
       if (result.requiresVerification) {
-        // Navigate to email verification screen without storing token
-        navigation.navigate('EmailVerification', { email: email.trim() });
+        // Navigate to email verification screen to let them verify their OTP
+        navigation.navigate('EmailVerification', { phone: phone.trim() });
         return;
       }
       
       console.log('✅ Login successful:', result);
-      // Navigation will be handled automatically by auth state change
-      // No need to show success alert as user will be redirected
     } catch (error: any) {
       console.error('❌ Sign in error:', error);
-      console.error('❌ Error response:', error.response?.data);
-      console.error('❌ Error status:', error.response?.status);
       
-      // Enhanced error type detection
+      // Check if the server says the user needs to verify their phone OTP
+      const requiresVerification = error?.response?.data?.requiresVerification;
+      if (requiresVerification) {
+        navigation.navigate('EmailVerification', { phone: phone.trim() });
+        return;
+      }
+      
       const status = error?.response?.status;
-      const backendMessage = error?.response?.data?.message || '';
-      const lowerMessage = backendMessage.toLowerCase();
+      const backendMessage = error?.response?.data?.error || error?.response?.data?.message || '';
       
-      if (status === 401) {
-        // Try to distinguish between email and password errors
-        if (lowerMessage.includes('email') || lowerMessage.includes('user')) {
-          setErrorType('invalid_email');
-          setErrorMessage('Please check your email');
-        } else {
-          setErrorType('invalid_password');
-          setErrorMessage('Try again');
-        }
+      if (status === 404 || backendMessage.toLowerCase().includes('not found') || backendMessage.toLowerCase().includes('invalid') || backendMessage.toLowerCase().includes('register first')) {
+        setErrorType('generic');
+        setErrorMessage('This mobile number is not registered. Please sign up first.');
       } else {
-        // Use existing error handler for other cases
         const message = getUserFriendlyError(error);
         setErrorType('generic');
         setErrorMessage(message);
@@ -231,12 +139,7 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
     } finally {
       setIsLoading(false);
     }
-  }, [email, password]);
-
-
-
-
-
+  }, [phone, navigation]);
 
   return (
     <SafeAreaView 
@@ -267,90 +170,55 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
                 style={styles.logo}
                 resizeMode="contain"
               />
-              <Text style={[styles.title, { color: theme.colors.text }]}>Welcome Back</Text>
-              <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Sign in to continue your journey</Text>
+              <Text style={[styles.title, { color: '#ffffff' }]}>Welcome Back</Text>
+              <Text style={[styles.subtitle, { color: '#ffffff' }]}>Sign in to continue your journey</Text>
             </View>
 
             {/* Form */}
             <View style={[styles.formContainer, { backgroundColor: theme.colors.cardBackground }]}>
-              <FloatingInput
-                label="Email Address"
-                value={email}
-                onChangeText={(text) => setEmail(text.toLowerCase())}
-                onFocus={() => setEmailFocused(true)}
-                onBlur={() => setEmailFocused(false)}
-                isFocused={emailFocused}
-                theme={theme}
-                keyboardType="email-address"
-                inputRef={registerInputRef('email')}
-                returnKeyType="next"
-                onSubmitEditing={handleSubmitEditing('password')}
-              />
-
-              {/* Password Input with Eye Button */}
-              <View style={styles.inputContainer}>
-                <Text style={[
-                  styles.floatingLabel, 
-                  { color: (passwordFocused || password) ? theme.colors.primary : theme.colors.textSecondary },
-                  (passwordFocused || password) && styles.floatingLabelFocused
-                ]}>
-                  Password
-                </Text>
-                <View style={styles.passwordContainer}>
-                  <TextInput
-                    ref={registerInputRef('password')}
-                    style={[
-                      styles.passwordInput, 
-                      { 
-                        borderColor: (passwordFocused || password) ? theme.colors.primary : theme.colors.border,
-                        backgroundColor: theme.colors.inputBackground,
-                        color: theme.colors.text
-                      },
-                      (passwordFocused || password) && styles.inputFocused
-                    ]}
-                    value={password}
-                    onChangeText={setPassword}
-                    onFocus={() => setPasswordFocused(true)}
-                    onBlur={() => setPasswordFocused(false)}
-                    secureTextEntry={!showPassword}
-                    placeholderTextColor={theme.colors.textSecondary}
-                    blurOnSubmit={false}
-                    returnKeyType="done"
-                    autoCorrect={false}
-                    autoCapitalize="none"
-                    onSubmitEditing={handleSubmitEditing(undefined, handleSignIn)}
-                  />
-                  <TouchableOpacity 
-                    style={styles.eyeButton}
-                    onPress={() => setShowPassword(!showPassword)}
-                  >
-                    <Icon 
-                      name={showPassword ? "visibility" : "visibility-off"} 
-                      size={22} 
-                      color={theme.colors.textSecondary} 
-                    />
-                  </TouchableOpacity>
-                </View>
+              
+              <View style={styles.inputWrapper}>
+                <Text style={[styles.inputLabel, { color: theme.colors.text }]}>WhatsApp Mobile Number <Text style={styles.redAsteriskText}>*</Text></Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      color: theme.colors.text,
+                      borderColor: phoneValidationError ? theme.colors.error : (phoneFocused ? theme.colors.primary : theme.colors.border),
+                      backgroundColor: theme.colors.inputBackground,
+                    }
+                  ]}
+                  value={phone}
+                  onChangeText={(value) => {
+                    const digitsOnly = value.replace(/\D/g, '');
+                    setPhone(digitsOnly);
+                    if (phoneValidationError) setPhoneValidationError('');
+                  }}
+                  onFocus={() => setPhoneFocused(true)}
+                  onBlur={() => setPhoneFocused(false)}
+                  placeholder="Enter 10 digit phone number"
+                  placeholderTextColor={theme.colors.textSecondary}
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                />
+                {phoneValidationError ? (
+                  <View style={styles.errorContainer}>
+                    <Icon name="error" size={16} color={theme.colors.error} />
+                    <Text style={[styles.errorText, { color: theme.colors.error }]}>
+                      {phoneValidationError}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
-
-              <TouchableOpacity 
-                style={styles.forgotPasswordWrapper}
-                onPress={() => navigation.navigate('ForgotPassword')}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.forgotPasswordText, { color: theme.colors.primary }]}>
-                  Forgot Password?
-                </Text>
-              </TouchableOpacity>
 
               <TouchableOpacity 
                 style={[
                   styles.signInButton, 
-                  { backgroundColor: isFormValid ? theme.colors.buttonPrimary : '#A0A0A0' },
-                  (isLoading || !isFormValid) && styles.buttonDisabled
+                  { backgroundColor: isPhoneValid ? theme.colors.buttonPrimary : '#A0A0A0' },
+                  (isLoading || !isPhoneValid) && styles.buttonDisabled
                 ]} 
                 onPress={handleSignIn}
-                disabled={isLoading || !isFormValid}
+                disabled={isLoading || !isPhoneValid}
               >
                 <Text style={[styles.signInButtonText, { color: '#ffffff' }]}>
                   {isLoading ? 'SIGNING IN...' : 'SIGN IN'}
@@ -402,9 +270,8 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
             onPress={() => {}} // Prevent closing when tapping inside modal
           >
             <View style={[styles.errorModalContainer, { backgroundColor: theme.colors.surface }]}>
-              {/* Header with warning icon and close button */}
+              {/* Header with close button */}
               <View style={styles.errorModalHeader}>
-                {/* Close button (X) positioned top-right */}
                 <TouchableOpacity 
                   style={[styles.closeModalButton, { backgroundColor: theme.colors.inputBackground }]}
                   onPress={() => setShowErrorModal(false)}
@@ -414,15 +281,13 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
                 </TouchableOpacity>
               </View>
               
-              {/* Info icon centered at top */}
+              {/* Info icon */}
               <View style={[styles.errorIconContainer, { backgroundColor: '#2196F330' }]}>
                 <Icon name="info" size={Math.min(screenWidth * 0.08, 32)} color="#2196F3" />
               </View>
               
               {/* Title */}
-              <Text 
-                style={[styles.errorModalTitle, { color: theme.colors.text }]}
-              >
+              <Text style={[styles.errorModalTitle, { color: theme.colors.text }]}>
                 {getModalContent(errorType).title}
               </Text>
               
@@ -433,9 +298,8 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
                 </Text>
               </View>
               
-              {/* Buttons Layout - Simplified for login errors */}
+              {/* Actions */}
               <View style={[styles.errorModalButtonsContainer, { justifyContent: 'center' }]}>
-                {/* OK Button */}
                 <TouchableOpacity 
                   style={[
                     styles.errorModalCancelButton, 
@@ -446,7 +310,7 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
                 >
                   <Text style={[styles.errorModalCancelButtonText, { color: theme.colors.textSecondary }]}>OK</Text>
                 </TouchableOpacity>
-                              </View>
+              </View>
             </View>
           </TouchableOpacity>
         </TouchableOpacity>
@@ -474,12 +338,12 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: screenHeight * 0.05,
+    marginBottom: screenHeight * 0.04,
   },
   logo: {
-    width: screenWidth * 0.5,
-    height: screenWidth * 0.5,
-    marginBottom: screenHeight * 0.0,
+    width: screenWidth * 0.45,
+    height: screenWidth * 0.45,
+    marginBottom: 5,
   },
   title: {
     fontSize: Math.min(screenWidth * 0.08, 32),
@@ -489,6 +353,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: Math.min(screenWidth * 0.04, 16),
     textAlign: 'center',
+    opacity: 0.9,
   },
   formContainer: {
     borderRadius: 20,
@@ -502,51 +367,33 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
-  inputContainer: {
-    marginBottom: screenHeight * 0.02,
+  inputWrapper: {
+    width: '100%',
+    marginBottom: 20,
   },
-  floatingLabel: {
-    position: 'absolute',
-    left: screenWidth * 0.02,
-    top: screenHeight * 0.015,
-    fontSize: Math.min(screenWidth * 0.04, 16),
-    zIndex: 1,
-    backgroundColor: 'transparent',
-  },
-  floatingLabelFocused: {
-    top: screenHeight * 0.005,
-    fontSize: Math.min(screenWidth * 0.03, 12),
+  inputLabel: {
+    fontSize: 14,
     fontWeight: '600',
+    marginBottom: 8,
+  },
+  redAsteriskText: {
+    color: '#E53E3E',
   },
   input: {
-    borderWidth: 1,
-    borderRadius: responsiveSize.inputBorderRadius,
-    paddingHorizontal: responsiveSize.inputPaddingHorizontal,
-    paddingVertical: responsiveSize.buttonPaddingVertical,
-    fontSize: responsiveText.body,
-    fontWeight: '500',
+    height: 50,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    fontSize: 15,
   },
-  inputFocused: {
-    borderWidth: 2,
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
   },
-  passwordContainer: {
-    position: 'relative',
-  },
-  passwordInput: {
-    borderWidth: 1,
-    borderRadius: responsiveSize.inputBorderRadius,
-    paddingHorizontal: responsiveSize.inputPaddingHorizontal,
-    paddingVertical: responsiveSize.buttonPaddingVertical,
-    paddingRight: screenWidth * 0.12,
-    fontSize: responsiveText.body,
-    fontWeight: '500',
-  },
-  eyeButton: {
-    position: 'absolute',
-    right: screenWidth * 0.03,
-    top: '50%',
-    transform: [{ translateY: -11 }],
-    padding: 5,
+  errorText: {
+    fontSize: 12,
+    marginLeft: 6,
   },
   signInButton: {
     borderRadius: responsiveSize.buttonBorderRadius,
@@ -566,6 +413,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 10,
   },
   footerText: {
     fontSize: Math.min(screenWidth * 0.035, 14),
@@ -591,7 +439,7 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
 
-  // Error Modal Styles
+  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
@@ -649,34 +497,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: Math.min(screenWidth * 0.055, 22),
   },
-  errorModalButton: {
-    paddingVertical: screenHeight * 0.018,
-    borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  errorModalButtonText: {
-    color: '#FFFFFF',
-    fontSize: Math.min(screenWidth * 0.042, 17),
-    fontWeight: '600',
-  },
-  forgotPasswordWrapper: {
-    alignSelf: 'flex-end',
-    marginBottom: screenHeight * 0.02,
-  },
-  forgotPasswordText: {
-    fontSize: Math.min(screenWidth * 0.032, 12),
-    fontWeight: '600',
-  },
-
-  // Updated Error Modal Styles
   errorModalButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -701,30 +521,6 @@ const styles = StyleSheet.create({
     fontSize: Math.min(screenWidth * 0.042, 17),
     fontWeight: '600',
   },
-  errorModalRegisterButton: {
-    flex: 1,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  errorModalRegisterButtonGradient: {
-    flex: 1,
-    paddingVertical: screenHeight * 0.018,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorModalRegisterButtonText: {
-    color: '#FFFFFF',
-    fontSize: Math.min(screenWidth * 0.042, 17),
-    fontWeight: '600',
-  },
 });
 
-export default LoginScreen; 
+export default LoginScreen;

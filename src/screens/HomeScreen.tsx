@@ -7012,7 +7012,7 @@ const HomeScreen: React.FC = React.memo(() => {
           {/* Unified Search Results - Shown only when searching */}
           {renderSearchResults()}
           
-          {/* Video Section - Hidden when searching */}
+          {/* Video Section - Hidden when searching - commented out for now
           {!isSearching && searchQuery.trim() === '' && videoContent.length > 0 && (
             <View style={styles.videoSection}>
               <View style={styles.sectionHeader}>
@@ -7041,6 +7041,7 @@ const HomeScreen: React.FC = React.memo(() => {
               />
             </View>
           )}
+          */}
 
 
           {/* Business Ethics Section - Hidden when searching */}

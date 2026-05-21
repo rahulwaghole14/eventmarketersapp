@@ -72,6 +72,8 @@ export const BusinessProfileProvider: React.FC<BusinessProfileProviderProps> = (
     try {
       setSelectedBusinessProfileState(null);
       setSelectedBusinessCategoryState(null);
+      setSelectedBusinessCategoryIdState(null);
+      setActivationPendingProfiles(new Set());
       await AsyncStorage.removeItem(SELECTED_PROFILE_KEY);
       await AsyncStorage.removeItem(SELECTED_PROFILE_UID_KEY);
       await AsyncStorage.removeItem(SELECTED_BUSINESS_CATEGORY_KEY);

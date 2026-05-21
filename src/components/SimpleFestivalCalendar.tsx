@@ -307,14 +307,12 @@ const datePosters: DatePosters = {
       title: 'New Year Celebration',
       thumbnail: 'https://picsum.photos/300/400?random=1',
       category: 'New Year',
-45,
     },
     {
       id: '2',
       title: 'Happy New Year 2025',
       thumbnail: 'https://picsum.photos/300/400?random=2',
       category: 'Celebration',
-32,
     },
   ],
   '2025-01-14': [
@@ -323,7 +321,6 @@ const datePosters: DatePosters = {
       title: 'Makar Sankranti Wishes',
       thumbnail: 'https://picsum.photos/300/400?random=3',
       category: 'Festival',
-28,
     },
   ],
   '2025-01-26': [
@@ -332,14 +329,12 @@ const datePosters: DatePosters = {
       title: 'Republic Day Pride',
       thumbnail: 'https://picsum.photos/300/400?random=4',
       category: 'National',
-67,
     },
     {
       id: '5',
       title: 'Jai Hind',
       thumbnail: 'https://picsum.photos/300/400?random=5',
       category: 'Patriotic',
-41,
     },
   ],
   '2025-03-02': [
@@ -348,14 +343,12 @@ const datePosters: DatePosters = {
       title: 'Holi Colors',
       thumbnail: 'https://picsum.photos/300/400?random=6',
       category: 'Festival',
-89,
     },
     {
       id: '7',
       title: 'Festival of Colors',
       thumbnail: 'https://picsum.photos/300/400?random=7',
       category: 'Holi',
-56,
     },
   ],
   '2025-10-20': [
@@ -364,14 +357,12 @@ const datePosters: DatePosters = {
       title: 'Diwali Lights',
       thumbnail: 'https://picsum.photos/300/400?random=8',
       category: 'Festival',
-92,
     },
     {
       id: '9',
       title: 'Festival of Lights',
       thumbnail: 'https://picsum.photos/300/400?random=9',
       category: 'Diwali',
-78,
     },
   ],
   '2025-12-25': [
@@ -380,7 +371,6 @@ const datePosters: DatePosters = {
       title: 'Merry Christmas',
       thumbnail: 'https://picsum.photos/300/400?random=10',
       category: 'Christmas',
-85,
     },
   ],
 };
