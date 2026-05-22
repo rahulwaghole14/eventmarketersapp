@@ -1948,10 +1948,10 @@ const HomeScreen: React.FC = React.memo(() => {
             if (template?.thumbnail) highPriorityImages.push(template.thumbnail);
           });
 
-          // Video content thumbnails (first 3) - commented out, not in use for now
-          // videoContent.slice(0, 3).forEach(video => {
-          //   if (video.thumbnail) highPriorityImages.push(video.thumbnail);
-          // });
+          // Video content thumbnails (first 3)
+          videoContent.slice(0, 3).forEach(video => {
+            if (video.thumbnail) highPriorityImages.push(video.thumbnail);
+          });
 
           if (highPriorityImages.length > 0) {
             Promise.allSettled(
@@ -1998,10 +1998,10 @@ const HomeScreen: React.FC = React.memo(() => {
             if (template?.thumbnail) mediumPriorityImages.push(template.thumbnail);
           });
 
-          // More video content - commented out, not in use for now
-          // videoContent.slice(3, 6).forEach(video => {
-          //   if (video.thumbnail) mediumPriorityImages.push(video.thumbnail);
-          // });
+          // More video content
+          videoContent.slice(3, 6).forEach(video => {
+            if (video.thumbnail) mediumPriorityImages.push(video.thumbnail);
+          });
 
           if (mediumPriorityImages.length > 0) {
             Promise.allSettled(
@@ -2049,7 +2049,7 @@ const HomeScreen: React.FC = React.memo(() => {
     };
 
     preloadCriticalImages();
-  }, [featuredContent, businessEthicsTemplates, successMindsetTemplates, socialMediaGrowthTemplates, moneyAndFinanceTemplates, businessLegendQuoteTemplates, businessMarketingTipsTemplates, businessQuotesTemplates, /* videoContent, */ businessCategoryPreviews, memoizedGreetingCategoryPreviews, calendarPosters]);
+  }, [featuredContent, businessEthicsTemplates, successMindsetTemplates, socialMediaGrowthTemplates, moneyAndFinanceTemplates, businessLegendQuoteTemplates, businessMarketingTipsTemplates, businessQuotesTemplates, videoContent, businessCategoryPreviews, memoizedGreetingCategoryPreviews, calendarPosters]);
 
   // Load data from APIs with caching for instant loads and request deduplication
   const loadApiData = useCallback(async (isRefresh: boolean = false) => {
@@ -2062,8 +2062,7 @@ const HomeScreen: React.FC = React.memo(() => {
       try {
         const cacheService = (await import('../services/cacheService')).default;
         const featuredCacheKey = 'home_featured_' + JSON.stringify({ limit: 1 });
-        // Video API commented out - not in use for now
-        // const videoCacheKey = 'home_videos_' + JSON.stringify({ limit: 1 });
+        const videoCacheKey = 'home_videos_' + JSON.stringify({ limit: 1 });
 
         // Cache keys for greeting sections (format: greeting_search_${query}_all)
         const greetingCacheKeys = [
@@ -2076,9 +2075,9 @@ const HomeScreen: React.FC = React.memo(() => {
           'greeting_search_business quotes_all',
         ];
 
-        const [cachedFeatured, /* cachedVideos, */ ...cachedGreetings] = await Promise.all([
+        const [cachedFeatured, cachedVideos, ...cachedGreetings] = await Promise.all([
           cacheService.get(featuredCacheKey),
-          // cacheService.get(videoCacheKey), // Video API commented out
+          cacheService.get(videoCacheKey),
           ...greetingCacheKeys.map(key => cacheService.get(key)),
         ]);
 
@@ -7012,8 +7011,8 @@ const HomeScreen: React.FC = React.memo(() => {
           {/* Unified Search Results - Shown only when searching */}
           {renderSearchResults()}
           
-          {/* Video Section - Hidden when searching - commented out for now
-          {!isSearching && searchQuery.trim() === '' && videoContent.length > 0 && (
+          {/* Video Section - Hidden when searching */}
+          {/* {!isSearching && searchQuery.trim() === '' && videoContent.length > 0 && (
             <View style={styles.videoSection}>
               <View style={styles.sectionHeader}>
                 <Text style={[styles.sectionTitle, { paddingHorizontal: 0, color: theme.colors.text, fontWeight: 'bold' }]}>
@@ -7040,8 +7039,7 @@ const HomeScreen: React.FC = React.memo(() => {
                 maintainVisibleContentPosition={null}
               />
             </View>
-          )}
-          */}
+          )} */}
 
 
           {/* Business Ethics Section - Hidden when searching */}

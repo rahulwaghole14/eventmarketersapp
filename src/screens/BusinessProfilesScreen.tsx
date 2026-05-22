@@ -31,19 +31,19 @@ import { getProductionRazorpayKey, RAZORPAY_CONFIG } from '../config/razorpayCon
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { useBusinessProfile } from '../context/BusinessProfileContext';
 import subscriptionApi from '../services/subscriptionApi';
-import responsiveUtils, { 
-  responsiveSpacing, 
-  responsiveFontSize, 
-  responsiveSize, 
-  responsiveLayout, 
-  responsiveShadow, 
-  responsiveText, 
-  responsiveGrid, 
-  responsiveButton, 
-  responsiveInput, 
+import responsiveUtils, {
+  responsiveSpacing,
+  responsiveFontSize,
+  responsiveSize,
+  responsiveLayout,
+  responsiveShadow,
+  responsiveText,
+  responsiveGrid,
+  responsiveButton,
+  responsiveInput,
   responsiveCard,
   isTablet,
-  isLandscape 
+  isLandscape
 } from '../utils/responsiveUtils';
 import logger from '../utils/logger';
 
@@ -53,14 +53,14 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const BusinessProfilesScreen: React.FC = () => {
   const { isDarkMode, theme } = useTheme();
-  const { 
-    addTransaction, 
-    businessProfileSubscriptions, 
-    getBusinessProfileSubscription, 
-    refreshBusinessProfileSubscription 
+  const {
+    addTransaction,
+    businessProfileSubscriptions,
+    getBusinessProfileSubscription,
+    refreshBusinessProfileSubscription
   } = useSubscription();
-  const { 
-    setSelectedBusinessProfile, 
+  const {
+    setSelectedBusinessProfile,
     selectedBusinessProfile,
     setActivationPending,
     isActivationPending,
@@ -69,12 +69,12 @@ const BusinessProfilesScreen: React.FC = () => {
   } = useBusinessProfile();
   const insets = useSafeAreaInsets();
   const [profiles, setProfiles] = useState<any[]>([]);
-    const [imageRefreshKey, setImageRefreshKey] = useState(Date.now()); // Key to force image refresh
+  const [imageRefreshKey, setImageRefreshKey] = useState(Date.now()); // Key to force image refresh
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [backgroundRefreshing, setBackgroundRefreshing] = useState(false); // PERFORMANCE: Background refresh state
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(0); // PERFORMANCE: Track last refresh time
-    const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [showBottomSheet, setShowBottomSheet] = useState(false);
   const [editingProfile, setEditingProfile] = useState<any>(null);
   const [formLoading, setFormLoading] = useState(false);
@@ -159,24 +159,24 @@ const BusinessProfilesScreen: React.FC = () => {
       // Background refresh - show subtle indicator but don't block UI
       setBackgroundRefreshing(true);
     }
-    
+
     try {
       // Get current user ID
       const currentUser = authService.getCurrentUser();
       const userId = currentUser?.id;
-      
+
       console.log('🔍 BusinessProfilesScreen - User ID:', userId);
       console.log('🖼️ Current user logo:', currentUser?.logo || '(empty)');
       console.log('🖼️ Current user companyLogo:', currentUser?.companyLogo || '(empty)');
-      
+
       if (!userId) {
         console.log('⚠️ No user ID available, no profiles to load');
         setProfiles([]);
         return;
       }
-      
+
       console.log('🔍 Loading user-specific business profiles for user:', userId);
-      
+
       // PERFORMANCE: Try to load from cache first for instant display
       if (!forceRefresh && profiles.length === 0) {
         try {
@@ -206,18 +206,18 @@ const BusinessProfilesScreen: React.FC = () => {
           console.log('⚠️ Cache read failed, will fetch from API:', cacheError);
         }
       }
-      
+
       // Fetch from API (this will use cacheService.getOrFetch which handles stale-while-revalidate)
       console.log('🔍 [BUSINESS PROFILES SCREEN] Fetching profiles from API...');
       console.log('🔍 [BUSINESS PROFILES SCREEN] User ID:', userId);
-      
+
       const apiProfiles = await businessProfileService.getUserBusinessProfiles(userId);
-      
+
       console.log('========== BUSINESS PROFILE API RESPONSE ==========');
       console.log('📊 Profiles Count:', apiProfiles.length);
       console.log('📋 Profiles Data:', JSON.stringify(apiProfiles, null, 2));
       console.log('==================================================');
-      
+
       console.log('🔍 [DEBUG] API Response Profiles:', apiProfiles.map(p => ({
         id: p.id,
         name: p.name,
@@ -225,9 +225,9 @@ const BusinessProfilesScreen: React.FC = () => {
         isSubscriptionActive: p.isSubscriptionActive,
         fullProfile: p
       })));
-      
+
       console.log('🔍 [DEBUG] First Profile Full Data:', apiProfiles[0]);
-      
+
       // All profiles loaded successfully - no special auto-sync needed
       if (apiProfiles.length > 0) {
         // Sort profiles by subscription status (ACTIVE first), then by creation date - OLDEST first within each group
@@ -243,13 +243,13 @@ const BusinessProfilesScreen: React.FC = () => {
           // Active profiles come first
           return aActive ? -1 : 1;
         });
-        
+
         setProfiles(sortedProfiles);
         setLastRefreshTime(Date.now()); // PERFORMANCE: Track refresh time
-        
+
         console.log('✅ Loaded user-specific business profiles from API:', sortedProfiles.length);
         console.log('🔍 Total profiles loaded:', sortedProfiles.length);
-        
+
         // Log logo URLs for debugging
         sortedProfiles.forEach((profile, index) => {
           console.log(`🖼️ Profile ${index + 1} - ${profile.name}:`);
@@ -285,20 +285,20 @@ const BusinessProfilesScreen: React.FC = () => {
       try {
         // Refresh profiles to get latest status
         await loadBusinessProfiles(false, false); // Background refresh in polling
-        
+
         // Check if any profile has ACTIVE status
-        const hasActiveProfile = profiles.some(profile => 
+        const hasActiveProfile = profiles.some(profile =>
           profile?.subscriptionStatus?.toUpperCase() === "ACTIVE"
         );
-        
+
         if (hasActiveProfile) {
           console.log("Business profile subscription activated");
-          
+
           if (pollingRef.current) {
             clearInterval(pollingRef.current as any);
             pollingRef.current = null;
           }
-          
+
           // Clear processing profiles set when profiles are refreshed
           setProcessingProfiles(new Set());
         }
@@ -321,23 +321,23 @@ const BusinessProfilesScreen: React.FC = () => {
     }, [profiles.length, refreshBusinessProfileSubscription])
   ); 
   */    // Load pending profile data from AsyncStorage on mount
-    const loadPendingData = async () => {
-      try {
-        const storedPendingData = await AsyncStorage.getItem('pending_business_profile_data');
-        if (storedPendingData) {
-          const pendingData = JSON.parse(storedPendingData);
-          setPendingProfileData(pendingData);
-          console.log('📋 Loaded pending business profile data from storage');
-        }
-      } catch (error) {
-        console.error('❌ Error loading pending profile data:', error);
+  const loadPendingData = async () => {
+    try {
+      const storedPendingData = await AsyncStorage.getItem('pending_business_profile_data');
+      if (storedPendingData) {
+        const pendingData = JSON.parse(storedPendingData);
+        setPendingProfileData(pendingData);
+        console.log('📋 Loaded pending business profile data from storage');
       }
-    };
-    
-    // Load pending data on mount
-    useEffect(() => {
-      loadPendingData();
-    }, []); // Empty dependency array to run once on mount
+    } catch (error) {
+      console.error('❌ Error loading pending profile data:', error);
+    }
+  };
+
+  // Load pending data on mount
+  useEffect(() => {
+    loadPendingData();
+  }, []); // Empty dependency array to run once on mount
 
   useEffect(() => {
     pendingProfileDataRef.current = pendingProfileData;
@@ -376,7 +376,7 @@ const BusinessProfilesScreen: React.FC = () => {
 
       await AsyncStorage.removeItem('pending_business_profile_data');
       setPendingProfileData(null);
-      
+
       // CRITICAL FIX: Clear activation pending state after successful profile creation
       clearActivationPending(newProfile.id);
 
@@ -399,44 +399,44 @@ const BusinessProfilesScreen: React.FC = () => {
     useCallback(() => {
       console.log('🔄 BusinessProfilesScreen focused');
       setImageRefreshKey(Date.now());
-      
+
       // PERFORMANCE: Only refresh if data is stale (older than 30 seconds) or empty
       const STALE_THRESHOLD = 30 * 1000; // 30 seconds
       const timeSinceRefresh = Date.now() - lastRefreshTime;
       const isDataStale = timeSinceRefresh > STALE_THRESHOLD || profiles.length === 0;
-      
+
       if (isDataStale) {
         console.log(`🔄 Data is stale (${Math.round(timeSinceRefresh / 1000)}s old) or empty, refreshing...`);
         loadBusinessProfiles(false, false); // Don't show loading, use background refresh
       } else {
         console.log(`✅ Data is fresh (${Math.round(timeSinceRefresh / 1000)}s old), skipping refresh`);
       }
-      
+
       // CRITICAL FIX: Clear processing state when returning from subscription screen
       // This prevents loader on "Activate Now" button after navigation
       setProcessingProfiles(new Set());
-      
+
       // CRITICAL FIX: Force UI refresh to pick up activation pending state
       // This ensures BusinessCard components re-render with latest context state
       setTimeout(() => {
         console.log('🔄 BusinessProfilesScreen - Force refresh for activation pending state');
         setImageRefreshKey(prev => prev + 1); // Force re-render
       }, 100);
-      
+
       // Check if payment was completed and create profile if needed
       checkPaymentAndCreateProfile();
-      
+
       // Start polling if any profile has PENDING or PROCESSING status
       const hasPendingOrProcessing = profiles.some(profile => {
         const status = profile?.subscriptionStatus?.toUpperCase();
         return status === 'PENDING' || status === 'PROCESSING';
       });
-      
+
       if (hasPendingOrProcessing && !pollingRef.current) {
         console.log('🔄 Starting 5-minute subscription polling for PENDING/PROCESSING profiles');
         startPolling();
       }
-      
+
       return () => {
         if (pollingCleanupRef.current) {
           pollingCleanupRef.current();
@@ -453,7 +453,7 @@ const BusinessProfilesScreen: React.FC = () => {
     setRefreshing(false);
   }, [loadBusinessProfiles]);
 
-  
+
   const handlePayNow = useCallback(async () => {
     if (!pendingProfileDataRef.current) {
       setErrorMessage('No business profile data found.');
@@ -484,19 +484,19 @@ const BusinessProfilesScreen: React.FC = () => {
       subscriptionContext: getBusinessProfileSubscription(profile.id)?.status,
       currentSelectedProfile: selectedBusinessProfile?.id
     });
-    
+
     const isActive = profile?.subscriptionStatus?.toUpperCase() === "ACTIVE";
-    
+
     console.log('🔍 [PROFILE SELECTION] Profile active check:', { profileId: profile.id, isActive });
-    
+
     if (!isActive) {
       const message = "This business profile is locked until the subscription is activated.";
       setErrorMessage(message);
-      
+
       // Store this profile as the pending one so handlePayNow can use its ID
       setPendingProfileData(profile);
       pendingProfileDataRef.current = profile;
-      
+
       setShowPaymentModal(true);
       return;
     }
@@ -504,7 +504,7 @@ const BusinessProfilesScreen: React.FC = () => {
     try {
       console.log('🔄 [PROFILE SELECTION] Setting selected profile:', profile.name);
       await setSelectedBusinessProfile(profile);
-      
+
       // CRITICAL FIX: Add immediate state verification
       setTimeout(() => {
         console.log('✅ [PROFILE SELECTION] Profile selection completed:', {
@@ -526,7 +526,7 @@ const BusinessProfilesScreen: React.FC = () => {
       console.log('🔍 Payment already in progress for profile:', profile.id);
       return;
     }
-    
+
     setProcessingProfiles(prev => new Set(prev).add(profile.id));
     setPendingProfileData(profile);
     pendingProfileDataRef.current = profile;
@@ -596,9 +596,9 @@ const BusinessProfilesScreen: React.FC = () => {
     // Use only subscriptionStatus for logic as per requirements
     const backendStatus = profileData?.subscriptionStatus;
     const isActive = backendStatus?.toUpperCase() === "ACTIVE";
-    
+
     if (!backendStatus) return null;
-    
+
     const getStatusColor = () => {
       if (isActive) return '#4CAF50';
       const normalizedStatus = backendStatus?.toLowerCase();
@@ -609,11 +609,11 @@ const BusinessProfilesScreen: React.FC = () => {
         default: return theme.colors.textSecondary;
       }
     };
-    
+
     const statusLabel = backendStatus?.toUpperCase() || 'UNKNOWN';
     const backgroundColor = `${getStatusColor()}20`;
     const textColor = getStatusColor();
-    
+
     return (
       <View style={[styles.statusBadge, { backgroundColor, borderColor: textColor, borderWidth: 1 }]}>
         <Text style={[styles.statusBadgeText, { color: textColor }]}>{statusLabel}</Text>
@@ -648,7 +648,7 @@ const BusinessProfilesScreen: React.FC = () => {
       const updatedProfile = await businessProfileService.updateBusinessProfile(editingProfile.id, formData);
       const updateFn = (prev: any[]) => prev.map(p => p.id === editingProfile.id ? updatedProfile : p);
       setProfiles(updateFn);
-      
+
       // CRITICAL FIX: Fetch the complete updated profile from API to ensure all fields are present
       // The updateBusinessProfile response may only contain the fields that were updated
       let completeUpdatedProfile = updatedProfile;
@@ -674,12 +674,12 @@ const BusinessProfilesScreen: React.FC = () => {
       } catch (fetchError) {
         console.warn('⚠️ [PROFILE UPDATE] Failed to fetch complete profile, using partial update:', fetchError);
       }
-      
+
       // CRITICAL FIX: Update global context using the new global function
       // This ensures HomeScreen header icon updates immediately AND PosterEditor receives complete data
       console.log('🔄 [PROFILE UPDATE] Updating global context with complete profile data');
       await updateBusinessProfileGlobally(completeUpdatedProfile.id, completeUpdatedProfile);
-      
+
       // Verify the global update worked
       setTimeout(() => {
         console.log('✅ [PROFILE UPDATE] Global update verification:', {
@@ -692,7 +692,7 @@ const BusinessProfilesScreen: React.FC = () => {
           category: completeUpdatedProfile.category
         });
       }, 100);
-      
+
       setSuccessMessage('Business profile updated successfully');
       setShowSuccessModal(true);
       setShowForm(false);
@@ -732,10 +732,10 @@ const BusinessProfilesScreen: React.FC = () => {
       isSubscriptionActive: item.isSubscriptionActive,
       subscriptionContext: subscription?.status
     });
-    
+
     const isActive = item?.subscriptionStatus?.toUpperCase() === "ACTIVE";
     const isProcessing = item?.subscriptionStatus?.toUpperCase() === "PROCESSING";
-    
+
     // CRITICAL FIX: Check activation pending state from context with enhanced debugging
     const isPendingActivation = isActivationPending(item.id);
     console.log('🔍 [DEBUG] Activation Pending State:', {
@@ -744,12 +744,12 @@ const BusinessProfilesScreen: React.FC = () => {
       isPendingActivation,
       imageRefreshKey
     });
-    
+
     // Effective active state: backend says active AND not pending activation
     const isEffectivelyActive = isActive && !isPendingActivation;
-    
+
     const isLocked = !isEffectivelyActive;
-    
+
     console.log('🔍 [DEBUG] Final UI State:', {
       profileId: item.id,
       profileName: item.name,
@@ -759,14 +759,15 @@ const BusinessProfilesScreen: React.FC = () => {
       isLocked,
       willShowMessage: isPendingActivation ? 'Activation in 24 hours' : (isProcessing ? 'Payment processing' : 'Subscription required')
     });
-    
+
     const isSelected = item.id === selectedBusinessProfile?.id;
 
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[
-          styles.businessCard, 
+          styles.businessCard,
           { backgroundColor: theme.colors.cardBackground },
+          isLocked && { minHeight: 120 },
           isSelected && { borderColor: theme.colors.primary, borderWidth: 2 }
         ]}
         onPress={() => onSelect(item)}
@@ -777,7 +778,7 @@ const BusinessProfilesScreen: React.FC = () => {
           <View style={styles.lockOverlay}>
             <View style={[styles.lockBadge, { backgroundColor: theme.colors.surface }]}>
               {/* Delete button top-right inside lock badge */}
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.lockBadgeTopDeleteButton, { backgroundColor: 'rgba(255, 80, 80, 0.35)', opacity: 0.85 }]}
                 onPress={() => onDelete(item.id)}
               >
@@ -834,7 +835,7 @@ const BusinessProfilesScreen: React.FC = () => {
                   </Text>
                   <Icon name="lock" size={20} color={theme.colors.error} />
                   <Text style={[styles.lockText, { color: theme.colors.text }]}>Subscription Required</Text>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={[styles.activateButton, { backgroundColor: theme.colors.primary, opacity: 0.9 }]}
                     onPress={() => onPay(item)}
                     disabled={processingProfiles.has(item.id)}
@@ -855,19 +856,19 @@ const BusinessProfilesScreen: React.FC = () => {
             <View style={styles.logoContainer}>
               {(() => {
                 const logoUrl = item.companyLogo || item.logo;
-                const isValidUrl = logoUrl && 
-                  typeof logoUrl === 'string' && 
-                  logoUrl.trim() !== '' && 
+                const isValidUrl = logoUrl &&
+                  typeof logoUrl === 'string' &&
+                  logoUrl.trim() !== '' &&
                   (logoUrl.startsWith('http://') || logoUrl.startsWith('https://') || logoUrl.startsWith('file://'));
-                
+
                 if (isValidUrl) {
-                  const imageUri = logoUrl.includes('?') 
-                    ? `${logoUrl}&t=${imageRefreshKey}` 
+                  const imageUri = logoUrl.includes('?')
+                    ? `${logoUrl}&t=${imageRefreshKey}`
                     : `${logoUrl}?t=${imageRefreshKey}`;
-                  
+
                   return (
                     <Image
-                      source={{ 
+                      source={{
                         uri: imageUri,
                         cache: 'reload' // Force reload from network, not cache
                       }}
@@ -887,9 +888,9 @@ const BusinessProfilesScreen: React.FC = () => {
                     />
                   );
                 } else {
-                  logger.log(`⚠️ No valid logo URL for ${item.name}:`, { 
-                    companyLogo: item.companyLogo, 
-                    logo: item.logo 
+                  logger.log(`⚠️ No valid logo URL for ${item.name}:`, {
+                    companyLogo: item.companyLogo,
+                    logo: item.logo
                   });
                   return (
                     <View style={[styles.logoPlaceholder, { backgroundColor: `${theme.colors.primary}20` }]}>
@@ -902,9 +903,9 @@ const BusinessProfilesScreen: React.FC = () => {
             <View style={styles.businessInfo}>
               <View style={styles.nameAndStatus}>
                 <Text style={[styles.businessName, { color: theme.colors.text }]}>{item.name || 'Business Name'}</Text>
-                <SubscriptionStatusBadge 
-                  status={getBusinessProfileSubscription(item.id)} 
-                  theme={theme} 
+                <SubscriptionStatusBadge
+                  status={getBusinessProfileSubscription(item.id)}
+                  theme={theme}
                   profileData={item}
                 />
               </View>
@@ -914,15 +915,15 @@ const BusinessProfilesScreen: React.FC = () => {
             </View>
           </View>
           <View style={styles.cardActions}>
-            <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: `${theme.colors.primary}20` }]} 
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: `${theme.colors.primary}20` }]}
               onPress={() => onEdit(item)}
               disabled={isLocked}
             >
               <Icon name="edit" size={16} color={isLocked ? theme.colors.textSecondary : theme.colors.primary} />
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: `${theme.colors.error}20` }]} 
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: `${theme.colors.error}20` }]}
               onPress={() => onDelete(item.id)}
               disabled={isLocked}
             >
@@ -997,7 +998,7 @@ const BusinessProfilesScreen: React.FC = () => {
     // Only re-render if item data, mainProfileId, imageRefreshKey, theme, or activation pending state changes
     const prevActivationPending = prevProps.isActivationPending(prevProps.item.id);
     const nextActivationPending = nextProps.isActivationPending(nextProps.item.id);
-    
+
     return (
       prevProps.item.id === nextProps.item.id &&
       prevProps.item.name === nextProps.item.name &&
@@ -1036,16 +1037,16 @@ const BusinessProfilesScreen: React.FC = () => {
   const keyExtractor = useCallback((item: any) => item.id, []);
 
   return (
-    <SafeAreaView 
+    <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
       edges={['left', 'right']}
     >
-      <StatusBar 
+      <StatusBar
         barStyle="light-content"
-        backgroundColor="transparent" 
+        backgroundColor="transparent"
         translucent={true}
       />
-      
+
       <LinearGradient
         colors={theme.colors.gradient}
         style={styles.gradientBackground}
@@ -1054,7 +1055,7 @@ const BusinessProfilesScreen: React.FC = () => {
       >
         {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.backButton, { backgroundColor: theme.colors.cardBackground }]}
             onPress={() => navigation.goBack()}
           >
@@ -1075,9 +1076,9 @@ const BusinessProfilesScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        
+
         {/* Business Profiles Container */}
-        <View>
+        <View style={styles.businessProfilesContainer}>
           {/* Skeleton Loading */}
           {loading && (
             <View style={styles.skeletonContainer}>
@@ -1085,15 +1086,15 @@ const BusinessProfilesScreen: React.FC = () => {
                 <View key={index} style={[styles.skeletonCard, { backgroundColor: theme.colors.cardBackground }]}>
                   {/* Profile Image Skeleton */}
                   <View style={[styles.skeletonImage, { backgroundColor: theme.colors.border }]} />
-                  
+
                   {/* Profile Content Skeleton */}
                   <View style={styles.skeletonContent}>
                     {/* Title Skeleton */}
                     <View style={[styles.skeletonTitle, { backgroundColor: theme.colors.border }]} />
-                    
+
                     {/* Subtitle Skeleton */}
                     <View style={[styles.skeletonSubtitle, { backgroundColor: theme.colors.border }]} />
-                    
+
                     {/* Action Buttons Skeleton */}
                     <View style={styles.skeletonActions}>
                       <View style={[styles.skeletonButton, { backgroundColor: theme.colors.border }]} />
@@ -1107,278 +1108,278 @@ const BusinessProfilesScreen: React.FC = () => {
 
           {/* Business Profiles List */}
           {!loading && <FlatList
-          data={profiles}
-          renderItem={renderBusinessCard}
-          keyExtractor={keyExtractor}
-          contentContainerStyle={[
-            styles.listContainer, 
-            { paddingBottom: 120 + insets.bottom },
-            profiles.length === 0 && styles.emptyListContainer
-          ]}
-          showsVerticalScrollIndicator={false}
-          onRefresh={onRefresh}
-          refreshing={refreshing}
-          // Enhanced performance optimizations
-          removeClippedSubviews={true}
-          maxToRenderPerBatch={5}
-          windowSize={10}
-          initialNumToRender={5}
-          updateCellsBatchingPeriod={50}
-          ListEmptyComponent={
-            !loading ? (
-              <View style={styles.emptyStateContainer}>
-                <Icon name="business-center" size={80} color={theme.colors.primary} style={styles.emptyStateIcon} />
-                <Text style={[styles.emptyStateTitle, { color: theme.colors.text }]}>
-                  No Business Profiles
-                </Text>
-                <Text style={[styles.emptyStateSubtitle, { color: theme.colors.text }]}>
-                  You haven't created any business profiles yet. Tap the + button to create your first profile.
-                </Text>
-                <TouchableOpacity
-                  style={[styles.emptyStateButton, { backgroundColor: theme.colors.primary }]}
-                  onPress={handleAddProfile}
-                >
-                  <Icon name="add" size={20} color="#ffffff" />
-                  <Text style={styles.emptyStateButtonText}>Create Profile</Text>
-                </TouchableOpacity>
-              </View>
-            ) : null
-          }
-        />}
-        
-        {/* Business Profile Form Modal */}
-        <BusinessProfileForm
-          visible={showForm}
-          profile={editingProfile}
-          onSubmit={handleFormSubmit}
-          onClose={handleFormClose}
-          loading={formLoading}
-        />
+            data={profiles}
+            renderItem={renderBusinessCard}
+            keyExtractor={keyExtractor}
+            contentContainerStyle={[
+              styles.listContainer,
+              { paddingBottom: 120 + insets.bottom },
+              profiles.length === 0 && styles.emptyListContainer
+            ]}
+            showsVerticalScrollIndicator={false}
+            onRefresh={onRefresh}
+            refreshing={refreshing}
+            // Enhanced performance optimizations
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={5}
+            windowSize={10}
+            initialNumToRender={5}
+            updateCellsBatchingPeriod={50}
+            ListEmptyComponent={
+              !loading ? (
+                <View style={styles.emptyStateContainer}>
+                  <Icon name="business-center" size={80} color={theme.colors.primary} style={styles.emptyStateIcon} />
+                  <Text style={[styles.emptyStateTitle, { color: theme.colors.text }]}>
+                    No Business Profiles
+                  </Text>
+                  <Text style={[styles.emptyStateSubtitle, { color: theme.colors.text }]}>
+                    You haven't created any business profiles yet. Tap the + button to create your first profile.
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.emptyStateButton, { backgroundColor: theme.colors.primary }]}
+                    onPress={handleAddProfile}
+                  >
+                    <Icon name="add" size={20} color="#ffffff" />
+                    <Text style={styles.emptyStateButtonText}>Create Profile</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null
+            }
+          />}
 
-        {/* Bottom Sheet for Add Profile */}
-        <BottomSheet
-          title="Add Business Profile"
-          visible={showBottomSheet}
-          onClose={handleFormClose}
-        >
+          {/* Business Profile Form Modal */}
           <BusinessProfileForm
-            visible={showBottomSheet}
-            profile={null}
+            visible={showForm}
+            profile={editingProfile}
             onSubmit={handleFormSubmit}
             onClose={handleFormClose}
             loading={formLoading}
           />
-        </BottomSheet>
 
-        {/* Success Modal */}
-        <SuccessModal
-          visible={showSuccessModal}
-          message={successMessage}
-          onClose={() => setShowSuccessModal(false)}
-        />
-
-        {/* Delete Confirmation Modal */}
-        <Modal
-          visible={showDeleteModal}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowDeleteModal(false)}
-          statusBarTranslucent={true}
-        >
-          <TouchableOpacity 
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setShowDeleteModal(false)}
+          {/* Bottom Sheet for Add Profile */}
+          <BottomSheet
+            title="Add Business Profile"
+            visible={showBottomSheet}
+            onClose={handleFormClose}
           >
-            <TouchableOpacity 
+            <BusinessProfileForm
+              visible={showBottomSheet}
+              profile={null}
+              onSubmit={handleFormSubmit}
+              onClose={handleFormClose}
+              loading={formLoading}
+            />
+          </BottomSheet>
+
+          {/* Success Modal */}
+          <SuccessModal
+            visible={showSuccessModal}
+            message={successMessage}
+            onClose={() => setShowSuccessModal(false)}
+          />
+
+          {/* Delete Confirmation Modal */}
+          <Modal
+            visible={showDeleteModal}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setShowDeleteModal(false)}
+            statusBarTranslucent={true}
+          >
+            <TouchableOpacity
+              style={styles.modalOverlay}
               activeOpacity={1}
-              onPress={() => {}} // Prevent closing when tapping inside modal
+              onPress={() => setShowDeleteModal(false)}
             >
-              <View style={[styles.deleteModalContainer, { backgroundColor: theme.colors.surface }]}>
-                <View style={styles.deleteModalHeader}>
-                  <View style={[styles.deleteIconContainer, { backgroundColor: '#ff444420' }]}>
-                    <Icon name="warning" size={Math.min(screenWidth * 0.08, 32)} color="#ff4444" />
+              <TouchableOpacity
+                activeOpacity={1}
+                onPress={() => { }} // Prevent closing when tapping inside modal
+              >
+                <View style={[styles.deleteModalContainer, { backgroundColor: theme.colors.surface }]}>
+                  <View style={styles.deleteModalHeader}>
+                    <View style={[styles.deleteIconContainer, { backgroundColor: '#ff444420' }]}>
+                      <Icon name="warning" size={Math.min(screenWidth * 0.08, 32)} color="#ff4444" />
+                    </View>
+                    <Text
+                      style={[styles.deleteModalTitle, { color: theme.colors.text }]}
+                    >
+                      Delete Profile
+                    </Text>
+                    <TouchableOpacity
+                      style={[styles.closeModalButton, { backgroundColor: theme.colors.inputBackground }]}
+                      onPress={() => setShowDeleteModal(false)}
+                      activeOpacity={0.7}
+                    >
+                      <Icon name="close" size={Math.min(screenWidth * 0.06, 24)} color={theme.colors.textSecondary} />
+                    </TouchableOpacity>
                   </View>
-                  <Text 
-                    style={[styles.deleteModalTitle, { color: theme.colors.text }]}
-                  >
-                    Delete Profile
-                  </Text>
-                  <TouchableOpacity 
-                    style={[styles.closeModalButton, { backgroundColor: theme.colors.inputBackground }]}
-                    onPress={() => setShowDeleteModal(false)}
-                    activeOpacity={0.7}
-                  >
-                    <Icon name="close" size={Math.min(screenWidth * 0.06, 24)} color={theme.colors.textSecondary} />
-                  </TouchableOpacity>
+
+                  <View style={styles.deleteModalContent}>
+                    <Text style={[styles.deleteModalMessage, { color: theme.colors.text }]}>
+                      Are you sure you want to delete this business profile? This action cannot be undone.
+                    </Text>
+                  </View>
+
+                  <View style={styles.deleteModalButtons}>
+                    <TouchableOpacity
+                      style={[styles.deleteModalCancelButton, { backgroundColor: theme.colors.inputBackground }]}
+                      onPress={() => setShowDeleteModal(false)}
+                    >
+                      <Text style={[styles.deleteModalCancelText, { color: theme.colors.text }]}>Cancel</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.deleteModalDeleteButton, { backgroundColor: '#ff4444' }]}
+                      onPress={confirmDeleteProfile}
+                    >
+                      <Text style={styles.deleteModalDeleteText}>Delete</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                
-                <View style={styles.deleteModalContent}>
-                  <Text style={[styles.deleteModalMessage, { color: theme.colors.text }]}>
-                    Are you sure you want to delete this business profile? This action cannot be undone.
-                  </Text>
-                </View>
-                
-                <View style={styles.deleteModalButtons}>
-                  <TouchableOpacity 
-                    style={[styles.deleteModalCancelButton, { backgroundColor: theme.colors.inputBackground }]}
-                    onPress={() => setShowDeleteModal(false)}
-                  >
-                    <Text style={[styles.deleteModalCancelText, { color: theme.colors.text }]}>Cancel</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={[styles.deleteModalDeleteButton, { backgroundColor: '#ff4444' }]}
-                    onPress={confirmDeleteProfile}
-                  >
-                    <Text style={styles.deleteModalDeleteText}>Delete</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
+              </TouchableOpacity>
             </TouchableOpacity>
-          </TouchableOpacity>
-        </Modal>
+          </Modal>
 
-        {/* Error Modal */}
-        <Modal
-          visible={showErrorModal}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowErrorModal(false)}
-          statusBarTranslucent={true}
-        >
-          <TouchableOpacity 
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setShowErrorModal(false)}
+          {/* Error Modal */}
+          <Modal
+            visible={showErrorModal}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setShowErrorModal(false)}
+            statusBarTranslucent={true}
           >
-            <TouchableOpacity 
+            <TouchableOpacity
+              style={styles.modalOverlay}
               activeOpacity={1}
-              onPress={() => {}} // Prevent closing when tapping inside modal
+              onPress={() => setShowErrorModal(false)}
             >
-              <View style={[styles.errorModalContainer, { backgroundColor: theme.colors.surface }]}>
-                <View style={styles.errorModalHeader}>
-                  <View style={[styles.errorIconContainer, { backgroundColor: '#ff444420' }]}>
-                    <Icon name="error-outline" size={Math.min(screenWidth * 0.08, 32)} color="#ff4444" />
+              <TouchableOpacity
+                activeOpacity={1}
+                onPress={() => { }} // Prevent closing when tapping inside modal
+              >
+                <View style={[styles.errorModalContainer, { backgroundColor: theme.colors.surface }]}>
+                  <View style={styles.errorModalHeader}>
+                    <View style={[styles.errorIconContainer, { backgroundColor: '#ff444420' }]}>
+                      <Icon name="error-outline" size={Math.min(screenWidth * 0.08, 32)} color="#ff4444" />
+                    </View>
+                    <Text
+                      style={[styles.errorModalTitle, { color: theme.colors.text }]}
+                    >
+                      Error
+                    </Text>
+                    <TouchableOpacity
+                      style={[styles.closeModalButton, { backgroundColor: theme.colors.inputBackground }]}
+                      onPress={() => setShowErrorModal(false)}
+                      activeOpacity={0.7}
+                    >
+                      <Icon name="close" size={Math.min(screenWidth * 0.06, 24)} color={theme.colors.textSecondary} />
+                    </TouchableOpacity>
                   </View>
-                  <Text 
-                    style={[styles.errorModalTitle, { color: theme.colors.text }]}
-                  >
-                    Error
-                  </Text>
-                  <TouchableOpacity 
-                    style={[styles.closeModalButton, { backgroundColor: theme.colors.inputBackground }]}
+
+                  <View style={styles.errorModalContent}>
+                    <Text style={[styles.errorModalMessage, { color: theme.colors.text }]}>
+                      {errorMessage}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.errorModalButton, { backgroundColor: '#ff4444' }]}
                     onPress={() => setShowErrorModal(false)}
-                    activeOpacity={0.7}
                   >
-                    <Icon name="close" size={Math.min(screenWidth * 0.06, 24)} color={theme.colors.textSecondary} />
+                    <Text style={styles.errorModalButtonText}>OK</Text>
                   </TouchableOpacity>
                 </View>
-                
-                <View style={styles.errorModalContent}>
-                  <Text style={[styles.errorModalMessage, { color: theme.colors.text }]}>
-                    {errorMessage}
-                  </Text>
-                </View>
-                
-                <TouchableOpacity 
-                  style={[styles.errorModalButton, { backgroundColor: '#ff4444' }]}
-                  onPress={() => setShowErrorModal(false)}
-                >
-                  <Text style={styles.errorModalButtonText}>OK</Text>
-                </TouchableOpacity>
-              </View>
+              </TouchableOpacity>
             </TouchableOpacity>
-          </TouchableOpacity>
-        </Modal>
+          </Modal>
 
-        {/* Payment Required Modal */}
-        <Modal
-          visible={showPaymentModal}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={handlePaymentModalClose}
-          statusBarTranslucent={true}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={[styles.paymentModalContainer, { backgroundColor: theme.colors.surface }]}>
-              {/* Premium Badge */}
-              <View style={styles.paymentPremiumBadge}>
-                <Icon name="star" size={Math.min(screenWidth * 0.04, 16)} color="#DAA520" />
-                <Text style={styles.paymentPremiumBadgeText}>PREMIUM</Text>
-              </View>
+          {/* Payment Required Modal */}
+          <Modal
+            visible={showPaymentModal}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={handlePaymentModalClose}
+            statusBarTranslucent={true}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={[styles.paymentModalContainer, { backgroundColor: theme.colors.surface }]}>
+                {/* Premium Badge */}
+                <View style={styles.paymentPremiumBadge}>
+                  <Icon name="star" size={Math.min(screenWidth * 0.04, 16)} color="#DAA520" />
+                  <Text style={styles.paymentPremiumBadgeText}>PREMIUM</Text>
+                </View>
 
-              {/* Modal Header */}
-              <View style={styles.paymentModalHeader}>
-                <Text style={[styles.paymentModalTitle, { color: theme.colors.text }]}>
-                  Payment Required
-                </Text>
-                <Text style={[styles.paymentModalSubtitle, { color: theme.colors.textSecondary }]}>
-                  You already have a business profile. To add additional business profiles, payment is required for each new profile.
-                </Text>
-              </View>
-
-              {/* Features List */}
-              <View style={styles.paymentFeaturesList}>
-                <View style={styles.paymentFeatureItem}>
-                  <Icon name="check-circle" size={Math.min(screenWidth * 0.04, 16)} color="#4CAF50" />
-                  <Text style={[styles.paymentFeatureText, { color: theme.colors.text }]}>
-                    Add an additional business profile
+                {/* Modal Header */}
+                <View style={styles.paymentModalHeader}>
+                  <Text style={[styles.paymentModalTitle, { color: theme.colors.text }]}>
+                    Payment Required
+                  </Text>
+                  <Text style={[styles.paymentModalSubtitle, { color: theme.colors.textSecondary }]}>
+                    You already have a business profile. To add additional business profiles, payment is required for each new profile.
                   </Text>
                 </View>
-                <View style={styles.paymentFeatureItem}>
-                  <Icon name="check-circle" size={Math.min(screenWidth * 0.04, 16)} color="#4CAF50" />
-                  <Text style={[styles.paymentFeatureText, { color: theme.colors.text }]}>
-                    Manage multiple business profiles
-                  </Text>
-                </View>
-                <View style={styles.paymentFeatureItem}>
-                  <Icon name="check-circle" size={Math.min(screenWidth * 0.04, 16)} color="#4CAF50" />
-                  <Text style={[styles.paymentFeatureText, { color: theme.colors.text }]}>
-                    Each additional profile requires payment
-                  </Text>
-                </View>
-              </View>
 
-              {/* Modal Footer */}
-              <View style={styles.paymentModalFooter}>
-                <TouchableOpacity 
-                  style={[styles.paymentCancelButton, { borderColor: theme.colors.border || '#cccccc' }]}
-                  onPress={handlePaymentModalClose}
-                >
-                  <Text style={[styles.paymentCancelButtonText, { color: theme.colors.textSecondary }]}>
-                    Maybe Later
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.paymentButton}
-                  onPress={handlePayNow}
-                  disabled={isProcessingPayment}
-                  activeOpacity={isProcessingPayment ? 0.8 : 0.9}
-                >
-                  <LinearGradient
-                    colors={['#FF6B6B', '#FF8E53']}
-                    style={styles.paymentButtonGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
+                {/* Features List */}
+                <View style={styles.paymentFeaturesList}>
+                  <View style={styles.paymentFeatureItem}>
+                    <Icon name="check-circle" size={Math.min(screenWidth * 0.04, 16)} color="#4CAF50" />
+                    <Text style={[styles.paymentFeatureText, { color: theme.colors.text }]}>
+                      Add an additional business profile
+                    </Text>
+                  </View>
+                  <View style={styles.paymentFeatureItem}>
+                    <Icon name="check-circle" size={Math.min(screenWidth * 0.04, 16)} color="#4CAF50" />
+                    <Text style={[styles.paymentFeatureText, { color: theme.colors.text }]}>
+                      Manage multiple business profiles
+                    </Text>
+                  </View>
+                  <View style={styles.paymentFeatureItem}>
+                    <Icon name="check-circle" size={Math.min(screenWidth * 0.04, 16)} color="#4CAF50" />
+                    <Text style={[styles.paymentFeatureText, { color: theme.colors.text }]}>
+                      Each additional profile requires payment
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Modal Footer */}
+                <View style={styles.paymentModalFooter}>
+                  <TouchableOpacity
+                    style={[styles.paymentCancelButton, { borderColor: theme.colors.border || '#cccccc' }]}
+                    onPress={handlePaymentModalClose}
                   >
-                    {isProcessingPayment ? (
-                      <>
-                        <ActivityIndicator size="small" color="#ffffff" />
-                        <Text style={styles.paymentButtonText}>Processing...</Text>
-                      </>
-                    ) : (
-                      <>
-                        <Icon name="payment" size={Math.min(screenWidth * 0.035, 14)} color="#ffffff" style={styles.paymentButtonIcon} />
-                        <Text style={styles.paymentButtonText}>Pay Now</Text>
-                      </>
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
+                    <Text style={[styles.paymentCancelButtonText, { color: theme.colors.textSecondary }]}>
+                      Maybe Later
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.paymentButton}
+                    onPress={handlePayNow}
+                    disabled={isProcessingPayment}
+                    activeOpacity={isProcessingPayment ? 0.8 : 0.9}
+                  >
+                    <LinearGradient
+                      colors={['#FF6B6B', '#FF8E53']}
+                      style={styles.paymentButtonGradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                    >
+                      {isProcessingPayment ? (
+                        <>
+                          <ActivityIndicator size="small" color="#ffffff" />
+                          <Text style={styles.paymentButtonText}>Processing...</Text>
+                        </>
+                      ) : (
+                        <>
+                          <Icon name="payment" size={Math.min(screenWidth * 0.035, 14)} color="#ffffff" style={styles.paymentButtonIcon} />
+                          <Text style={styles.paymentButtonText}>Pay Now</Text>
+                        </>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
-          </View>
-        </Modal>
+          </Modal>
         </View>
       </LinearGradient>
     </SafeAreaView>
@@ -1387,6 +1388,9 @@ const BusinessProfilesScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  businessProfilesContainer: {
     flex: 1,
   },
   // Skeleton Loading Styles

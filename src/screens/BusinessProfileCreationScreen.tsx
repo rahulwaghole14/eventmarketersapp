@@ -14,6 +14,7 @@ import {
   Image,
   Modal,
   Animated,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -24,6 +25,7 @@ import authService from '../services/auth';
 import businessProfileService from '../services/businessProfile';
 import ImagePickerModal from '../components/ImagePickerModal';
 import { getUserFriendlyError } from '../utils/errorHandler';
+import { moderateScale } from '../utils/responsiveUtils';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -101,7 +103,7 @@ const FloatingInput = React.memo(({
 });
 
 const BusinessProfileCreationScreen: React.FC = ({ navigation, route }: any) => {
-  const { theme } = useTheme();
+  const { isDarkMode, theme } = useTheme();
   
   // Category / Subcategory from route params or fallback to storage
   const [category, setCategory] = useState(route.params?.category || '');
@@ -315,13 +317,18 @@ const BusinessProfileCreationScreen: React.FC = ({ navigation, route }: any) => 
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <StatusBar
+        barStyle={isDarkMode ? "light-content" : "dark-content"}
+        backgroundColor="transparent"
+        translucent
+      />
       <LinearGradient colors={theme.colors.gradient} style={styles.gradient}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardAvoidingView}>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
             <View style={styles.header}>
               <Image source={require('../assets/MainLogo/main_logo.png')} style={styles.logo} resizeMode="contain" />
-              <Text style={[styles.title, { color: '#ffffff' }]}>Business Profile</Text>
-              <Text style={[styles.subtitle, { color: '#ffffff' }]}>Setup your business information</Text>
+              <Text style={[styles.title, { color: theme.colors.text }]}>Business Profile</Text>
+              <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Setup your business information</Text>
             </View>
 
             <View style={[styles.formContainer, { backgroundColor: theme.colors.surface }]}>
@@ -353,9 +360,9 @@ const BusinessProfileCreationScreen: React.FC = ({ navigation, route }: any) => 
                       </View>
                     </View>
                   ) : (
-                    <View style={styles.logoPlaceholder}>
+                    <View style={[styles.logoPlaceholder, { borderColor: theme.colors.border }]}>
                       <TouchableOpacity style={styles.uploadAreaButton} onPress={handleImagePickerPress}>
-                        <Icon name="add-a-photo" size={24} color="#667eea" />
+                        <Icon name="add-a-photo" size={24} color={theme.colors.primary} />
                         <Text style={[styles.logoPlaceholderTitle, { color: theme.colors.text }]}>Upload Company Logo</Text>
                         <Text style={[styles.logoPlaceholderSubtext, { color: theme.colors.textSecondary }]}>Tap to select from gallery</Text>
                       </TouchableOpacity>
@@ -461,24 +468,24 @@ const BusinessProfileCreationScreen: React.FC = ({ navigation, route }: any) => 
                 </View>
 
                 {/* Buttons */}
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 30 }}>
+                <View style={{ flexDirection: 'row', gap: moderateScale(10), marginTop: moderateScale(30) }}>
                   <TouchableOpacity
                     style={[styles.secondaryButton, { borderColor: theme.colors.border, flex: 1 }]}
                     onPress={() => navigation.goBack()}
                     disabled={isLoading}
                   >
-                    <Text style={[styles.secondaryButtonText, { color: theme.colors.text }]}>Back</Text>
+                    <Text style={[styles.secondaryButtonText, { color: theme.colors.text }]} numberOfLines={1} adjustsFontSizeToFit>Back</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={[styles.primaryButton, { backgroundColor: theme.colors.primary, flex: 1.5 }]}
+                    style={[styles.primaryButton, { backgroundColor: theme.colors.primary, flex: 1 }]}
                     onPress={handleCompleteRegistration}
                     disabled={isLoading}
                   >
                     {isLoading ? (
                       <ActivityIndicator color="#ffffff" size="small" />
                     ) : (
-                      <Text style={styles.primaryButtonText}>Complete Registration</Text>
+                      <Text style={styles.primaryButtonText} numberOfLines={1} adjustsFontSizeToFit>Register</Text>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -532,33 +539,33 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 25,
+    paddingBottom: moderateScale(25),
   },
   header: {
     alignItems: 'center',
-    paddingVertical: 30,
+    paddingVertical: moderateScale(30),
   },
   logo: {
-    width: 90,
-    height: 90,
-    marginBottom: 10,
+    width: moderateScale(90),
+    height: moderateScale(90),
+    marginBottom: moderateScale(10),
   },
   title: {
-    fontSize: 26,
+    fontSize: moderateScale(26),
     fontWeight: '800',
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     textAlign: 'center',
     opacity: 0.85,
-    marginTop: 5,
+    marginTop: moderateScale(5),
   },
   formContainer: {
-    marginHorizontal: 16,
-    borderRadius: 24,
-    paddingHorizontal: 20,
-    paddingVertical: 25,
+    marginHorizontal: moderateScale(16),
+    borderRadius: moderateScale(24),
+    paddingHorizontal: moderateScale(20),
+    paddingVertical: moderateScale(25),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
@@ -569,83 +576,83 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 10,
-    marginBottom: 30,
-    marginTop: 10,
+    paddingHorizontal: moderateScale(10),
+    marginBottom: moderateScale(30),
+    marginTop: moderateScale(10),
   },
   stepWrapper: {
     alignItems: 'center',
-    width: 60,
+    width: moderateScale(60),
   },
   stepCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
   },
   stepNumber: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     fontWeight: '700',
   },
   stepLabel: {
-    fontSize: 11,
-    marginTop: 6,
+    fontSize: moderateScale(11),
+    marginTop: moderateScale(6),
     fontWeight: '600',
     textAlign: 'center',
   },
   stepLine: {
     flex: 1,
-    height: 2,
+    height: moderateScale(2),
     alignSelf: 'center',
-    marginBottom: 20,
+    marginBottom: moderateScale(20),
   },
   stepContent: {
     width: '100%',
   },
   stepTitle: {
-    fontSize: 20,
+    fontSize: moderateScale(20),
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: moderateScale(8),
   },
   stepSubtitle: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 25,
+    fontSize: moderateScale(13),
+    lineHeight: moderateScale(18),
+    marginBottom: moderateScale(25),
   },
   inputContainer: {
     position: 'relative',
     width: '100%',
   },
   input: {
-    height: 50,
+    height: moderateScale(50),
     borderWidth: 1.5,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 15,
+    borderRadius: moderateScale(12),
+    paddingHorizontal: moderateScale(16),
+    fontSize: moderateScale(15),
   },
   multilineInput: {
-    height: 90,
+    height: moderateScale(90),
     textAlignVertical: 'top',
-    paddingTop: 12,
+    paddingTop: moderateScale(12),
   },
   inputLabel: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: moderateScale(8),
   },
   redAsteriskText: {
     color: '#E53E3E',
   },
   errorText: {
-    fontSize: 12,
+    fontSize: moderateScale(12),
     color: '#E53E3E',
-    marginTop: 4,
+    marginTop: moderateScale(4),
   },
   primaryButton: {
-    height: 50,
-    borderRadius: 12,
+    height: moderateScale(50),
+    borderRadius: moderateScale(12),
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 2,
@@ -656,66 +663,66 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: '#ffffff',
-    fontSize: 15,
+    fontSize: moderateScale(13),
     fontWeight: '600',
   },
   secondaryButton: {
-    height: 50,
-    borderRadius: 12,
+    height: moderateScale(50),
+    borderRadius: moderateScale(12),
     borderWidth: 1.5,
     justifyContent: 'center',
     alignItems: 'center',
   },
   secondaryButtonText: {
-    fontSize: 15,
+    fontSize: moderateScale(13),
     fontWeight: '600',
   },
   logoSection: {
     width: '100%',
-    marginBottom: 20,
+    marginBottom: moderateScale(20),
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: moderateScale(8),
   },
   logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   logoImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    marginRight: 16,
+    width: moderateScale(80),
+    height: moderateScale(80),
+    borderRadius: moderateScale(40),
+    marginRight: moderateScale(16),
   },
   logoActionButtons: {
     flexDirection: 'column',
-    gap: 8,
+    gap: moderateScale(8),
   },
   logoActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#3182CE',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+    paddingHorizontal: moderateScale(12),
+    paddingVertical: moderateScale(6),
+    borderRadius: moderateScale(6),
   },
   removeLogoButton: {
     backgroundColor: '#E53E3E',
   },
   buttonIcon: {
-    marginRight: 4,
+    marginRight: moderateScale(4),
   },
   logoActionButtonText: {
     color: '#ffffff',
-    fontSize: 12,
+    fontSize: moderateScale(12),
     fontWeight: '600',
   },
   logoPlaceholder: {
     width: '100%',
-    height: 120,
-    borderRadius: 12,
+    height: moderateScale(120),
+    borderRadius: moderateScale(12),
     borderWidth: 2,
     borderStyle: 'dashed',
     borderColor: '#CBD5E0',
@@ -726,13 +733,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoPlaceholderTitle: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     fontWeight: '600',
-    marginTop: 8,
+    marginTop: moderateScale(8),
   },
   logoPlaceholderSubtext: {
-    fontSize: 12,
-    marginTop: 4,
+    fontSize: moderateScale(12),
+    marginTop: moderateScale(4),
   },
   modalOverlay: {
     flex: 1,
@@ -742,46 +749,46 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     width: screenWidth * 0.85,
-    padding: 20,
-    borderRadius: 20,
+    padding: moderateScale(20),
+    borderRadius: moderateScale(20),
     alignItems: 'center',
     elevation: 5,
   },
   modalIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: moderateScale(60),
+    height: moderateScale(60),
+    borderRadius: moderateScale(30),
     backgroundColor: 'rgba(229, 62, 62, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: moderateScale(16),
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: moderateScale(18),
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: moderateScale(8),
   },
   modalContent: {
-    marginBottom: 20,
+    marginBottom: moderateScale(20),
   },
   modalMessage: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: moderateScale(20),
   },
   modalActions: {
     width: '100%',
   },
   modalButton: {
-    height: 46,
-    borderRadius: 10,
+    height: moderateScale(46),
+    borderRadius: moderateScale(10),
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
   },
   modalButtonText: {
     color: '#ffffff',
-    fontSize: 15,
+    fontSize: moderateScale(15),
     fontWeight: '600',
   },
   section: {

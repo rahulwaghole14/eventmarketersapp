@@ -14,6 +14,7 @@ import {
   Image,
   Modal,
   Animated,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -21,11 +22,12 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import loginAPIs from '../services/loginAPIs';
+import { moderateScale } from '../utils/responsiveUtils';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const RegistrationScreen: React.FC = ({ navigation }: any) => {
-  const { theme } = useTheme();
+  const { isDarkMode, theme } = useTheme();
 
   // Step 1 States
   const [phone, setPhone] = useState('');
@@ -243,13 +245,18 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <StatusBar
+        barStyle={isDarkMode ? "light-content" : "dark-content"}
+        backgroundColor="transparent"
+        translucent
+      />
       <LinearGradient colors={theme.colors.gradient} style={styles.gradient}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardAvoidingView}>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
             <View style={styles.header}>
               <Image source={require('../assets/MainLogo/main_logo.png')} style={styles.logo} resizeMode="contain" />
-              <Text style={[styles.title, { color: '#ffffff' }]}>Register Account</Text>
-              <Text style={[styles.subtitle, { color: '#ffffff' }]}>Join our community of event professionals</Text>
+              <Text style={[styles.title, { color: theme.colors.text }]}>Register Account</Text>
+              <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Join our community of event professionals</Text>
             </View>
 
             <View style={[styles.formContainer, { backgroundColor: theme.colors.surface }]}>
@@ -392,7 +399,7 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
                 {/* Buttons */}
                 {!otpSent ? (
                   <TouchableOpacity
-                    style={[styles.primaryButton, { backgroundColor: theme.colors.primary, marginTop: 25 }]}
+                    style={[styles.primaryButton, { backgroundColor: theme.colors.primary, marginTop: moderateScale(25) }]}
                     onPress={handlePhoneSubmit}
                     disabled={isLoading}
                     activeOpacity={0.8}
@@ -400,11 +407,11 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
                     {isLoading ? (
                       <ActivityIndicator color="#ffffff" size="small" />
                     ) : (
-                      <Text style={styles.primaryButtonText}>Send OTP via WhatsApp</Text>
+                      <Text style={styles.primaryButtonText} numberOfLines={1} adjustsFontSizeToFit>Send OTP via WhatsApp</Text>
                     )}
                   </TouchableOpacity>
                 ) : (
-                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 25 }}>
+                  <View style={{ flexDirection: 'row', gap: moderateScale(10), marginTop: moderateScale(25) }}>
                     <TouchableOpacity
                       style={[styles.secondaryButton, { borderColor: theme.colors.border, flex: 1 }]}
                       onPress={() => {
@@ -413,18 +420,18 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
                       }}
                       disabled={isLoading}
                     >
-                      <Text style={[styles.secondaryButtonText, { color: theme.colors.text }]}>Change Number</Text>
+                      <Text style={[styles.secondaryButtonText, { color: theme.colors.text }]} numberOfLines={1} adjustsFontSizeToFit>Change Number</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.primaryButton, { backgroundColor: theme.colors.primary, flex: 1.5 }]}
+                      style={[styles.primaryButton, { backgroundColor: theme.colors.primary, flex: 1 }]}
                       onPress={handleVerifyOtp}
                       disabled={isLoading}
                     >
                       {isLoading ? (
                         <ActivityIndicator color="#ffffff" size="small" />
                       ) : (
-                        <Text style={styles.primaryButtonText}>Verify & Proceed</Text>
+                        <Text style={styles.primaryButtonText} numberOfLines={1} adjustsFontSizeToFit>Verify & Proceed</Text>
                       )}
                     </TouchableOpacity>
                   </View>
@@ -432,7 +439,7 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
               </View>
 
               {/* Login Redirection */}
-              <View style={[styles.loginLinkContainer, { marginTop: 25 }]}>
+              <View style={[styles.loginLinkContainer, { marginTop: moderateScale(25) }]}>
                 <Text style={[styles.loginLinkText, { color: theme.colors.textSecondary }]}>Already have an account? </Text>
                 <TouchableOpacity onPress={() => navigation.navigate('Login')}>
                   <Text style={[styles.loginLink, { color: theme.colors.primary }]}>Sign In</Text>
@@ -485,33 +492,33 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 25,
+    paddingBottom: moderateScale(25),
   },
   header: {
     alignItems: 'center',
-    paddingVertical: 30,
+    paddingVertical: moderateScale(30),
   },
   logo: {
-    width: 90,
-    height: 90,
-    marginBottom: 10,
+    width: moderateScale(90),
+    height: moderateScale(90),
+    marginBottom: moderateScale(10),
   },
   title: {
-    fontSize: 26,
+    fontSize: moderateScale(26),
     fontWeight: '800',
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     textAlign: 'center',
     opacity: 0.85,
-    marginTop: 5,
+    marginTop: moderateScale(5),
   },
   formContainer: {
-    marginHorizontal: 16,
-    borderRadius: 24,
-    paddingHorizontal: 20,
-    paddingVertical: 25,
+    marginHorizontal: moderateScale(16),
+    borderRadius: moderateScale(24),
+    paddingHorizontal: moderateScale(20),
+    paddingVertical: moderateScale(25),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
@@ -522,66 +529,66 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 10,
-    marginBottom: 30,
-    marginTop: 10,
+    paddingHorizontal: moderateScale(10),
+    marginBottom: moderateScale(30),
+    marginTop: moderateScale(10),
   },
   stepWrapper: {
     alignItems: 'center',
-    width: 60,
+    width: moderateScale(60),
   },
   stepCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
   },
   stepNumber: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     fontWeight: '700',
   },
   stepLabel: {
-    fontSize: 11,
-    marginTop: 6,
+    fontSize: moderateScale(11),
+    marginTop: moderateScale(6),
     fontWeight: '600',
     textAlign: 'center',
   },
   stepLine: {
     flex: 1,
-    height: 2,
+    height: moderateScale(2),
     alignSelf: 'center',
-    marginBottom: 20,
+    marginBottom: moderateScale(20),
   },
   stepContent: {
     width: '100%',
   },
   stepTitle: {
-    fontSize: 20,
+    fontSize: moderateScale(20),
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: moderateScale(8),
   },
   stepSubtitle: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 25,
+    fontSize: moderateScale(13),
+    lineHeight: moderateScale(18),
+    marginBottom: moderateScale(25),
   },
   input: {
-    height: 50,
+    height: moderateScale(50),
     borderWidth: 1.5,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 15,
+    borderRadius: moderateScale(12),
+    paddingHorizontal: moderateScale(16),
+    fontSize: moderateScale(15),
   },
   inputWrapper: {
     width: '100%',
-    marginBottom: 16,
+    marginBottom: moderateScale(16),
   },
   inputLabel: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: moderateScale(8),
   },
   redAsteriskText: {
     color: '#E53E3E',
@@ -589,26 +596,26 @@ const styles = StyleSheet.create({
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
+    marginTop: moderateScale(6),
   },
   errorText: {
-    fontSize: 12,
-    marginLeft: 6,
+    fontSize: moderateScale(12),
+    marginLeft: moderateScale(6),
   },
   resendContainer: {
-    marginTop: 12,
+    marginTop: moderateScale(12),
     alignItems: 'center',
   },
   resendText: {
-    fontSize: 13,
+    fontSize: moderateScale(13),
   },
   resendLink: {
-    fontSize: 13,
+    fontSize: moderateScale(13),
     fontWeight: '600',
   },
   primaryButton: {
-    height: 50,
-    borderRadius: 12,
+    height: moderateScale(50),
+    borderRadius: moderateScale(12),
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 2,
@@ -619,18 +626,18 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: '#ffffff',
-    fontSize: 15,
+    fontSize: moderateScale(13),
     fontWeight: '600',
   },
   secondaryButton: {
-    height: 50,
-    borderRadius: 12,
+    height: moderateScale(50),
+    borderRadius: moderateScale(12),
     borderWidth: 1.5,
     justifyContent: 'center',
     alignItems: 'center',
   },
   secondaryButtonText: {
-    fontSize: 15,
+    fontSize: moderateScale(13),
     fontWeight: '600',
   },
   loginLinkContainer: {
@@ -639,10 +646,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loginLinkText: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
   },
   loginLink: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     fontWeight: '600',
   },
   modalOverlay: {
@@ -653,56 +660,56 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     width: screenWidth * 0.85,
-    padding: 20,
-    borderRadius: 20,
+    padding: moderateScale(20),
+    borderRadius: moderateScale(20),
     alignItems: 'center',
     elevation: 5,
   },
   modalIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: moderateScale(60),
+    height: moderateScale(60),
+    borderRadius: moderateScale(30),
     backgroundColor: 'rgba(229, 62, 62, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: moderateScale(16),
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: moderateScale(18),
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: moderateScale(8),
   },
   modalContent: {
-    marginBottom: 20,
+    marginBottom: moderateScale(20),
   },
   modalMessage: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: moderateScale(20),
   },
   modalActions: {
     width: '100%',
   },
   modalButton: {
-    height: 46,
-    borderRadius: 10,
+    height: moderateScale(46),
+    borderRadius: moderateScale(10),
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
   },
   modalButtonText: {
     color: '#ffffff',
-    fontSize: 15,
+    fontSize: moderateScale(15),
     fontWeight: '600',
   },
   promoCodeHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: moderateScale(8),
   },
   promoCodeTitle: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     fontWeight: '600',
   },
 });

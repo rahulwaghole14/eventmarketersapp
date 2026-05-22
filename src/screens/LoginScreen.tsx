@@ -19,19 +19,19 @@ import { useTheme } from '../context/ThemeContext';
 import loginAPIs from '../services/loginAPIs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUserFriendlyError } from '../utils/errorHandler';
-import responsiveUtils, { 
-  responsiveSpacing, 
-  responsiveFontSize, 
-  responsiveSize, 
-  responsiveLayout, 
-  responsiveShadow, 
-  responsiveText, 
-  responsiveGrid, 
-  responsiveButton, 
-  responsiveInput, 
+import responsiveUtils, {
+  responsiveSpacing,
+  responsiveFontSize,
+  responsiveSize,
+  responsiveLayout,
+  responsiveShadow,
+  responsiveText,
+  responsiveGrid,
+  responsiveButton,
+  responsiveInput,
   responsiveCard,
   isTablet,
-  isLandscape 
+  isLandscape
 } from '../utils/responsiveUtils';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -104,28 +104,28 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
       const result = await loginAPIs.loginUser({
         phone: phone.trim(),
       });
-      
+
       // Handle verification requirement (success path)
       if (result.requiresVerification) {
         // Navigate to email verification screen to let them verify their OTP
         navigation.navigate('EmailVerification', { phone: phone.trim() });
         return;
       }
-      
+
       console.log('✅ Login successful:', result);
     } catch (error: any) {
       console.error('❌ Sign in error:', error);
-      
+
       // Check if the server says the user needs to verify their phone OTP
       const requiresVerification = error?.response?.data?.requiresVerification;
       if (requiresVerification) {
         navigation.navigate('EmailVerification', { phone: phone.trim() });
         return;
       }
-      
+
       const status = error?.response?.status;
       const backendMessage = error?.response?.data?.error || error?.response?.data?.message || '';
-      
+
       if (status === 404 || backendMessage.toLowerCase().includes('not found') || backendMessage.toLowerCase().includes('invalid') || backendMessage.toLowerCase().includes('register first')) {
         setErrorType('generic');
         setErrorMessage('This mobile number is not registered. Please sign up first.');
@@ -134,7 +134,7 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
         setErrorType('generic');
         setErrorMessage(message);
       }
-      
+
       setShowErrorModal(true);
     } finally {
       setIsLoading(false);
@@ -142,41 +142,41 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
   }, [phone, navigation]);
 
   return (
-    <SafeAreaView 
+    <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
       edges={['top', 'left', 'right']}
     >
-      <StatusBar 
-        barStyle="light-content"
-        backgroundColor="transparent" 
-        translucent 
+      <StatusBar
+        barStyle={isDarkMode ? "light-content" : "dark-content"}
+        backgroundColor="transparent"
+        translucent
       />
-      
+
       <LinearGradient
         colors={theme.colors.gradient}
         style={styles.gradientBackground}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
-        <KeyboardAvoidingView 
+        <KeyboardAvoidingView
           style={styles.keyboardAvoidingView}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={styles.content}>
             {/* Header */}
             <View style={styles.header}>
-              <Image 
-                source={require('../assets/MainLogo/main_logo.png')} 
+              <Image
+                source={require('../assets/MainLogo/main_logo.png')}
                 style={styles.logo}
                 resizeMode="contain"
               />
-              <Text style={[styles.title, { color: '#ffffff' }]}>Welcome Back</Text>
-              <Text style={[styles.subtitle, { color: '#ffffff' }]}>Sign in to continue your journey</Text>
+              <Text style={[styles.title, { color: theme.colors.text }]}>Welcome Back</Text>
+              <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Sign in to continue your journey</Text>
             </View>
 
             {/* Form */}
             <View style={[styles.formContainer, { backgroundColor: theme.colors.cardBackground }]}>
-              
+
               <View style={styles.inputWrapper}>
                 <Text style={[styles.inputLabel, { color: theme.colors.text }]}>WhatsApp Mobile Number <Text style={styles.redAsteriskText}>*</Text></Text>
                 <TextInput
@@ -211,12 +211,12 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
                 ) : null}
               </View>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[
-                  styles.signInButton, 
+                  styles.signInButton,
                   { backgroundColor: isPhoneValid ? theme.colors.buttonPrimary : '#A0A0A0' },
                   (isLoading || !isPhoneValid) && styles.buttonDisabled
-                ]} 
+                ]}
                 onPress={handleSignIn}
                 disabled={isLoading || !isPhoneValid}
               >
@@ -235,7 +235,7 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
                   </Text>
                 </TouchableOpacity>
               </View>
-              
+
               {/* Privacy Policy Link */}
               <View style={styles.privacyFooter}>
                 <Text style={[styles.privacyFooterText, { color: theme.colors.textSecondary }]}>
@@ -260,19 +260,19 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
         onRequestClose={() => setShowErrorModal(false)}
         statusBarTranslucent={true}
       >
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
           onPress={() => setShowErrorModal(false)}
         >
-          <TouchableOpacity 
+          <TouchableOpacity
             activeOpacity={1}
-            onPress={() => {}} // Prevent closing when tapping inside modal
+            onPress={() => { }} // Prevent closing when tapping inside modal
           >
             <View style={[styles.errorModalContainer, { backgroundColor: theme.colors.surface }]}>
               {/* Header with close button */}
               <View style={styles.errorModalHeader}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.closeModalButton, { backgroundColor: theme.colors.inputBackground }]}
                   onPress={() => setShowErrorModal(false)}
                   activeOpacity={0.7}
@@ -280,29 +280,29 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
                   <Icon name="close" size={Math.min(screenWidth * 0.06, 24)} color={theme.colors.textSecondary} />
                 </TouchableOpacity>
               </View>
-              
+
               {/* Info icon */}
               <View style={[styles.errorIconContainer, { backgroundColor: '#2196F330' }]}>
                 <Icon name="info" size={Math.min(screenWidth * 0.08, 32)} color="#2196F3" />
               </View>
-              
+
               {/* Title */}
               <Text style={[styles.errorModalTitle, { color: theme.colors.text }]}>
                 {getModalContent(errorType).title}
               </Text>
-              
+
               {/* Message */}
               <View style={styles.errorModalContent}>
                 <Text style={[styles.errorModalMessage, { color: theme.colors.textSecondary }]}>
                   {getModalContent(errorType).message}
                 </Text>
               </View>
-              
+
               {/* Actions */}
               <View style={[styles.errorModalButtonsContainer, { justifyContent: 'center' }]}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[
-                    styles.errorModalCancelButton, 
+                    styles.errorModalCancelButton,
                     { backgroundColor: theme.colors.inputBackground },
                     { flex: undefined, paddingHorizontal: screenWidth * 0.08 }
                   ]}

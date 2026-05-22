@@ -13,7 +13,6 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { SubscriptionProvider } from './src/contexts/SubscriptionContext';
 import { BusinessProfileProvider } from './src/context/BusinessProfileContext';
-import TokenExpirationHandler from './src/components/TokenExpirationHandler';
 import { DownloadLimitProvider } from './src/components/DownloadLimitProvider';
 import { queryClient } from './src/config/queryClient';
 
@@ -72,7 +71,6 @@ const App: React.FC = () => {
               <BusinessProfileProvider>
                 <DownloadLimitProvider>
                   <AppNavigator />
-                  <TokenExpirationHandler />
                 </DownloadLimitProvider>
               </BusinessProfileProvider>
             </SubscriptionProvider>

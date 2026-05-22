@@ -307,7 +307,7 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [imageLoadError, setImageLoadError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [showDownloadLimitModal, setShowDownloadLimitModal] = useState(false);
 
@@ -459,7 +459,7 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
     }
 
     try {
-      setIsProcessing(true);
+      setIsSharing(true);
       const shareableUri = await getShareablePosterUri();
 
       if (!shareableUri) {
@@ -481,30 +481,30 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
       console.error('Error sharing poster:', error);
       Alert.alert('Error', 'Failed to share poster. Please try again.');
     } finally {
-      setIsProcessing(false);
+      setIsSharing(false);
     }
   };
 
-     // Direct download to gallery without permission requests
-   const downloadPoster = async () => {
-     if (!capturedImageUri) {
-       Alert.alert('Error', 'No poster image available to download');
-       return;
-     }
+     // Direct download to gallery
+     const downloadPoster = async () => {
+      if (!capturedImageUri) {
+        Alert.alert('Error', 'No poster image available to download');
+        return;
+      }
 
-     if (isDownloadProcessing) {
-       console.log('🔄 Download already in progress, skipping');
-       return;
-     }
+      if (isDownloading) {
+        console.log('🔄 Download already in progress, skipping');
+        return;
+      }
 
-     // Backend-dependent validation: Check if limit is reached from backend response
-     if (isLimitReached) {
-       setShowDownloadLimitModal(true);
-       return;
-     }
+      // Backend-dependent validation: Check if limit is reached from backend response
+      if (isLimitReached) {
+        setShowDownloadLimitModal(true);
+        return;
+      }
 
-     try {
-       setIsProcessing(true);
+      try {
+        setIsDownloading(true);
        
        console.log('=== CENTRALIZED DOWNLOAD START ===');
        console.log('Business Profile ID:', selectedBusinessProfileId);
@@ -597,7 +597,7 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
          return; // Exit early for uploaded templates
        }
        
-       // �🔍 DEBUG: Try different resource types if POSTER fails
+       // 🔍 DEBUG: Try different resource types if POSTER fails
        console.log('🚀 [RESOURCE TYPE DEBUG]: Trying POSTER resource type');
        
        console.log('🚀 [FINAL DOWNLOAD PAYLOAD]:', {
@@ -696,7 +696,7 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
          [{ text: 'OK' }]
        );
      } finally {
-       setIsProcessing(false);
+       setIsDownloading(false);
      }
    };
 
@@ -913,18 +913,18 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
           <TouchableOpacity
             style={styles.premiumActionButton}
             onPress={sharePoster}
-            disabled={isProcessing}
+            disabled={isSharing || isDownloading || isDownloadProcessing}
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={isProcessing ? ['#cccccc', '#999999'] : ['#667eea', '#764ba2']}
+              colors={(isSharing || isDownloading || isDownloadProcessing) ? ['#cccccc', '#999999'] : ['#667eea', '#764ba2']}
               style={styles.premiumButtonGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
               <Icon name="share" size={getIconSize(24)} color="#ffffff" />
               <Text style={styles.premiumButtonText}>
-                {isProcessing ? 'Sharing...' : 'Share Poster'}
+                {isSharing ? 'Sharing...' : 'Share Poster'}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -938,18 +938,18 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
                 [{ text: 'OK' }]
               );
             } : downloadPoster}
-            disabled={isProcessing || isDownloadProcessing || isLimitReached}
+            disabled={isSharing || isDownloading || isDownloadProcessing || isLimitReached}
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={isCategoryTemplate ? ['#6c757d', '#5a6268'] : isLimitReached ? ['#dc3545', '#c82333'] : isProcessing ? ['#cccccc', '#999999'] : ['#28a745', '#20c997']}
+              colors={isCategoryTemplate ? ['#6c757d', '#5a6268'] : isLimitReached ? ['#dc3545', '#c82333'] : (isSharing || isDownloading || isDownloadProcessing) ? ['#cccccc', '#999999'] : ['#28a745', '#20c997']}
               style={styles.premiumButtonGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
               <Icon name="download" size={getIconSize(24)} color="#ffffff" />
               <Text style={styles.premiumButtonText}>
-                {isCategoryTemplate ? 'Select a Poster' : isLimitReached ? 'Limit Reached' : isProcessing ? 'Saving...' : 'Download Poster'}
+                {isCategoryTemplate ? 'Select a Poster' : isLimitReached ? 'Limit Reached' : (isDownloading || isDownloadProcessing) ? 'Saving...' : 'Download Poster'}
               </Text>
             </LinearGradient>
           </TouchableOpacity>

@@ -9,12 +9,14 @@ import {
   ActivityIndicator,
   Dimensions,
   Image,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../context/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { moderateScale } from '../utils/responsiveUtils';
 import businessCategoriesService, { BusinessCategory } from '../services/businessCategoriesService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -170,12 +172,17 @@ const CategorySelectionScreen: React.FC = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <StatusBar
+        barStyle={isDarkMode ? "light-content" : "dark-content"}
+        backgroundColor="transparent"
+        translucent
+      />
       <LinearGradient colors={theme.colors.gradient} style={styles.gradient}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           <View style={styles.header}>
             <Image source={require('../assets/MainLogo/main_logo.png')} style={styles.logo} resizeMode="contain" />
-            <Text style={[styles.title, { color: '#ffffff' }]}>Business Category</Text>
-            <Text style={[styles.subtitle, { color: '#ffffff' }]}>Tell us about your business industry</Text>
+            <Text style={[styles.title, { color: theme.colors.text }]}>Business Category</Text>
+            <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Tell us about your business industry</Text>
           </View>
 
           <View style={[styles.formContainer, { backgroundColor: theme.colors.surface }]}>
@@ -260,19 +267,19 @@ const CategorySelectionScreen: React.FC = ({ navigation }: any) => {
               )}
 
               {/* Action Buttons */}
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 30 }}>
+              <View style={{ flexDirection: 'row', gap: moderateScale(10), marginTop: moderateScale(30) }}>
                 <TouchableOpacity
                   style={[styles.secondaryButton, { borderColor: theme.colors.border, flex: 1 }]}
                   onPress={() => navigation.goBack()}
                 >
-                  <Text style={[styles.secondaryButtonText, { color: theme.colors.text }]}>Back</Text>
+                  <Text style={[styles.secondaryButtonText, { color: theme.colors.text }]} numberOfLines={1} adjustsFontSizeToFit>Back</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.primaryButton, { backgroundColor: theme.colors.primary, flex: 1.5 }]}
+                  style={[styles.primaryButton, { backgroundColor: theme.colors.primary, flex: 1 }]}
                   onPress={handleNext}
                 >
-                  <Text style={styles.primaryButtonText}>Next</Text>
+                  <Text style={styles.primaryButtonText} numberOfLines={1} adjustsFontSizeToFit>Next</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -292,33 +299,33 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 25,
+    paddingBottom: moderateScale(25),
   },
   header: {
     alignItems: 'center',
-    paddingVertical: 30,
+    paddingVertical: moderateScale(30),
   },
   logo: {
-    width: 90,
-    height: 90,
-    marginBottom: 10,
+    width: moderateScale(90),
+    height: moderateScale(90),
+    marginBottom: moderateScale(10),
   },
   title: {
-    fontSize: 26,
+    fontSize: moderateScale(26),
     fontWeight: '800',
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     textAlign: 'center',
     opacity: 0.85,
-    marginTop: 5,
+    marginTop: moderateScale(5),
   },
   formContainer: {
-    marginHorizontal: 16,
-    borderRadius: 24,
-    paddingHorizontal: 20,
-    paddingVertical: 25,
+    marginHorizontal: moderateScale(16),
+    borderRadius: moderateScale(24),
+    paddingHorizontal: moderateScale(20),
+    paddingVertical: moderateScale(25),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
@@ -329,60 +336,60 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 10,
-    marginBottom: 30,
-    marginTop: 10,
+    paddingHorizontal: moderateScale(10),
+    marginBottom: moderateScale(30),
+    marginTop: moderateScale(10),
   },
   stepWrapper: {
     alignItems: 'center',
-    width: 60,
+    width: moderateScale(60),
   },
   stepCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
   },
   stepNumber: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     fontWeight: '700',
   },
   stepLabel: {
-    fontSize: 11,
-    marginTop: 6,
+    fontSize: moderateScale(11),
+    marginTop: moderateScale(6),
     fontWeight: '600',
     textAlign: 'center',
   },
   stepLine: {
     flex: 1,
-    height: 2,
+    height: moderateScale(2),
     alignSelf: 'center',
-    marginBottom: 20,
+    marginBottom: moderateScale(20),
   },
   stepContent: {
     width: '100%',
   },
   stepTitle: {
-    fontSize: 20,
+    fontSize: moderateScale(20),
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: moderateScale(8),
   },
   stepSubtitle: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 25,
+    fontSize: moderateScale(13),
+    lineHeight: moderateScale(18),
+    marginBottom: moderateScale(25),
   },
   inputLabel: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: moderateScale(8),
   },
   categoryLabel: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: moderateScale(8),
   },
   redAsteriskText: {
     color: '#E53E3E',
@@ -391,25 +398,25 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   categoryScrollContent: {
-    paddingVertical: 10,
-    gap: 10,
+    paddingVertical: moderateScale(10),
+    gap: moderateScale(10),
   },
   categoryOption: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 20,
+    paddingHorizontal: moderateScale(20),
+    paddingVertical: moderateScale(12),
+    borderRadius: moderateScale(20),
     borderWidth: 1.5,
-    marginRight: 10,
+    marginRight: moderateScale(10),
     alignItems: 'center',
     justifyContent: 'center',
   },
   categoryOptionText: {
-    fontSize: 14,
+    fontSize: moderateScale(14),
     fontWeight: '600',
   },
   primaryButton: {
-    height: 50,
-    borderRadius: 12,
+    height: moderateScale(50),
+    borderRadius: moderateScale(12),
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 2,
@@ -420,18 +427,18 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: '#ffffff',
-    fontSize: 15,
+    fontSize: moderateScale(13),
     fontWeight: '600',
   },
   secondaryButton: {
-    height: 50,
-    borderRadius: 12,
+    height: moderateScale(50),
+    borderRadius: moderateScale(12),
     borderWidth: 1.5,
     justifyContent: 'center',
     alignItems: 'center',
   },
   secondaryButtonText: {
-    fontSize: 15,
+    fontSize: moderateScale(13),
     fontWeight: '600',
   },
 });
