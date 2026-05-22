@@ -10,6 +10,7 @@ export const getUserFriendlyError = (error: any): string => {
   }
 
   const backendMessage =
+    error?.response?.data?.error ||
     error?.response?.data?.message ||
     error?.message ||
     '';
@@ -20,6 +21,18 @@ export const getUserFriendlyError = (error: any): string => {
   switch (status) {
     case 400:
       // Bad Request - often validation errors
+      if (backendMessage && typeof backendMessage === 'string') {
+        const lowerMsg = backendMessage.toLowerCase();
+        if (lowerMsg.includes("already verified")) {
+          return "This code or phone number has already been verified.";
+        }
+        if (lowerMsg.includes("invalid")) {
+          return "The information you entered is incorrect.";
+        }
+        if (lowerMsg.includes("expired")) {
+          return "This code has expired. Please request a new one.";
+        }
+      }
       return "Something went wrong. Please check your input.";
     case 401:
       // Unauthorized - invalid credentials

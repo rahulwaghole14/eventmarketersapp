@@ -1360,6 +1360,20 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   const dragTranslationRef = useRef<{ [key: string]: { x: number; y: number } }>({});
   const currentPositionsRef = useRef<{ [key: string]: { x: number; y: number } }>({});
 
+  // Pinch-to-zoom: initial layer size captured at BEGAN so ACTIVE always scales from the original
+  const pinchInitialSizeRef = useRef<{ [key: string]: { width: number; height: number } }>({});
+
+  // Per-layer gesture handler refs so simultaneousHandlers can be wired between
+  // PinchGestureHandler and PanGestureHandler, preventing one from blocking the other.
+  const pinchHandlerRefs = useRef<{ [key: string]: React.RefObject<any> }>({}).current;
+  const panHandlerRefs = useRef<{ [key: string]: React.RefObject<any> }>({}).current;
+
+  // Helper: ensure both refs exist for a given layer before rendering
+  const ensureGestureRefs = (layerId: string) => {
+    if (!pinchHandlerRefs[layerId]) pinchHandlerRefs[layerId] = React.createRef();
+    if (!panHandlerRefs[layerId]) panHandlerRefs[layerId] = React.createRef();
+  };
+
 
 
 
@@ -2394,6 +2408,8 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   }, [canvasHeight, canvasWidth, clearAlignmentGuides, dragTranslationRef, ensureSnapOffsets, getLayerEffectiveSize, layerAnimations, layers, translationValues]);
 
   // Handle pinch gesture for zooming
+  // useNativeDriver: false is required so the scale Animated.Value can be used
+  // alongside JS-driven borderRadius animations on the same view hierarchy.
   const onPinchGestureEvent = useCallback((layerId: string) => {
     // Ensure scale values exist for this layer
     if (!scaleValues[layerId]) {
@@ -2402,91 +2418,83 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
 
     return Animated.event(
       [{ nativeEvent: { scale: scaleValues[layerId] } }],
-      { useNativeDriver: true }
+      { useNativeDriver: false }  // Must be false to mix with borderRadius animated values
     );
   }, [scaleValues]);
 
   // Handle pinch gesture state changes
+  // CRITICAL FIX: Use pinchInitialSizeRef to always scale from the pre-pinch size.
+  // PERF FIX: During ACTIVE, do NOT call setLayers — the Animated scale transform on
+  // the logo/image view handles real-time visual feedback with zero React re-renders.
+  // setLayers is called ONCE at END to commit the final pixel dimensions.
   const onPinchHandlerStateChange = useCallback((layerId: string) => {
     return (event: any) => {
       if (event.nativeEvent.state === State.BEGAN) {
         setSelectedLayer(layerId);
-        // Reset scale value when pinch begins
+        // Reset the Animated scale value to 1 (neutral)
         if (scaleValues[layerId]) {
           scaleValues[layerId].setValue(1);
+        }
+        // Snapshot the layer's size at gesture start — ACTIVE always scales from this baseline
+        const snapshot = layers.find(l => l.id === layerId);
+        if (snapshot) {
+          pinchInitialSizeRef.current[layerId] = {
+            width: snapshot.size.width,
+            height: snapshot.size.height
+          };
         }
       } else if (event.nativeEvent.state === State.ACTIVE) {
-        // Real-time scaling during pinch
-        const { scale } = event.nativeEvent;
-
-        // Get current layer
-        const currentLayer = layers.find(layer => layer.id === layerId);
-        if (!currentLayer) return;
-
-        // Calculate new size with constraints
-        const minScale = 0.2;
-        const maxScale = 5.0;
-        const constrainedScale = Math.max(minScale, Math.min(maxScale, scale));
-
-        const newWidth = currentLayer.size.width * constrainedScale;
-        const newHeight = currentLayer.size.height * constrainedScale;
-
-        // Check boundaries
-        const maxWidth = canvasWidth - currentLayer.position.x;
-        const maxHeight = canvasHeight - currentLayer.position.y;
-        const finalWidth = Math.min(newWidth, maxWidth);
-        const finalHeight = Math.min(newHeight, maxHeight);
-
-        // Update layer size in state for real-time feedback
-        setLayers(prev => prev.map(layer => {
-          if (layer.id === layerId) {
-            return {
-              ...layer,
-              size: { width: finalWidth, height: finalHeight }
-            };
-          }
-          return layer;
-        }));
+        // *** NO setLayers here — the Animated.Value driven transform handles visuals ***
+        // The scaleValues[layerId] Animated.Value is already being updated by Animated.event
+        // in onPinchGestureEvent, which drives the transform directly without React re-renders.
+        // Nothing to do here.
       } else if (event.nativeEvent.state === State.END) {
-        // Finalize the scaling
         const { scale } = event.nativeEvent;
 
-        // Get current layer
-        const currentLayer = layers.find(layer => layer.id === layerId);
-        if (!currentLayer) return;
+        // Use the initial size snapshot for a stable final calculation
+        const initialSize = pinchInitialSizeRef.current[layerId];
+        if (!initialSize) return;
 
-        // Calculate new size with constraints
         const minScale = 0.2;
         const maxScale = 5.0;
         const constrainedScale = Math.max(minScale, Math.min(maxScale, scale));
 
-        const newWidth = currentLayer.size.width * constrainedScale;
-        const newHeight = currentLayer.size.height * constrainedScale;
+        const newWidth = initialSize.width * constrainedScale;
+        const newHeight = initialSize.height * constrainedScale;
 
-        // Check boundaries
-        const maxWidth = canvasWidth - currentLayer.position.x;
-        const maxHeight = canvasHeight - currentLayer.position.y;
-        const finalWidth = Math.min(newWidth, maxWidth);
-        const finalHeight = Math.min(newHeight, maxHeight);
-
-        // Update layer size in state
+        // Commit the final size to state (called once — no lag during the gesture)
         setLayers(prev => prev.map(layer => {
-          if (layer.id === layerId) {
-            return {
-              ...layer,
-              size: { width: finalWidth, height: finalHeight }
-            };
+          if (layer.id !== layerId) return layer;
+
+          const maxWidth = canvasWidth - layer.position.x;
+          const maxHeight = canvasHeight - layer.position.y;
+          const finalWidth = Math.max(20, Math.min(newWidth, maxWidth));
+          const finalHeight = Math.max(20, Math.min(newHeight, maxHeight));
+
+          // Sync circular logo borderRadius to final size
+          if (layer.type === 'logo' && layer.isCircular && borderRadiusValues[layerId]) {
+            const r = Math.min(finalWidth, finalHeight) / 2;
+            borderRadiusValues[layerId].setValue(r);
+            if (selectionBorderRadiusValues[layerId]) {
+              selectionBorderRadiusValues[layerId].setValue(r + 3);
+            }
           }
-          return layer;
+
+          return { ...layer, size: { width: finalWidth, height: finalHeight } };
         }));
 
-        // Reset scale value to 1 for next pinch
+        // Reset scale transform back to 1 so the committed pixel size is the source of truth
         if (scaleValues[layerId]) {
           scaleValues[layerId].setValue(1);
         }
+
+        // Clear snapshot for next gesture
+        delete pinchInitialSizeRef.current[layerId];
       }
     };
-  }, [layers, canvasWidth, canvasHeight, scaleValues]);
+  // `layers` is only read at BEGAN via snapshot — safe to keep in deps for the snapshot read
+  }, [canvasWidth, canvasHeight, scaleValues, borderRadiusValues, selectionBorderRadiusValues, pinchInitialSizeRef, layers]);
+
 
 
 
@@ -3105,6 +3113,12 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         );
       case 'image':
       case 'logo':
+        // Ensure scale Animated.Value exists so pinch-to-zoom visual feedback works
+        // (driven by Animated.event in onPinchGestureEvent — no setLayers during ACTIVE)
+        if (!scaleValues[layer.id]) {
+          scaleValues[layer.id] = new Animated.Value(1);
+        }
+
         // Use animated borderRadius for logos, static for images
         const animatedBorderRadius = (layer.type === 'logo' || layer.type === 'image') && borderRadiusValues[layer.id]
           ? borderRadiusValues[layer.id]
@@ -3115,11 +3129,19 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
           ? selectionBorderRadiusValues[layer.id]
           : 8;
 
+        // Inject scale into the transform — this is what makes pinch feel instant.
+        // The Animated.Value is updated by Animated.event and drives the transform
+        // directly without going through React's render cycle.
+        const logoScaledLayerStyle = {
+          ...layerStyle,
+          transform: [...baseTransforms, { scale: scaleValues[layer.id] }],
+        };
+
         return (
           <Animated.View
             style={[
               styles.layer,
-              layerStyle,
+              logoScaledLayerStyle,
               draggedLayer === layer.id && styles.draggedLayer
             ]}
           >
@@ -3543,14 +3565,33 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                     </View>
                   );
                 }
+
+                // Ensure stable per-layer gesture refs exist before rendering
+                ensureGestureRefs(layer.id);
+
+                // Logo/image layers get a generous hitSlop so that fingers placed
+                // *around* the logo (not just on top of it) still trigger pinch-to-zoom.
+                // Selected layers get an even larger zone for maximum ease of use.
+                const isLogoOrImage = layer.type === 'logo' || layer.type === 'image';
+                const isLayerSelected = selectedLayer === layer.id;
+                const pinchHitSlop = isLogoOrImage
+                  ? isLayerSelected ? 140 : 100
+                  : 0;
+
                 return (
                   <PinchGestureHandler
                     key={layer.id}
+                    ref={pinchHandlerRefs[layer.id]}
+                    simultaneousHandlers={panHandlerRefs[layer.id]}
+                    hitSlop={pinchHitSlop}
                     onGestureEvent={onPinchGestureEvent(layer.id)}
                     onHandlerStateChange={onPinchHandlerStateChange(layer.id)}
                   >
                     <Animated.View>
                       <PanGestureHandler
+                        ref={panHandlerRefs[layer.id]}
+                        simultaneousHandlers={pinchHandlerRefs[layer.id]}
+                        maxPointers={1}
                         onGestureEvent={onPanGestureEvent(layer.id)}
                         onHandlerStateChange={onHandlerStateChange(layer.id)}
                       >

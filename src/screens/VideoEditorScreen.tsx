@@ -28,7 +28,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { MainStackParamList } from '../navigation/types';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { PanGestureHandler, State, PinchGestureHandler } from 'react-native-gesture-handler';
-import businessProfileService, { BusinessProfile } from '../services/businessProfile';
+import { BusinessProfile } from '../services/businessProfile';
 import authService from '../services/auth';
 import { GOOGLE_FONTS, getFontsByCategory, SYSTEM_FONTS, getFontFamily } from '../services/fontService';
 import { getAccessState, isAccessGranted, getAccessStateMessage, isTransitionalState } from '../utils/subscriptionAccess';
@@ -47,12 +47,20 @@ import LinearGradient from 'react-native-linear-gradient';
 import { responsiveText } from '../utils/responsiveUtils';
 import VideoOverlayProcessor, { OverlayPayload } from '../services/VideoOverlayProcessor';
 import PremiumTemplateModal from '../components/PremiumTemplateModal';
+import InfoRequiredModal from '../components/InfoRequiredModal';
+import { applyVideoFrameLayoutToLayers as applyFrameLayoutToLayers, VIDEO_FRAME_ASSETS as FRAME_ASSETS } from '../data/videoFrames';
+
+// Frame options for overlay frames - dynamically generated from FRAME_ASSETS
+const FRAME_OPTIONS = Object.keys(FRAME_ASSETS).map(id => ({
+  id,
+  source: FRAME_ASSETS[id as keyof typeof FRAME_ASSETS]
+}));
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-// Calculate video canvas dimensions - increased size with responsive design and safe area consideration
-const videoCanvasWidth = Math.min(screenWidth - 24, screenWidth * 0.92); // Increased width for better visibility
-const videoCanvasHeight = Math.min(screenHeight - 300, screenHeight * 0.45); // Further reduced height to account for tab bar
+// Calculate video canvas dimensions - fixed at 720x487.2 template aspect ratio for perfect frame scaling
+const videoCanvasWidth = Math.min(screenWidth - 24, screenWidth * 0.92);
+const videoCanvasHeight = Math.round(videoCanvasWidth * (487.2 / 720));
 
 const POSTER_BASE_WIDTH = 720;
 const POSTER_BASE_HEIGHT = 487.2;
@@ -276,11 +284,278 @@ const getOmbreColors = (base: string | undefined) => {
   ];
 };
 
+// Memoized Frame Item Component for optimization
+const FrameItem = React.memo(({ frame, isSelected, onPress, styles }: {
+  frame: any,
+  isSelected: boolean,
+  onPress: () => void,
+  styles: any
+}) => (
+  <TouchableOpacity
+    style={[
+      styles.frameButton,
+      isSelected && styles.frameButtonActive
+    ]}
+    onPress={onPress}
+  >
+    <Image
+      source={frame.source}
+      style={styles.framePreview}
+      resizeMode="contain"
+      resizeMethod="resize" // Android optimization
+    />
+  </TouchableOpacity>
+));
+
+// Draggable Layer Component for 60FPS high performance dragging
+const DraggableLayer = React.memo(({
+  layer,
+  index,
+  scaleX = 1,
+  scaleY = 1,
+  forceOpaqueBackground = false,
+  isSelected,
+  onSelect,
+  onDragEnd,
+  currentCanvasWidth,
+  currentCanvasHeight,
+  selectedTemplate,
+}: {
+  layer: ComposerVideoLayer;
+  index: number;
+  scaleX?: number;
+  scaleY?: number;
+  forceOpaqueBackground?: boolean;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
+  onDragEnd: (id: string, x: number, y: number) => void;
+  currentCanvasWidth: number;
+  currentCanvasHeight: number;
+  selectedTemplate: string;
+}) => {
+  const [localPos, setLocalPos] = useState({ x: layer.position.x, y: layer.position.y });
+  const dragStartRef = useRef<{ x: number; y: number; layerX: number; layerY: number } | null>(null);
+  const [actualDimensions, setActualDimensions] = useState<{ width: number, height: number } | null>(null);
+
+  // Keep local position in sync with parent when not actively dragging
+  useEffect(() => {
+    if (!dragStartRef.current) {
+      setLocalPos({ x: layer.position.x, y: layer.position.y });
+    }
+  }, [layer.position.x, layer.position.y]);
+
+  const left = Math.round((localPos.x || 0) * scaleX);
+  const top = Math.round((localPos.y || 0) * scaleY);
+  const explicitWidth = Math.max(0, Math.round((layer.size.width || 0) * scaleX));
+  const explicitHeight = Math.max(0, Math.round((layer.size.height || 0) * scaleY));
+
+  const isBackground = layer.type === 'text' && layer.content === '' && layer.fieldType === 'footerBackground';
+  const isTextLayer = layer.type === 'text' && !isBackground;
+
+  const currentWidth = (isTextLayer && actualDimensions) ? actualDimensions.width : explicitWidth;
+  const currentHeight = (isTextLayer && actualDimensions) ? actualDimensions.height : explicitHeight;
+
+  const zIndex = layer.zIndex ?? index + 1;
+
+  const adjustNumeric = (value: any, factor: number) =>
+    typeof value === 'number' ? value * factor : value;
+
+  const getScaledTextStyle = () => {
+    const baseStyle = { ...(layer.style || {}) } as Record<string, any>;
+
+    if (forceOpaqueBackground && baseStyle.backgroundColor) {
+      baseStyle.backgroundColor = ensureOpaqueColor(String(baseStyle.backgroundColor));
+    }
+
+    if (scaleX === 1 && scaleY === 1) {
+      return baseStyle;
+    }
+
+    const scaled = { ...baseStyle };
+    const avgScale = (scaleX + scaleY) / 2;
+
+    scaled.fontSize = adjustNumeric(scaled.fontSize, scaleY);
+    scaled.lineHeight = adjustNumeric(scaled.lineHeight, scaleY);
+    scaled.letterSpacing = adjustNumeric(scaled.letterSpacing, scaleX);
+    scaled.padding = adjustNumeric(scaled.padding, avgScale);
+    scaled.margin = adjustNumeric(scaled.margin, avgScale);
+    scaled.borderWidth = adjustNumeric(scaled.borderWidth, avgScale);
+    scaled.borderRadius = adjustNumeric(scaled.borderRadius, avgScale);
+    scaled.paddingHorizontal = adjustNumeric(scaled.paddingHorizontal, scaleX);
+    scaled.paddingVertical = adjustNumeric(scaled.paddingVertical, scaleY);
+    scaled.paddingTop = adjustNumeric(scaled.paddingTop, scaleY);
+    scaled.paddingBottom = adjustNumeric(scaled.paddingBottom, scaleY);
+    scaled.paddingLeft = adjustNumeric(scaled.paddingLeft, scaleX);
+    scaled.paddingRight = adjustNumeric(scaled.paddingRight, scaleX);
+    scaled.marginHorizontal = adjustNumeric(scaled.marginHorizontal, scaleX);
+    scaled.marginVertical = adjustNumeric(scaled.marginVertical, scaleY);
+    scaled.marginTop = adjustNumeric(scaled.marginTop, scaleY);
+    scaled.marginBottom = adjustNumeric(scaled.marginBottom, scaleY);
+    scaled.marginLeft = adjustNumeric(scaled.marginLeft, scaleX);
+    scaled.marginRight = adjustNumeric(scaled.marginRight, scaleX);
+
+    if (scaled.shadowOffset && typeof scaled.shadowOffset === 'object') {
+      scaled.shadowOffset = {
+        width: adjustNumeric(scaled.shadowOffset.width, scaleX),
+        height: adjustNumeric(scaled.shadowOffset.height, scaleY),
+      };
+    }
+
+    return scaled;
+  };
+
+  return (
+    <View
+      style={[
+        styles.layer,
+        {
+          left,
+          top,
+          zIndex: zIndex + 5,
+          elevation: zIndex + 10,
+          backgroundColor: 'rgba(0, 0, 0, 0.01)', // Invisible background to force Android hardware layer compositing
+          overflow: 'visible',
+          borderRadius: (layer as any).isCircular
+            ? explicitWidth / 2
+            : ((layer as any).borderRadius ? (layer as any).borderRadius * scaleX : 0),
+        },
+        isTextLayer ? { maxWidth: currentCanvasWidth } : { width: explicitWidth, height: explicitHeight },
+        isSelected && scaleX === 1 && scaleY === 1 && styles.selectedLayer,
+      ]}
+      onLayout={(e) => {
+        if (isTextLayer) {
+          setActualDimensions({
+            width: e.nativeEvent.layout.width,
+            height: e.nativeEvent.layout.height
+          });
+        }
+      }}
+      onStartShouldSetResponder={() => scaleX === 1 && scaleY === 1}
+      onResponderGrant={(evt) => {
+        if (scaleX === 1 && scaleY === 1) {
+          onSelect(layer.id);
+          dragStartRef.current = {
+            x: evt.nativeEvent.pageX,
+            y: evt.nativeEvent.pageY,
+            layerX: localPos.x,
+            layerY: localPos.y,
+          };
+        }
+      }}
+      onResponderMove={(evt) => {
+        if (scaleX === 1 && scaleY === 1 && dragStartRef.current) {
+          const deltaX = evt.nativeEvent.pageX - dragStartRef.current.x;
+          const deltaY = evt.nativeEvent.pageY - dragStartRef.current.y;
+
+          let newX = dragStartRef.current.layerX + deltaX;
+          let newY = dragStartRef.current.layerY + deltaY;
+
+          // Clamp elements to stay within canvas boundaries using actual visual dimensions
+          const maxX = Math.max(0, currentCanvasWidth - currentWidth);
+          const maxY = Math.max(0, currentCanvasHeight - currentHeight);
+
+          newX = Math.max(0, Math.min(newX, maxX));
+          newY = Math.max(0, Math.min(newY, maxY));
+
+          setLocalPos({ x: newX, y: newY });
+        }
+      }}
+      onResponderRelease={() => {
+        if (dragStartRef.current) {
+          onDragEnd(layer.id, localPos.x, localPos.y);
+          dragStartRef.current = null;
+        }
+      }}
+    >
+      {layer.type === 'text' && (
+        layer.content === '' && layer.fieldType === 'footerBackground' ? (
+          (() => {
+            const isOmbreTemplate = selectedTemplate?.startsWith('ombre-');
+            const gradientColors = (layer.style as any)?.gradientColors as string[] | undefined;
+            const baseColors = gradientColors
+              || (isOmbreTemplate ? OMBRE_GRADIENTS[selectedTemplate || ''] : undefined)
+              || getOmbreColors(layer.style?.backgroundColor);
+            const hasTransparency = gradientHasTransparency(baseColors);
+            const shouldForceOpacity = forceOpaqueBackground && !hasTransparency;
+            const colors = shouldForceOpacity
+              ? ensureOpaqueGradient(baseColors)
+              : baseColors;
+
+            if (colors && colors.length >= 2) {
+              const gradientStart = isOmbreTemplate ? { x: 0, y: 0 } : { x: 0, y: 1 };
+              const gradientEnd = isOmbreTemplate ? { x: 1, y: 0 } : { x: 0, y: 0 };
+
+              return (
+                <LinearGradient
+                  colors={colors}
+                  start={gradientStart}
+                  end={gradientEnd}
+                  style={{ width: '100%', height: '100%' }}
+                />
+              );
+            }
+
+            return (
+              <View
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  backgroundColor: shouldForceOpacity
+                    ? ensureOpaqueColor(layer.style?.backgroundColor) || 'rgba(0,0,0,1)'
+                    : layer.style?.backgroundColor || 'rgba(0,0,0,0.6)',
+                }}
+              />
+            );
+          })()
+        ) : (
+          <Text
+            style={[
+              styles.layerText,
+              getScaledTextStyle(),
+            ]}
+            allowFontScaling={false}
+          >
+            {layer.content}
+          </Text>
+        )
+      )}
+      {layer.type === 'image' && (
+        <Image
+          source={{ uri: layer.content }}
+          style={[
+            styles.layerImage,
+            {
+              borderRadius: (layer as any).isCircular
+                ? explicitWidth / 2
+                : ((layer as any).borderRadius ? (layer as any).borderRadius * scaleX : 0),
+            }
+          ]}
+          resizeMode="cover"
+        />
+      )}
+      {layer.type === 'logo' && (
+        <Image
+          source={{ uri: layer.content }}
+          style={[
+            styles.layerLogo,
+            {
+              borderRadius: (layer as any).isCircular
+                ? explicitWidth / 2
+                : ((layer as any).borderRadius ? (layer as any).borderRadius * scaleX : 0),
+            }
+          ]}
+          resizeMode="contain"
+        />
+      )}
+    </View>
+  );
+});
+
 const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   const navigation = useNavigation<StackNavigationProp<MainStackParamList>>();
   const insets = useSafeAreaInsets();
   const { selectedLanguage: initialLanguage, selectedTemplateId, selectedVideo } = route.params;
-  
+
   const { isSubscribed, checkPremiumAccess, refreshSubscription } = useSubscription();
   const { selectedBusinessProfile } = useBusinessProfile();
   const { isDarkMode, theme } = useTheme();
@@ -299,6 +574,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   const overlaysRef = useRef<ViewShot>(null);
   const captureOverlayRef = useRef<ViewShot>(null);
   const lastGenerateTimeRef = useRef<number>(0);
+  const dragStartRef = useRef<{ x: number; y: number; layerX: number; layerY: number } | null>(null);
   const processingOverlayAnim = useRef(new Animated.Value(0)).current;
   const processingCardScale = useRef(new Animated.Value(0.92)).current;
   const processingPulseAnim = useRef(new Animated.Value(0)).current;
@@ -309,8 +585,12 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
 
   // State for video layers
   const [layers, setLayers] = useState<ComposerVideoLayer[]>([]);
+  const [selectedFrame, setSelectedFrame] = useState<string | null>(null);
+  const [isAutoLayoutApplied, setIsAutoLayoutApplied] = useState<{ [key: string]: boolean }>({});
   const [selectedLayer, setSelectedLayer] = useState<string | null>(null);
   const [showTextModal, setShowTextModal] = useState(false);
+  const [showInfoRequiredModal, setShowInfoRequiredModal] = useState(false);
+  const [selectedFieldName, setSelectedFieldName] = useState('');
   const [showImageModal, setShowImageModal] = useState(false);
   const [showStyleModal, setShowStyleModal] = useState(false);
   const [showLogoSelectionModal, setShowLogoSelectionModal] = useState(false);
@@ -339,16 +619,12 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   const [availableVideos, setAvailableVideos] = useState<string[]>([]);
 
   // Business profiles
-  const [businessProfiles, setBusinessProfiles] = useState<BusinessProfile[]>([]);
-  const [selectedProfile, setSelectedProfile] = useState<BusinessProfile | null>(null);
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showProfileSelectionModal, setShowProfileSelectionModal] = useState(false);
-  const [loadingProfiles, setLoadingProfiles] = useState(false);
+  const selectedProfile = selectedBusinessProfile;
   const [showPremiumModal, setShowPremiumModal] = useState(false);
 
   // Template state
   const [showFontModal, setShowFontModal] = useState(false);
-  const [visibleFields, setVisibleFields] = useState<{[key: string]: boolean}>({
+  const [visibleFields, setVisibleFields] = useState<{ [key: string]: boolean }>({
     logo: true,
     companyName: true,
     footerBackground: true,
@@ -370,8 +646,8 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
     height: videoCanvasHeight,
   });
   const currentCanvasWidth = canvasDimensions.width;
-const currentCanvasHeight = canvasDimensions.height;
-const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: number } | null>(null);
+  const currentCanvasHeight = canvasDimensions.height;
+  const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: number } | null>(null);
 
   const generateId = () => Math.random().toString(36).substr(2, 9);
 
@@ -728,268 +1004,7 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
     return Math.round(baseSize * scale);
   }, [screenWidth]);
 
-  // Fetch business profiles with optimized loading - now user-specific
-  const fetchBusinessProfiles = async () => {
-    try {
-      console.log('🎬 VideoEditorScreen: Starting to fetch business profiles...');
-      // Show loading state immediately
-      setLoadingProfiles(true);
-      
-      // Get current user ID
-      const currentUser = authService.getCurrentUser();
-      const userId = currentUser?.id;
-      
-      console.log('🎬 VideoEditorScreen: Current user:', currentUser);
-      console.log('🎬 VideoEditorScreen: User ID:', userId);
-      
-      if (!userId) {
-        console.log('⚠️ No user ID available, using fallback business profiles');
-        // Use mock data if no user ID
-        const mockProfiles = [
-          {
-            id: '1',
-            name: 'Tech Solutions Inc.',
-            description: 'Leading technology solutions provider',
-            category: 'Technology',
-            address: '123 Innovation Drive, Tech City',
-            phone: '+1 (555) 123-4567',
-            email: 'contact@techsolutions.com',
-            services: ['Custom Software Development', 'Web Development'],
-            workingHours: {},
-            rating: 4.8,
-            reviewCount: 156,
-            isVerified: true,
-            createdAt: '2024-01-15T10:00:00Z',
-            updatedAt: '2024-01-20T14:30:00Z',
-          },
-          {
-            id: '2',
-            name: 'Creative Design Studio',
-            description: 'Professional design and branding services',
-            category: 'Design',
-            address: '456 Creative Avenue, Design District',
-            phone: '+1 (555) 987-6543',
-            email: 'hello@creativedesign.com',
-            services: ['Logo Design', 'Brand Identity', 'Web Design'],
-            workingHours: {},
-            rating: 4.9,
-            reviewCount: 89,
-            isVerified: true,
-            createdAt: '2024-01-10T09:00:00Z',
-            updatedAt: '2024-01-18T16:45:00Z',
-          },
-          {
-            id: '3',
-            name: 'Marketing Pro Agency',
-            description: 'Full-service digital marketing solutions',
-            category: 'Marketing',
-            address: '789 Business Plaza, Downtown',
-            phone: '+1 (555) 456-7890',
-            email: 'info@marketingpro.com',
-            services: ['Digital Marketing', 'Social Media', 'SEO'],
-            workingHours: {},
-            rating: 4.7,
-            reviewCount: 203,
-            isVerified: true,
-            createdAt: '2024-01-05T14:30:00Z',
-            updatedAt: '2024-01-22T11:20:00Z',
-          }
-        ];
-        setBusinessProfiles(mockProfiles);
-        console.log('🎬 VideoEditorScreen: Set mock profiles:', mockProfiles.length, 'profiles');
-        
-        // Show selection modal for multiple profiles
-        if (mockProfiles.length > 1) {
-          console.log('🎬 VideoEditorScreen: Showing profile selection modal (multiple profiles)');
-          setShowProfileSelectionModal(true);
-        } else {
-          console.log('🎬 VideoEditorScreen: Auto-selecting single profile');
-          setSelectedProfile(mockProfiles[0]);
-          applyBusinessProfileToVideo(mockProfiles[0]);
-        }
-        return;
-      }
-      
-      console.log('🔍 Fetching user-specific business profiles for user:', userId);
-      
-      // Use Promise.race to timeout quickly if API is slow
-      const profilesPromise = businessProfileService.getUserBusinessProfiles(userId);
-      const timeoutPromise = new Promise<BusinessProfile[]>((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout')), 8000) // 8 second timeout
-      );
-      
-      const profiles = await Promise.race([profilesPromise, timeoutPromise]);
-      
-      if (profiles.length > 0) {
-        setBusinessProfiles(profiles);
-        console.log('🎬 VideoEditorScreen: ✅ Loaded user-specific business profiles:', profiles.length);
-        console.log('🎬 VideoEditorScreen: Profile names:', profiles.map(p => p.name));
-        
-        if (profiles.length === 1) {
-          // If only one profile, auto-select it
-          console.log('🎬 VideoEditorScreen: Auto-selecting single profile:', profiles[0].name);
-          setSelectedProfile(profiles[0]);
-          applyBusinessProfileToVideo(profiles[0]);
-        } else if (profiles.length > 1) {
-          // If multiple profiles, show selection modal
-          console.log('🎬 VideoEditorScreen: Showing profile selection modal (multiple profiles)');
-          setShowProfileSelectionModal(true);
-        }
-      } else {
-        console.log('⚠️ No user-specific business profiles found, using fallback');
-        // Use mock data if no user profiles found
-        const mockProfiles = [
-          {
-            id: '1',
-            name: 'Tech Solutions Inc.',
-            description: 'Leading technology solutions provider',
-            category: 'Technology',
-            address: '123 Innovation Drive, Tech City',
-            phone: '+1 (555) 123-4567',
-            email: 'contact@techsolutions.com',
-            services: ['Custom Software Development', 'Web Development'],
-            workingHours: {},
-            rating: 4.8,
-            reviewCount: 156,
-            isVerified: true,
-            createdAt: '2024-01-15T10:00:00Z',
-            updatedAt: '2024-01-20T14:30:00Z',
-          },
-          {
-            id: '2',
-            name: 'Creative Design Studio',
-            description: 'Professional design and branding services',
-            category: 'Design',
-            address: '456 Creative Avenue, Design District',
-            phone: '+1 (555) 987-6543',
-            email: 'hello@creativedesign.com',
-            services: ['Logo Design', 'Brand Identity', 'Web Design'],
-            workingHours: {},
-            rating: 4.9,
-            reviewCount: 89,
-            isVerified: true,
-            createdAt: '2024-01-10T09:00:00Z',
-            updatedAt: '2024-01-18T16:45:00Z',
-          },
-          {
-            id: '3',
-            name: 'Marketing Pro Agency',
-            description: 'Full-service digital marketing solutions',
-            category: 'Marketing',
-            address: '789 Business Plaza, Downtown',
-            phone: '+1 (555) 456-7890',
-            email: 'info@marketingpro.com',
-            services: ['Digital Marketing', 'Social Media', 'SEO'],
-            workingHours: {},
-            rating: 4.7,
-            reviewCount: 203,
-            isVerified: true,
-            createdAt: '2024-01-05T14:30:00Z',
-            updatedAt: '2024-01-22T11:20:00Z',
-          }
-        ];
-        setBusinessProfiles(mockProfiles);
-        console.log('🎬 VideoEditorScreen: Set fallback mock profiles:', mockProfiles.length, 'profiles');
-        
-        // Show selection modal for multiple profiles
-        if (mockProfiles.length > 1) {
-          console.log('🎬 VideoEditorScreen: Showing profile selection modal (fallback multiple profiles)');
-          setShowProfileSelectionModal(true);
-        } else {
-          console.log('🎬 VideoEditorScreen: Auto-selecting fallback single profile');
-          setSelectedProfile(mockProfiles[0]);
-          applyBusinessProfileToVideo(mockProfiles[0]);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching user-specific business profiles:', error);
-      
-      // Check if it's a timeout or network error
-      if (error instanceof Error && (error.message === 'Timeout' || error.message === 'TIMEOUT' || error.message === 'NETWORK_ERROR' || error.message === 'Backend server not available')) {
-        console.log('⚠️ Backend server not available, using mock data');
-        console.log('⚠️ This is normal if the backend server is not running or not accessible from Android device');
-      } else {
-        console.log('⚠️ API error, using mock data:', error);
-      }
-      
-      // Use mock data immediately on error
-      const mockProfiles = [
-        {
-          id: '1',
-          name: 'Tech Solutions Inc.',
-          description: 'Leading technology solutions provider',
-          category: 'Technology',
-          address: '123 Innovation Drive, Tech City',
-          phone: '+1 (555) 123-4567',
-          email: 'contact@techsolutions.com',
-          services: ['Custom Software Development', 'Web Development'],
-          workingHours: {},
-          rating: 4.8,
-          reviewCount: 156,
-          isVerified: true,
-          createdAt: '2024-01-15T10:00:00Z',
-          updatedAt: '2024-01-20T14:30:00Z',
-        },
-        {
-          id: '2',
-          name: 'Creative Design Studio',
-          description: 'Professional design and branding services',
-          category: 'Design',
-          address: '456 Creative Avenue, Design District',
-          phone: '+1 (555) 987-6543',
-          email: 'hello@creativedesign.com',
-          services: ['Logo Design', 'Brand Identity', 'Web Design'],
-          workingHours: {},
-          rating: 4.9,
-          reviewCount: 89,
-          isVerified: true,
-          createdAt: '2024-01-10T09:00:00Z',
-          updatedAt: '2024-01-18T16:45:00Z',
-        },
-        {
-          id: '3',
-          name: 'Marketing Pro Agency',
-          description: 'Full-service digital marketing solutions',
-          category: 'Marketing',
-          address: '789 Business Plaza, Downtown',
-          phone: '+1 (555) 456-7890',
-          email: 'info@marketingpro.com',
-          services: ['Digital Marketing', 'Social Media', 'SEO'],
-          workingHours: {},
-          rating: 4.7,
-          reviewCount: 203,
-          isVerified: true,
-          createdAt: '2024-01-05T14:30:00Z',
-          updatedAt: '2024-01-22T11:20:00Z',
-        }
-      ];
-      setBusinessProfiles(mockProfiles);
-      console.log('🎬 VideoEditorScreen: Set error fallback mock profiles:', mockProfiles.length, 'profiles');
-      
-      // Show selection modal for multiple profiles
-      if (mockProfiles.length > 1) {
-        console.log('🎬 VideoEditorScreen: Showing profile selection modal (error fallback multiple profiles)');
-        setShowProfileSelectionModal(true);
-      } else {
-        console.log('🎬 VideoEditorScreen: Auto-selecting error fallback single profile');
-        setSelectedProfile(mockProfiles[0]);
-        applyBusinessProfileToVideo(mockProfiles[0]);
-      }
-    } finally {
-      setLoadingProfiles(false);
-    }
-  };
 
-  useEffect(() => {
-    console.log('🎬 VideoEditorScreen: useEffect triggered, businessProfiles.length:', businessProfiles.length);
-    // Only fetch profiles if we don't have any cached data
-    if (businessProfiles.length === 0) {
-      console.log('🎬 VideoEditorScreen: No cached profiles, calling fetchBusinessProfiles()');
-      fetchBusinessProfiles();
-    } else {
-      console.log('🎬 VideoEditorScreen: Using cached profiles, skipping fetch');
-    }
-  }, []);
 
   // Load available videos from assets
   useEffect(() => {
@@ -998,7 +1013,7 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
         const videoNames = getAvailableVideoNames();
         setAvailableVideos(videoNames);
         console.log('📹 Available videos loaded:', videoNames);
-        
+
         // Set default video if none selected
         if (videoNames.length > 0 && !currentVideoFromAssets) {
           setCurrentVideoFromAssets(videoNames[0]);
@@ -1007,7 +1022,7 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
         console.error('❌ Failed to load available videos:', error);
       }
     };
-    
+
     loadAvailableVideos();
   }, []);
 
@@ -1020,9 +1035,9 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
     console.log('- NativeModules object:', NativeModules);
   }, []);
 
-  // Apply default template when component loads
+  // Apply default template when component loads or canvas size changes
   useEffect(() => {
-    console.log('useEffect triggered - selectedProfile:', selectedProfile?.name, 'selectedTemplate:', selectedTemplate); // Debug log
+    console.log('useEffect triggered - selectedProfile:', selectedProfile?.name, 'selectedTemplate:', selectedTemplate, 'dimensions:', canvasDimensions.width, 'x', canvasDimensions.height); // Debug log
     if (selectedProfile) {
       applyTemplate(selectedTemplate);
     } else {
@@ -1030,7 +1045,7 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
       console.log('No profile selected, applying template with defaults'); // Debug log
       applyTemplate(selectedTemplate);
     }
-  }, [selectedProfile, selectedTemplate]);
+  }, [selectedProfile, selectedTemplate, canvasDimensions.width, canvasDimensions.height]);
 
   // Force apply template on mount
   useEffect(() => {
@@ -1040,25 +1055,96 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
     }, 1000); // Apply after 1 second
   }, []);
 
-  // Apply business profile to video
-  const applyBusinessProfileToVideo = (profile: BusinessProfile) => {
-    setSelectedProfile(profile);
-    setShowProfileModal(false);
-    setShowProfileSelectionModal(false);
-    
-    // Apply the current template with the new profile
-    applyTemplate(selectedTemplate);
+
+
+  const isFieldDataAvailable = (fieldType: string): boolean => {
+    if (!selectedProfile) return false;
+
+    const trimmedValue = (val: any) => {
+      if (typeof val === 'string') return val.trim();
+      return val;
+    };
+
+    switch (fieldType) {
+      case 'logo':
+        return !!(trimmedValue(selectedProfile.companyLogo) || trimmedValue(selectedProfile.logo));
+      case 'companyName':
+        return !!trimmedValue(selectedProfile.name);
+      case 'phone':
+        return !!trimmedValue(selectedProfile.phone);
+      case 'email':
+        return !!trimmedValue(selectedProfile.email);
+      case 'website':
+        return !!trimmedValue(selectedProfile.website);
+      case 'category':
+        return !!trimmedValue(selectedProfile.category);
+      case 'address':
+        return !!trimmedValue(selectedProfile.address);
+      case 'services':
+        return !!(selectedProfile.services && selectedProfile.services.length > 0);
+      default:
+        return false;
+    }
+  };
+
+  const getEffectiveToggleValue = (fieldType: string): boolean => {
+    const isBusinessField = ['logo', 'companyName', 'phone', 'email', 'website', 'category', 'address', 'services'].includes(fieldType);
+
+    if (isBusinessField) {
+      return visibleFields[fieldType] && isFieldDataAvailable(fieldType);
+    }
+
+    return visibleFields[fieldType];
+  };
+
+  // Sync state with data availability (safety layer)
+  useEffect(() => {
+    if (selectedProfile) {
+      setVisibleFields(prev => {
+        const updated = { ...prev };
+        const businessFields = ['logo', 'companyName', 'phone', 'email', 'website', 'category', 'address', 'services'];
+
+        businessFields.forEach((fieldType) => {
+          if (prev[fieldType] && !isFieldDataAvailable(fieldType)) {
+            updated[fieldType] = false;
+          }
+        });
+
+        return updated;
+      });
+    }
+  }, [selectedProfile]);
+
+  const fieldDisplayNames: { [key: string]: string } = {
+    logo: "Logo",
+    companyName: "Company Name",
+    phone: "Phone Number",
+    email: "Email",
+    website: "Website",
+    category: "Category",
+    address: "Address",
+    services: "Services",
   };
 
   const toggleFieldVisibility = useCallback((field: string) => {
+    const isCurrentlyVisible = visibleFields[field];
+    const isBusinessField = ['logo', 'companyName', 'phone', 'email', 'website', 'category', 'address', 'services'].includes(field);
+
+    if (!isCurrentlyVisible && isBusinessField && !isFieldDataAvailable(field)) {
+      const displayName = fieldDisplayNames[field] || field;
+      setSelectedFieldName(displayName);
+      setShowInfoRequiredModal(true);
+      return;
+    }
+
     setVisibleFields(prev => ({ ...prev, [field]: !prev[field] }));
-  }, []);
+  }, [visibleFields, selectedProfile]);
 
   // Video Processing Functions
   const handleVideoGenerated = useCallback((videoPath: string) => {
     setGeneratedVideoPath(videoPath);
     console.log('✅ Video generated successfully:', videoPath);
-    
+
     // Show success message
     Alert.alert(
       'Video Generated!',
@@ -1101,40 +1187,40 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
       console.log('📁 copyAssetToLocalFile: Starting asset copy process...');
       console.log('📁 Asset path:', assetPath);
       console.log('📁 Target filename:', fileName);
-      
+
       // Resolve the asset using Image.resolveAssetSource
       const resolvedAsset = Image.resolveAssetSource(require('../assets/video/test.mp4'));
       console.log('📁 Resolved asset source:', resolvedAsset);
-      
+
       if (!resolvedAsset?.uri) {
         throw new Error('Could not resolve asset URI from require()');
       }
-      
+
       const originalUri = resolvedAsset.uri;
       console.log('📁 Original asset URI:', originalUri);
-      
+
       // Create local storage path
       const localPath = RNFS.DocumentDirectoryPath + '/' + fileName;
       console.log('📁 Target local path:', localPath);
-      
+
       // Always overwrite the file to ensure fresh MP4 each time
       console.log('📁 Copying asset to local storage (overwriting if exists)...');
-      
+
       // Determine if it's a Metro URL or local file
       const isMetroUrl = originalUri.startsWith('http://localhost:8081') || originalUri.startsWith('https://localhost:8081');
       console.log('📁 Is Metro URL:', isMetroUrl);
-      
+
       if (isMetroUrl) {
         console.log('📁 Downloading from Metro server...');
-        
+
         // Download from Metro server (this will overwrite existing file)
         const downloadResult = await RNFS.downloadFile({
           fromUrl: originalUri,
           toFile: localPath,
         }).promise;
-        
+
         console.log('📁 Download result:', downloadResult);
-        
+
         if (downloadResult.statusCode === 200) {
           console.log('✅ Video downloaded successfully from Metro server');
         } else {
@@ -1142,25 +1228,25 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
         }
       } else {
         console.log('📁 Copying from local bundled asset...');
-        
+
         // Copy from local bundled asset (this will overwrite existing file)
         await RNFS.copyFile(originalUri, localPath);
         console.log('✅ Video file copied successfully from bundled asset');
       }
-      
+
       // Validate the copied file
       const fileStats = await RNFS.stat(localPath);
       console.log('📁 Copied file stats:', fileStats);
-      
+
       if (fileStats.size === 0) {
         throw new Error('Copied video file is empty');
       }
-      
+
       // Return file:// URI
       const fileUri = 'file://' + localPath;
       console.log('📁 Returning file:// URI:', fileUri);
       console.log('📁 File size:', fileStats.size, 'bytes');
-      
+
       return fileUri;
     } catch (error) {
       console.error('🚨 copyAssetToLocalFile failed:', error);
@@ -1172,16 +1258,16 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
   const getCurrentVideoUri = useCallback(async () => {
     try {
       console.log('🎬 Starting video source resolution...');
-      
+
       // Use new video source helper for platform-specific sources
       const videoUri = await getNativeVideoSource({
         fileName: 'test',
         useRemote: false, // Use local files first
       });
-      
+
       console.log('✅ Video source resolution completed');
       console.log('📁 Final video URI:', videoUri);
-      
+
       return videoUri;
     } catch (error) {
       console.error('🚨 Failed to get current video URI:', error);
@@ -1199,7 +1285,7 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
     if (!validateBusinessContent()) {
       return;
     }
-    
+
     // FFmpeg-based processing doesn't require VideoComposer module
     console.log('🎬 Using FFmpeg-based video processing service');
 
@@ -1224,7 +1310,7 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
 
       console.log('🎬 Starting direct video generation...');
       console.log('- Layers count:', layers.length);
-      
+
       // Get video source once and store it - now async
       console.log('📁 Preparing local video file for VideoComposer...');
       const currentVideoSource = await getCurrentVideoUri();
@@ -1251,32 +1337,32 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
       // Validate file existence before calling FFmpeg service
       const filePath = currentVideoSource.replace('file://', '');
       console.log('📁 Checking file existence at:', filePath);
-      
+
       const fileExists = await RNFS.exists(filePath);
       console.log('📁 File exists:', fileExists);
-      
+
       if (!fileExists) {
         throw new Error(`Source video file does not exist: ${filePath}`);
       }
-      
+
       // Get file stats for additional validation
       const fileStats = await RNFS.stat(filePath);
       console.log('📁 File stats:', fileStats);
-      
+
       if (fileStats.size === 0) {
         throw new Error(`Source video file is empty: ${filePath}`);
       }
-      
+
       console.log('⚠️ FFmpeg integration removed - local video processing is no longer available');
       Alert.alert('Feature Unavailable', 'Local video processing has been removed. Please use Cloud Processing instead.');
       return;
 
       // Navigate to video preview
-    navigation.navigate('VideoPreview', {
+      navigation.navigate('VideoPreview', {
         selectedVideo: { uri: currentVideoSource },
         selectedLanguage: getLanguageCode(currentLanguage),
         selectedTemplateId: 'custom',
-      layers: layers,
+        layers: layers,
         selectedProfile: selectedProfile,
         processedVideoPath: undefined,
         canvasData: {
@@ -1301,22 +1387,22 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
     console.log('🔍 DEBUG: ===== CLOUD PROCESSING BUTTON CLICKED =====');
     console.log('🔍 DEBUG: handleCloudProcessing function started');
     console.log('🔍 DEBUG: Current timestamp:', new Date().toISOString());
-    
+
     // Show immediate feedback that button was clicked
     Alert.alert('Debug', 'Cloud processing button clicked! Check console logs.');
-    
+
     console.log('🚀 handleCloudProcessing called!');
     console.log('🔍 Current layers state:', layers);
     console.log('🔍 Layers length:', layers.length);
-    
-      // Add timeout to prevent hanging (reduced to 5 minutes for smaller video)
-      const timeoutId = setTimeout(() => {
-        console.log('🔍 DEBUG: Processing timeout reached (5 minutes)');
-        setIsProcessing(false);
-        setProcessingProgress(0);
-        Alert.alert('Timeout', 'Processing took too long. The video may still be processing in the background. Please check again later.');
-      }, 300000); // 5 minute timeout (300 seconds)
-    
+
+    // Add timeout to prevent hanging (reduced to 5 minutes for smaller video)
+    const timeoutId = setTimeout(() => {
+      console.log('🔍 DEBUG: Processing timeout reached (5 minutes)');
+      setIsProcessing(false);
+      setProcessingProgress(0);
+      Alert.alert('Timeout', 'Processing took too long. The video may still be processing in the background. Please check again later.');
+    }, 300000); // 5 minute timeout (300 seconds)
+
     try {
       if (layers.length === 0) {
         console.log('⚠️ No layers found, but continuing with test overlay...');
@@ -1340,16 +1426,16 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
 
       console.log('🔍 DEBUG: About to initialize VideoCompositionService...');
       console.log('🔍 DEBUG: Service URL will be: http://localhost:8000');
-      
+
       const compositionService = new VideoCompositionService('http://localhost:8000');
-      
+
       console.log('🔍 DEBUG: VideoCompositionService initialized successfully');
       console.log('🔍 DEBUG: About to check server health...');
-      
+
       // Skip server health check for now - server is working
       console.log('🔍 Skipping server health check - server is working');
       console.log('✅ Proceeding directly to video processing...');
-      
+
       // Force bypass health check
       const isHealthy = true; // Force true to bypass check
       console.log('🔍 Forced health check result:', isHealthy);
@@ -1358,7 +1444,7 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
       console.log('🔍 DEBUGGING LAYERS ARRAY:');
       console.log('- Raw layers array:', JSON.stringify(layers, null, 2));
       console.log('- Layers length:', layers.length);
-      
+
       // Check each layer individually
       layers.forEach((layer, index) => {
         console.log(`- Layer ${index}:`, {
@@ -1371,10 +1457,10 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
 
       // Convert CSS layers to Django API overlay format
       const overlays: CloudOverlay[] = [];
-      
+
       console.log('🔍 Converting CSS layers to Django overlays:');
       console.log('- Total layers:', layers.length);
-      
+
       layers.forEach((layer, index) => {
         console.log(`- Processing layer ${index + 1}:`, {
           id: layer.id,
@@ -1387,7 +1473,7 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
           fieldType: layer.fieldType,
           size: layer.size
         });
-        
+
         if (layer.type === 'text') {
           // Handle background layers (they have backgroundColor but no text content)
           if (layer.style?.backgroundColor && !layer.content) {
@@ -1402,14 +1488,14 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
             });
             return;
           }
-          
+
           // Only process layers with actual text content
           if (layer.content && layer.content.trim()) {
             // Extract actual styling from layer
             const fontSize = layer.style?.fontSize || 18;
             const color = layer.style?.color || '#ffffff';
             const fontWeight = layer.style?.fontWeight || 'normal';
-            
+
             overlays.push({
               type: 'text',
               text: layer.content.trim(),
@@ -1439,7 +1525,7 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
           console.log(`- Logo layer content: "${layer.content}"`);
         }
       });
-      
+
       console.log('- Converted overlays:', overlays.length);
       console.log('- Overlay details:', overlays.map((overlay, index) => ({
         index: index + 1,
@@ -1448,10 +1534,10 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
         y: overlay.y
       })));
 
-        // Get the proper video URI for cloud processing
-        // Use the selected video from route params
-        const videoUri = selectedVideo.uri;
-      
+      // Get the proper video URI for cloud processing
+      // Use the selected video from route params
+      const videoUri = selectedVideo.uri;
+
       console.log('🚀 Starting cloud composition with:', {
         videoUri: videoUri,
         overlayCount: overlays.length,
@@ -1483,7 +1569,7 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
         console.log('📁 Processed video path:', result.videoPath);
         console.log('📁 Original video path:', videoUri);
         console.log('📝 Note: CSS overlays will be applied in VideoPreviewScreen');
-        
+
         // Navigate to video preview
         navigation.navigate('VideoPreview', {
           selectedVideo: { uri: videoUri }, // Keep original video as selectedVideo
@@ -1639,10 +1725,14 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
 
   // Apply template function
   const applyTemplate = (template: string) => {
+    // Reset frame auto-layout and original backup layer state when loading a new template
+    setOriginalLayers([]);
+    setIsAutoLayoutApplied({});
+    setSelectedFrame(null);
 
     setSelectedTemplate(template);
     console.log('Applying template:', template); // Debug log
-    
+
     const canvasWidth = currentCanvasWidth || videoCanvasWidth;
     const canvasHeight = currentCanvasHeight || videoCanvasHeight;
     const scaleX = canvasWidth / POSTER_BASE_WIDTH;
@@ -1700,18 +1790,18 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
         position: { x: 0, y: footerY },
         size: { width: canvasWidth, height: footerHeight },
         style: {
-          backgroundColor: template === 'business' ? 'rgba(102, 126, 234, 0.9)' : 
-                          template === 'event' ? 'rgba(255, 107, 107, 0.9)' : 
-                          template === 'restaurant' ? 'rgba(255, 167, 38, 0.9)' : 
-                          template === 'fashion' ? 'rgba(236, 72, 153, 0.9)' :
-                          template === 'real-estate' ? 'rgba(139, 92, 246, 0.9)' :
-                          template === 'education' ? 'rgba(59, 130, 246, 0.9)' :
-                          template === 'healthcare' ? 'rgba(16, 185, 129, 0.9)' :
-                          template === 'fitness' ? 'rgba(239, 68, 68, 0.9)' :
+          backgroundColor: template === 'business' ? 'rgba(102, 126, 234, 0.9)' :
+            template === 'event' ? 'rgba(255, 107, 107, 0.9)' :
+              template === 'restaurant' ? 'rgba(255, 167, 38, 0.9)' :
+                template === 'fashion' ? 'rgba(236, 72, 153, 0.9)' :
+                  template === 'real-estate' ? 'rgba(139, 92, 246, 0.9)' :
+                    template === 'education' ? 'rgba(59, 130, 246, 0.9)' :
+                      template === 'healthcare' ? 'rgba(16, 185, 129, 0.9)' :
+                        template === 'fitness' ? 'rgba(239, 68, 68, 0.9)' :
                           template === 'wedding' ? 'rgba(251, 191, 36, 0.9)' :
-                          template === 'corporate' ? 'rgba(55, 65, 81, 0.9)' :
-                          template === 'creative' ? 'rgba(0, 0, 0, 0.9)' :
-                          'rgba(102, 126, 234, 0.9)',
+                            template === 'corporate' ? 'rgba(55, 65, 81, 0.9)' :
+                              template === 'creative' ? 'rgba(0, 0, 0, 0.9)' :
+                                'rgba(102, 126, 234, 0.9)',
         },
         fieldType: 'footerBackground',
       });
@@ -1938,19 +2028,10 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
       }
 
       if (naturalWidth > 0 && naturalHeight > 0) {
-        const maxWidth = videoCanvasWidth;
-        const maxHeight = videoCanvasHeight;
-
-        const widthScale = maxWidth / naturalWidth;
-        const heightScale = maxHeight / naturalHeight;
-        const scale = Math.min(widthScale, heightScale, 1);
-
-        const displayWidth = Math.round(naturalWidth * scale);
-        const displayHeight = Math.round(naturalHeight * scale);
-
+        // Keep canvas dimensions completely fixed to match template aspect ratio exactly
         setCanvasDimensions({
-          width: displayWidth,
-          height: displayHeight,
+          width: videoCanvasWidth,
+          height: videoCanvasHeight,
         });
         setVideoDimensions({
           width: Math.round(naturalWidth),
@@ -2023,7 +2104,7 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
   };
 
   const updateLayer = (layerId: string, updates: Partial<ComposerVideoLayer>) => {
-    setLayers(layers.map(layer => 
+    setLayers(layers.map(layer =>
       layer.id === layerId ? { ...layer, ...updates } : layer
     ));
   };
@@ -2215,7 +2296,7 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
       setProcessingProgress(0);
       if (overlaySnapshotPath) {
         const cleanupPath = overlaySnapshotPath.replace('file://', '');
-        RNFS.unlink(cleanupPath).catch(() => {});
+        RNFS.unlink(cleanupPath).catch(() => { });
       }
     }
   }, [
@@ -2235,181 +2316,124 @@ const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: 
     hasAccess,
   ]);
 
-  // Render functions
-const renderLayer = (
-  layer: ComposerVideoLayer,
-  index: number,
-  options: { scaleX?: number; scaleY?: number; forceOpaqueBackground?: boolean } = {},
-) => {
-  const scaleX = options.scaleX ?? 1;
-  const scaleY = options.scaleY ?? scaleX;
-  const forceOpaqueBackground = options.forceOpaqueBackground ?? false;
-  const isSelected = selectedLayer === layer.id;
-
-    const left = Math.round((layer.position.x || 0) * scaleX);
-    const top = Math.round((layer.position.y || 0) * scaleY);
-    const width = Math.max(0, Math.round((layer.size.width || 0) * scaleX));
-    const height = Math.max(0, Math.round((layer.size.height || 0) * scaleY));
-    const zIndex = layer.zIndex ?? index + 1;
-
-    const adjustNumeric = (value: any, factor: number) =>
-      typeof value === 'number' ? value * factor : value;
-
-  const getScaledTextStyle = () => {
-    const baseStyle = { ...(layer.style || {}) } as Record<string, any>;
-
-    if (forceOpaqueBackground && baseStyle.backgroundColor) {
-      baseStyle.backgroundColor = ensureOpaqueColor(String(baseStyle.backgroundColor));
+  // Apply frame-specific layout to elements
+  const applyFrameLayout = useCallback((frameId: string) => {
+    // Store original layers ONLY if no frame is currently applied (preserve true original positions)
+    if (layers.length > 0 && !selectedFrame) {
+      const layersToStore = [...layers];
+      setOriginalLayers(layersToStore);
+      console.log('🖼️ [FRAME LAYOUT] Stored original layers before first frame application:', {
+        frameId,
+        layersCount: layersToStore.length,
+      });
     }
 
-      if (scaleX === 1 && scaleY === 1) {
-        return baseStyle;
+    const canvasWidth = currentCanvasWidth || videoCanvasWidth;
+    const canvasHeight = currentCanvasHeight || videoCanvasHeight;
+
+    // Apply frame layout
+    const updatedLayers = applyFrameLayoutToLayers(
+      layers,
+      frameId,
+      canvasWidth,
+      canvasHeight,
+      originalLayers
+    );
+
+    // Update state
+    setLayers(updatedLayers);
+
+    // Update auto-layout applied state
+    setIsAutoLayoutApplied(prev => ({ ...prev, [frameId]: true }));
+  }, [layers, currentCanvasWidth, currentCanvasHeight, originalLayers, selectedFrame]);
+
+  // Handle frame removal modal/button actions
+  const handleRemoveFrameOnly = useCallback(() => {
+    console.log('🖼️ [FRAME REMOVAL] Starting frame removal process:', {
+      currentFrame: selectedFrame,
+      originalLayersCount: originalLayers.length
+    });
+
+    // Restore original layers before removing frame
+    if (originalLayers.length > 0) {
+      const restoredLayers = originalLayers.map(layer => {
+        if (layer.type === 'logo' && layer.fieldType === 'logo') {
+          return { ...layer, isCircular: false };
+        }
+        return layer;
+      });
+
+      setLayers(restoredLayers);
+      console.log('🖼️ [FRAME REMOVAL] Original layers restored successfully:', restoredLayers.length);
+    }
+
+    setSelectedFrame(null);
+    setIsAutoLayoutApplied({});
+    setVisibleFields(prev => ({ ...prev, footerBackground: true }));
+  }, [selectedFrame, originalLayers]);
+
+  // Synchronize frame state: hide/show footerBackground when frame changes
+  useEffect(() => {
+    // Avoid running side-effects if the user is actively dragging elements
+    if (dragStartRef.current) return;
+
+    if (selectedFrame) {
+      setVisibleFields(prev => ({ ...prev, footerBackground: false }));
+
+      // Apply frame layout ONLY if layers are available AND layout hasn't been applied for this frame yet
+      if (layers.length > 0 && !isAutoLayoutApplied[selectedFrame]) {
+        applyFrameLayout(selectedFrame);
       }
-
-      const scaled = { ...baseStyle };
-      const avgScale = (scaleX + scaleY) / 2;
-
-      scaled.fontSize = adjustNumeric(scaled.fontSize, scaleY);
-      scaled.lineHeight = adjustNumeric(scaled.lineHeight, scaleY);
-      scaled.letterSpacing = adjustNumeric(scaled.letterSpacing, scaleX);
-      scaled.padding = adjustNumeric(scaled.padding, avgScale);
-      scaled.margin = adjustNumeric(scaled.margin, avgScale);
-      scaled.borderWidth = adjustNumeric(scaled.borderWidth, avgScale);
-      scaled.borderRadius = adjustNumeric(scaled.borderRadius, avgScale);
-      scaled.paddingHorizontal = adjustNumeric(scaled.paddingHorizontal, scaleX);
-      scaled.paddingVertical = adjustNumeric(scaled.paddingVertical, scaleY);
-      scaled.paddingTop = adjustNumeric(scaled.paddingTop, scaleY);
-      scaled.paddingBottom = adjustNumeric(scaled.paddingBottom, scaleY);
-      scaled.paddingLeft = adjustNumeric(scaled.paddingLeft, scaleX);
-      scaled.paddingRight = adjustNumeric(scaled.paddingRight, scaleX);
-      scaled.marginHorizontal = adjustNumeric(scaled.marginHorizontal, scaleX);
-      scaled.marginVertical = adjustNumeric(scaled.marginVertical, scaleY);
-      scaled.marginTop = adjustNumeric(scaled.marginTop, scaleY);
-      scaled.marginBottom = adjustNumeric(scaled.marginBottom, scaleY);
-      scaled.marginLeft = adjustNumeric(scaled.marginLeft, scaleX);
-      scaled.marginRight = adjustNumeric(scaled.marginRight, scaleX);
-
-      if (scaled.shadowOffset && typeof scaled.shadowOffset === 'object') {
-        scaled.shadowOffset = {
-          width: adjustNumeric(scaled.shadowOffset.width, scaleX),
-          height: adjustNumeric(scaled.shadowOffset.height, scaleY),
-        };
+    } else {
+      if (originalLayers.length > 0) {
+        const restoredLayers = originalLayers.map(layer => {
+          if (layer.type === 'logo' && layer.fieldType === 'logo') {
+            return { ...layer, isCircular: false };
+          }
+          return layer;
+        });
+        setLayers(restoredLayers);
+        setOriginalLayers([]);
+      } else {
+        setVisibleFields(prev => ({ ...prev, footerBackground: true }));
       }
+    }
+  }, [selectedFrame]);
 
-      return scaled;
-    };
+  // Render functions
+  const handleDragEnd = useCallback((layerId: string, x: number, y: number) => {
+    setLayers(prev => prev.map(l =>
+      l.id === layerId ? { ...l, position: { x, y } } : l
+    ));
+  }, []);
+
+  const renderLayer = (
+    layer: ComposerVideoLayer,
+    index: number,
+    options: { scaleX?: number; scaleY?: number; forceOpaqueBackground?: boolean } = {},
+  ) => {
+    const scaleX = options.scaleX ?? 1;
+    const scaleY = options.scaleY ?? scaleX;
+    const forceOpaqueBackground = options.forceOpaqueBackground ?? false;
 
     return (
-      <View
+      <DraggableLayer
         key={layer.id}
-        style={[
-          styles.layer,
-          {
-            left,
-            top,
-            width,
-            height,
-            zIndex,
-          },
-          isSelected && scaleX === 1 && scaleY === 1 && styles.selectedLayer,
-        ]}
-        onStartShouldSetResponder={() => scaleX === 1 && scaleY === 1}
-        onResponderGrant={() => scaleX === 1 && scaleY === 1 && setSelectedLayer(layer.id)}
-      >
-        {layer.type === 'text' && (
-          layer.content === '' && layer.fieldType === 'footerBackground' ? (
-            (() => {
-              const isOmbreTemplate = selectedTemplate?.startsWith('ombre-');
-              const gradientColors = (layer.style as any)?.gradientColors as string[] | undefined;
-              const baseColors = gradientColors
-                || (isOmbreTemplate ? OMBRE_GRADIENTS[selectedTemplate || ''] : undefined)
-                || getOmbreColors(layer.style?.backgroundColor);
-              const hasTransparency = gradientHasTransparency(baseColors);
-              const shouldForceOpacity = forceOpaqueBackground && !hasTransparency;
-              const colors = shouldForceOpacity
-                ? ensureOpaqueGradient(baseColors)
-                : baseColors;
-
-              if (colors && colors.length >= 2) {
-                const gradientStart = isOmbreTemplate ? { x: 0, y: 0 } : { x: 0, y: 1 };
-                const gradientEnd = isOmbreTemplate ? { x: 1, y: 0 } : { x: 0, y: 0 };
-
-                return (
-                  <LinearGradient
-                    colors={colors}
-                    start={gradientStart}
-                    end={gradientEnd}
-                    style={{ width: '100%', height: '100%' }}
-                  />
-                );
-              }
-
-              return (
-                <View
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    backgroundColor: shouldForceOpacity
-                      ? ensureOpaqueColor(layer.style?.backgroundColor) || 'rgba(0,0,0,1)'
-                      : layer.style?.backgroundColor || 'rgba(0,0,0,0.6)',
-                  }}
-                />
-              );
-            })()
-          ) : (
-            <Text
-              style={[
-                styles.layerText,
-                getScaledTextStyle(),
-              ]}
-              allowFontScaling={false}
-            >
-              {layer.content}
-            </Text>
-          )
-        )}
-        {layer.type === 'image' && (
-          <Image
-            source={{ uri: layer.content }}
-            style={styles.layerImage}
-            resizeMode="cover"
-          />
-        )}
-        {layer.type === 'logo' && (
-          <Image
-            source={{ uri: layer.content }}
-            style={styles.layerLogo}
-            resizeMode="contain"
-          />
-        )}
-      </View>
+        layer={layer}
+        index={index}
+        scaleX={scaleX}
+        scaleY={scaleY}
+        forceOpaqueBackground={forceOpaqueBackground}
+        isSelected={selectedLayer === layer.id}
+        onSelect={setSelectedLayer}
+        onDragEnd={handleDragEnd}
+        currentCanvasWidth={currentCanvasWidth || videoCanvasWidth}
+        currentCanvasHeight={currentCanvasHeight || videoCanvasHeight}
+        selectedTemplate={selectedTemplate}
+      />
     );
   };
 
-  const renderProfileItem = ({ item }: { item: BusinessProfile }) => (
-    <TouchableOpacity
-      style={themeStyles.profileItem}
-      onPress={() => applyBusinessProfileToVideo(item)}
-    >
-      {item.logo ? (
-        <Image source={{ uri: item.logo }} style={themeStyles.profileLogo} />
-      ) : (
-        <View style={themeStyles.profileLogoPlaceholder}>
-          <Icon name="business" size={24} color={theme?.colors?.textSecondary || '#666666'} />
-        </View>
-      )}
-      <View style={themeStyles.profileInfo}>
-        <Text style={themeStyles.profileName}>{item.name}</Text>
-        {item.category && (
-          <Text style={themeStyles.profileCategory}>{item.category}</Text>
-        )}
-        {item.description && (
-          <Text style={themeStyles.profileDescription}>{item.description}</Text>
-        )}
-      </View>
-      <Icon name="chevron-right" size={24} color={theme?.colors?.textSecondary || '#666666'} />
-    </TouchableOpacity>
-  );
 
   const rippleScalePrimary = processingPulseAnim.interpolate({
     inputRange: [0, 1],
@@ -2454,12 +2478,12 @@ const renderLayer = (
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar 
-        barStyle="dark-content" 
-        backgroundColor="transparent" 
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor="transparent"
         translucent={true}
       />
-      
+
       <View style={[styles.header, { paddingTop: headerTopPadding, backgroundColor: theme?.colors?.surface || '#ffffff' }]}>
         <TouchableOpacity
           onPress={handleBack}
@@ -2480,7 +2504,7 @@ const renderLayer = (
         </TouchableOpacity>
       </View>
 
-        <View style={styles.canvasContainer}>
+      <View style={styles.canvasContainer}>
         <ViewShot
           ref={canvasRef}
           style={[styles.canvas, { width: currentCanvasWidth, height: currentCanvasHeight }]}
@@ -2495,7 +2519,7 @@ const renderLayer = (
             ref={videoRef}
             source={videoSource}
             style={styles.video}
-            resizeMode="stretch"
+            resizeMode="cover"
             paused={!isVideoPlaying}
             onLoad={onVideoLoad}
             onLoadStart={onVideoLoadStart}
@@ -2504,27 +2528,37 @@ const renderLayer = (
             repeat={true}
           />
 
+          {/* Frame integrated overlay */}
+          {selectedFrame && (
+            <Image
+              source={FRAME_OPTIONS.find(f => f.id === selectedFrame)?.source}
+              style={styles.frameIntegrated}
+              resizeMode="stretch"
+              pointerEvents="none"
+            />
+          )}
+
           {/* Video Layers */}
           {layers.map((layer, idx) => {
-             console.log('Processing layer:', layer.id, layer.type, layer.fieldType, layer.fieldType ? visibleFields[layer.fieldType] : 'no fieldType'); // Debug log
-             if (layer.fieldType && !visibleFields[layer.fieldType]) {
-               console.log('Layer filtered out:', layer.id); // Debug log
-               return null;
-             }
-             console.log('Rendering layer:', layer.id, layer.type, layer.position, layer.size); // Debug log
-             return renderLayer(layer, idx);
-           })}
+            console.log('Processing layer:', layer.id, layer.type, layer.fieldType, layer.fieldType ? getEffectiveToggleValue(layer.fieldType) : 'no fieldType'); // Debug log
+            if (layer.fieldType && !getEffectiveToggleValue(layer.fieldType)) {
+              console.log('Layer filtered out:', layer.id); // Debug log
+              return null;
+            }
+            console.log('Rendering layer:', layer.id, layer.type, layer.position, layer.size); // Debug log
+            return renderLayer(layer, idx);
+          })}
 
 
-          {/* Play/Pause Button Overlay */}
           <TouchableOpacity
-            style={styles.playButtonOverlay}
+            style={[styles.playButtonOverlay, isVideoPlaying && { opacity: 0 }]}
             onPress={() => setIsVideoPlaying(!isVideoPlaying)}
             activeOpacity={0.8}
+            hitSlop={{ top: 150, bottom: 150, left: 150, right: 150 }}
           >
             <View style={styles.playButton}>
               <Icon
-                name={isVideoPlaying ? 'pause' : 'play-arrow'}
+                name="play-arrow"
                 size={48}
                 color="#ffffff"
               />
@@ -2572,8 +2606,16 @@ const renderLayer = (
               options={{ format: 'png', quality: 1, result: 'tmpfile' }}
             >
               <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+                {selectedFrame && (
+                  <Image
+                    source={FRAME_OPTIONS.find(f => f.id === selectedFrame)?.source}
+                    style={styles.frameIntegrated}
+                    resizeMode="stretch"
+                    pointerEvents="none"
+                  />
+                )}
                 {layers.map((l, idx) => {
-                  if (l.fieldType && !visibleFields[l.fieldType]) return null;
+                  if (l.fieldType && !getEffectiveToggleValue(l.fieldType)) return null;
                   return renderLayer(l, idx);
                 })}
               </View>
@@ -2603,8 +2645,16 @@ const renderLayer = (
               }}
             >
               <View style={{ width: exportWidth, height: exportHeight, backgroundColor: 'transparent' }}>
+                {selectedFrame && (
+                  <Image
+                    source={FRAME_OPTIONS.find(f => f.id === selectedFrame)?.source}
+                    style={styles.frameIntegrated}
+                    resizeMode="stretch"
+                    pointerEvents="none"
+                  />
+                )}
                 {layers.map((l, idx) => {
-                  if (l.fieldType && !visibleFields[l.fieldType]) return null;
+                  if (l.fieldType && !getEffectiveToggleValue(l.fieldType)) return null;
                   return renderLayer(l, idx, {
                     scaleX: captureScaleX,
                     scaleY: captureScaleY,
@@ -2701,552 +2751,586 @@ const renderLayer = (
           ]}
         >
 
-        <View style={styles.bottomToolbar}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.toolbarScrollContent}
-          >
-            <TouchableOpacity
-              style={styles.toolbarButton}
-              onPress={() => setShowTextModal(true)}
-              activeOpacity={0.8}
+          <View style={styles.bottomToolbar}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.toolbarScrollContent}
             >
-              <LinearGradient
-                colors={['#667eea', '#764ba2']}
-                style={styles.toolbarButtonGradient}
+              <TouchableOpacity
+                style={styles.toolbarButton}
+                onPress={() => setShowTextModal(true)}
+                activeOpacity={0.8}
               >
-                <Icon name="text-fields" size={getResponsiveIconSize(16)} color="#ffffff" />
-                <Text style={styles.toolbarButtonText}>Text</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+                <LinearGradient
+                  colors={['#667eea', '#764ba2']}
+                  style={styles.toolbarButtonGradient}
+                >
+                  <Icon name="text-fields" size={getResponsiveIconSize(16)} color="#ffffff" />
+                  <Text style={styles.toolbarButtonText}>Text</Text>
+                </LinearGradient>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.toolbarButton}
-              onPress={() => setShowFontModal(true)}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={['#667eea', '#764ba2']}
-                style={styles.toolbarButtonGradient}
+              <TouchableOpacity
+                style={styles.toolbarButton}
+                onPress={() => setShowFontModal(true)}
+                activeOpacity={0.8}
               >
-                <Icon name="format-size" size={getResponsiveIconSize(16)} color="#ffffff" />
-                <Text style={styles.toolbarButtonText}>Font</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+                <LinearGradient
+                  colors={['#667eea', '#764ba2']}
+                  style={styles.toolbarButtonGradient}
+                >
+                  <Icon name="format-size" size={getResponsiveIconSize(16)} color="#ffffff" />
+                  <Text style={styles.toolbarButtonText}>Font</Text>
+                </LinearGradient>
+              </TouchableOpacity>
 
-          </ScrollView>
-        </View>
+            </ScrollView>
+          </View>
 
-        {/* Field Toggle Buttons */}
-        <View style={styles.fieldToggleSection}>
-          <View style={styles.fieldToggleHeader}>
-            <Text style={styles.fieldToggleTitle}>Toggle Fields</Text>
-            <Text style={styles.fieldToggleSubtitle}>Click to show/hide elements</Text>
+          {/* Field Toggle Buttons */}
+          <View style={styles.fieldToggleSection}>
+            <View style={styles.fieldToggleHeader}>
+              <Text style={styles.fieldToggleTitle}>Toggle Fields</Text>
+              <Text style={styles.fieldToggleSubtitle}>Click to show/hide elements</Text>
+            </View>
+            <ScrollView
+              style={styles.fieldToggleContent}
+              horizontal={true}
+              showsHorizontalScrollIndicator={false}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.fieldToggleScrollContent}
+            >
+              <TouchableOpacity
+                style={[styles.fieldToggleButton, getEffectiveToggleValue('logo') && styles.fieldToggleButtonActive]}
+                onPress={() => toggleFieldVisibility('logo')}
+              >
+                <Icon name="account-balance" size={getResponsiveIconSize(16)} color={getEffectiveToggleValue('logo') ? "#ffffff" : "#667eea"} />
+                <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('logo') && styles.fieldToggleButtonTextActive]}>
+                  Logo
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.fieldToggleButton, getEffectiveToggleValue('companyName') && styles.fieldToggleButtonActive]}
+                onPress={() => toggleFieldVisibility('companyName')}
+              >
+                <Icon name="title" size={getResponsiveIconSize(16)} color={getEffectiveToggleValue('companyName') ? "#ffffff" : "#667eea"} />
+                <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('companyName') && styles.fieldToggleButtonTextActive]}>
+                  Company Name
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.fieldToggleButton, getEffectiveToggleValue('footerBackground') && styles.fieldToggleButtonActive]}
+                onPress={() => toggleFieldVisibility('footerBackground')}
+              >
+                <Icon name="format-color-fill" size={getResponsiveIconSize(16)} color={getEffectiveToggleValue('footerBackground') ? "#ffffff" : "#667eea"} />
+                <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('footerBackground') && styles.fieldToggleButtonTextActive]}>
+                  Footer BG
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.fieldToggleButton, getEffectiveToggleValue('phone') && styles.fieldToggleButtonActive]}
+                onPress={() => toggleFieldVisibility('phone')}
+              >
+                <Icon name="call" size={getResponsiveIconSize(16)} color={getEffectiveToggleValue('phone') ? "#ffffff" : "#667eea"} />
+                <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('phone') && styles.fieldToggleButtonTextActive]}>
+                  Phone
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.fieldToggleButton, getEffectiveToggleValue('email') && styles.fieldToggleButtonActive]}
+                onPress={() => toggleFieldVisibility('email')}
+              >
+                <Icon name="mail" size={getResponsiveIconSize(16)} color={getEffectiveToggleValue('email') ? "#ffffff" : "#667eea"} />
+                <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('email') && styles.fieldToggleButtonTextActive]}>
+                  Email
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.fieldToggleButton, getEffectiveToggleValue('website') && styles.fieldToggleButtonActive]}
+                onPress={() => toggleFieldVisibility('website')}
+              >
+                <Icon name="public" size={getResponsiveIconSize(16)} color={getEffectiveToggleValue('website') ? "#ffffff" : "#667eea"} />
+                <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('website') && styles.fieldToggleButtonTextActive]}>
+                  Website
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.fieldToggleButton, getEffectiveToggleValue('category') && styles.fieldToggleButtonActive]}
+                onPress={() => toggleFieldVisibility('category')}
+              >
+                <Icon name="business-center" size={getResponsiveIconSize(16)} color={getEffectiveToggleValue('category') ? "#ffffff" : "#667eea"} />
+                <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('category') && styles.fieldToggleButtonTextActive]}>
+                  Category
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.fieldToggleButton, getEffectiveToggleValue('address') && styles.fieldToggleButtonActive]}
+                onPress={() => toggleFieldVisibility('address')}
+              >
+                <Icon name="place" size={getResponsiveIconSize(16)} color={getEffectiveToggleValue('address') ? "#ffffff" : "#667eea"} />
+                <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('address') && styles.fieldToggleButtonTextActive]}>
+                  Address
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.fieldToggleButton, getEffectiveToggleValue('services') && styles.fieldToggleButtonActive]}
+                onPress={() => toggleFieldVisibility('services')}
+              >
+                <Icon name="handyman" size={getResponsiveIconSize(16)} color={getEffectiveToggleValue('services') ? "#ffffff" : "#667eea"} />
+                <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('services') && styles.fieldToggleButtonTextActive]}>
+                  Services
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
-          <ScrollView
-            style={styles.fieldToggleContent}
-            horizontal={true}
-            showsHorizontalScrollIndicator={false}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.fieldToggleScrollContent}
-          >
-            <TouchableOpacity
-              style={[styles.fieldToggleButton, visibleFields.logo && styles.fieldToggleButtonActive]}
-              onPress={() => toggleFieldVisibility('logo')}
+
+          {/* Templates Section */}
+          <View style={styles.templatesSection}>
+            <View style={styles.templatesHeader}>
+              <Text style={styles.templatesTitle}>Templates</Text>
+            </View>
+            <ScrollView
+              style={styles.templatesContent}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.templatesScrollContent}
             >
-              <Icon name="account-balance" size={getResponsiveIconSize(16)} color={visibleFields.logo ? "#ffffff" : "#667eea"} />
-              <Text style={[styles.fieldToggleButtonText, visibleFields.logo && styles.fieldToggleButtonTextActive]}>
-                Logo
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.fieldToggleButton, visibleFields.companyName && styles.fieldToggleButtonActive]}
-              onPress={() => toggleFieldVisibility('companyName')}
-            >
-              <Icon name="title" size={getResponsiveIconSize(16)} color={visibleFields.companyName ? "#ffffff" : "#667eea"} />
-              <Text style={[styles.fieldToggleButtonText, visibleFields.companyName && styles.fieldToggleButtonTextActive]}>
-                Company Name
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.fieldToggleButton, visibleFields.footerBackground && styles.fieldToggleButtonActive]}
-              onPress={() => toggleFieldVisibility('footerBackground')}
-            >
-              <Icon name="format-color-fill" size={getResponsiveIconSize(16)} color={visibleFields.footerBackground ? "#ffffff" : "#667eea"} />
-              <Text style={[styles.fieldToggleButtonText, visibleFields.footerBackground && styles.fieldToggleButtonTextActive]}>
-                Footer BG
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.fieldToggleButton, visibleFields.phone && styles.fieldToggleButtonActive]}
-              onPress={() => toggleFieldVisibility('phone')}
-            >
-              <Icon name="call" size={getResponsiveIconSize(16)} color={visibleFields.phone ? "#ffffff" : "#667eea"} />
-              <Text style={[styles.fieldToggleButtonText, visibleFields.phone && styles.fieldToggleButtonTextActive]}>
-                Phone
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.fieldToggleButton, visibleFields.email && styles.fieldToggleButtonActive]}
-              onPress={() => toggleFieldVisibility('email')}
-            >
-              <Icon name="mail" size={getResponsiveIconSize(16)} color={visibleFields.email ? "#ffffff" : "#667eea"} />
-              <Text style={[styles.fieldToggleButtonText, visibleFields.email && styles.fieldToggleButtonTextActive]}>
-                Email
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.fieldToggleButton, visibleFields.website && styles.fieldToggleButtonActive]}
-              onPress={() => toggleFieldVisibility('website')}
-            >
-              <Icon name="public" size={getResponsiveIconSize(16)} color={visibleFields.website ? "#ffffff" : "#667eea"} />
-              <Text style={[styles.fieldToggleButtonText, visibleFields.website && styles.fieldToggleButtonTextActive]}>
-                Website
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.fieldToggleButton, visibleFields.category && styles.fieldToggleButtonActive]}
-              onPress={() => toggleFieldVisibility('category')}
-            >
-              <Icon name="business-center" size={getResponsiveIconSize(16)} color={visibleFields.category ? "#ffffff" : "#667eea"} />
-              <Text style={[styles.fieldToggleButtonText, visibleFields.category && styles.fieldToggleButtonTextActive]}>
-                Category
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.fieldToggleButton, visibleFields.address && styles.fieldToggleButtonActive]}
-              onPress={() => toggleFieldVisibility('address')}
-            >
-              <Icon name="place" size={getResponsiveIconSize(16)} color={visibleFields.address ? "#ffffff" : "#667eea"} />
-              <Text style={[styles.fieldToggleButtonText, visibleFields.address && styles.fieldToggleButtonTextActive]}>
-                Address
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.fieldToggleButton, visibleFields.services && styles.fieldToggleButtonActive]}
-              onPress={() => toggleFieldVisibility('services')}
-            >
-              <Icon name="handyman" size={getResponsiveIconSize(16)} color={visibleFields.services ? "#ffffff" : "#667eea"} />
-              <Text style={[styles.fieldToggleButtonText, visibleFields.services && styles.fieldToggleButtonTextActive]}>
-                Services
-              </Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-        
-        {/* Templates Section */}
-        <View style={styles.templatesSection}>
-          <View style={styles.templatesHeader}>
-            <Text style={styles.templatesTitle}>Templates</Text>
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'business' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('business')}
+              >
+                <View style={[styles.templatePreview, styles.businessTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <View style={[styles.templatePreviewFooter, styles.businessTemplateStyle]} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'event' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('event')}
+              >
+                <View style={[styles.templatePreview, styles.eventTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <View style={[styles.templatePreviewFooter, styles.eventTemplateStyle]} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'restaurant' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('restaurant')}
+              >
+                <View style={[styles.templatePreview, styles.restaurantTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <View style={[styles.templatePreviewFooter, styles.restaurantTemplateStyle]} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'fashion' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('fashion')}
+              >
+                <View style={[styles.templatePreview, styles.fashionTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <View style={[styles.templatePreviewFooter, styles.fashionTemplateStyle]} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'real-estate' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('real-estate')}
+              >
+                <View style={[styles.templatePreview, styles.realEstateTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <View style={[styles.templatePreviewFooter, styles.realEstateTemplateStyle]} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'education' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('education')}
+              >
+                <View style={[styles.templatePreview, styles.educationTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <View style={[styles.templatePreviewFooter, styles.educationTemplateStyle]} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'healthcare' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('healthcare')}
+              >
+                <View style={[styles.templatePreview, styles.healthcareTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <View style={[styles.templatePreviewFooter, styles.healthcareTemplateStyle]} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'fitness' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('fitness')}
+              >
+                <View style={[styles.templatePreview, styles.fitnessTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <View style={[styles.templatePreviewFooter, styles.fitnessTemplateStyle]} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'wedding' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('wedding')}
+              >
+                <View style={[styles.templatePreview, styles.weddingTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <View style={[styles.templatePreviewFooter, styles.weddingTemplateStyle]} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'birthday' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('birthday')}
+              >
+                <View style={[styles.templatePreview, styles.birthdayTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <View style={[styles.templatePreviewFooter, styles.birthdayTemplateStyle]} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'corporate' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('corporate')}
+              >
+                <View style={[styles.templatePreview, styles.corporateTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <View style={[styles.templatePreviewFooter, styles.corporateTemplateStyle]} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'creative' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('creative')}
+              >
+                <View style={[styles.templatePreview, styles.creativeTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <View style={[styles.templatePreviewFooter, styles.creativeTemplateStyle]} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'minimal' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('minimal')}
+              >
+                <View style={[styles.templatePreview, styles.minimalTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <View style={[styles.templatePreviewFooter, styles.minimalTemplateStyle]} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'luxury' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('luxury')}
+              >
+                <View style={[styles.templatePreview, styles.luxuryTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <View style={[styles.templatePreviewFooter, styles.luxuryTemplateStyle]} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'vintage' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('vintage')}
+              >
+                <View style={[styles.templatePreview, styles.vintageTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <View style={[styles.templatePreviewFooter, styles.vintageTemplateStyle]} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'retro' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('retro')}
+              >
+                <View style={[styles.templatePreview, styles.retroTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <View style={[styles.templatePreviewFooter, styles.retroTemplateStyle]} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'elegant' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('elegant')}
+              >
+                <View style={[styles.templatePreview, styles.elegantTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <View style={[styles.templatePreviewFooter, styles.elegantTemplateStyle]} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'tech' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('tech')}
+              >
+                <View style={[styles.templatePreview, styles.techTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <View style={[styles.templatePreviewFooter, styles.techTemplateStyle]} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'ocean' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('ocean')}
+              >
+                <View style={[styles.templatePreview, styles.oceanTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <View style={[styles.templatePreviewFooter, styles.oceanTemplateStyle]} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'sunset' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('sunset')}
+              >
+                <View style={[styles.templatePreview, styles.sunsetTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <View style={[styles.templatePreviewFooter, styles.sunsetTemplateStyle]} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'artistic' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('artistic')}
+              >
+                <View style={[styles.templatePreview, styles.artisticTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <View style={[styles.templatePreviewFooter, styles.artisticTemplateStyle]} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'ombre-sunset' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('ombre-sunset')}
+              >
+                <View style={[styles.templatePreview, styles.ombreSunsetTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <LinearGradient
+                      colors={['#FF6B6B', '#FFA500', '#FFD700']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
+                    />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'ombre-ocean' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('ombre-ocean')}
+              >
+                <View style={[styles.templatePreview, styles.ombreOceanTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <LinearGradient
+                      colors={['#667eea', '#06b6d4', '#22c55e']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
+                    />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'ombre-purple' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('ombre-purple')}
+              >
+                <View style={[styles.templatePreview, styles.ombrePurpleTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <LinearGradient
+                      colors={['#9333ea', '#ec4899', '#f43f5e']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
+                    />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'ombre-forest' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('ombre-forest')}
+              >
+                <View style={[styles.templatePreview, styles.ombreForestTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <LinearGradient
+                      colors={['#065f46', '#059669', '#10b981']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
+                    />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'ombre-fire' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('ombre-fire')}
+              >
+                <View style={[styles.templatePreview, styles.ombreFireTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <LinearGradient
+                      colors={['#dc2626', '#f59e0b', '#fbbf24']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
+                    />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'ombre-night' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('ombre-night')}
+              >
+                <View style={[styles.templatePreview, styles.ombreNightTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <LinearGradient
+                      colors={['#1e3a8a', '#7c3aed', '#ec4899']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
+                    />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'ombre-tropical' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('ombre-tropical')}
+              >
+                <View style={[styles.templatePreview, styles.ombreTropicalTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <LinearGradient
+                      colors={['#f472b6', '#fb923c', '#06b6d4']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
+                    />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'ombre-autumn' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('ombre-autumn')}
+              >
+                <View style={[styles.templatePreview, styles.ombreAutumnTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <LinearGradient
+                      colors={['#78350f', '#ea580c', '#dc2626']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
+                    />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'ombre-rose' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('ombre-rose')}
+              >
+                <View style={[styles.templatePreview, styles.ombreRoseTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <LinearGradient
+                      colors={['#be123c', '#f472b6', '#fda4af']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
+                    />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.templateButton, selectedTemplate === 'ombre-galaxy' && styles.templateButtonActive]}
+                onPress={() => applyTemplate('ombre-galaxy')}
+              >
+                <View style={[styles.templatePreview, styles.ombreGalaxyTemplatePreview]}>
+                  <View style={styles.templatePreviewContent}>
+                    <LinearGradient
+                      colors={['#6366f1', '#8b5cf6', '#06b6d4']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
+                    />
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
-          <ScrollView
-            style={styles.templatesContent}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.templatesScrollContent}
-          >
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'business' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('business')}
-            >
-              <View style={[styles.templatePreview, styles.businessTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <View style={[styles.templatePreviewFooter, styles.businessTemplateStyle]} />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'event' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('event')}
-            >
-              <View style={[styles.templatePreview, styles.eventTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <View style={[styles.templatePreviewFooter, styles.eventTemplateStyle]} />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'restaurant' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('restaurant')}
-            >
-              <View style={[styles.templatePreview, styles.restaurantTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <View style={[styles.templatePreviewFooter, styles.restaurantTemplateStyle]} />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'fashion' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('fashion')}
-            >
-              <View style={[styles.templatePreview, styles.fashionTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <View style={[styles.templatePreviewFooter, styles.fashionTemplateStyle]} />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'real-estate' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('real-estate')}
-            >
-              <View style={[styles.templatePreview, styles.realEstateTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <View style={[styles.templatePreviewFooter, styles.realEstateTemplateStyle]} />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'education' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('education')}
-            >
-              <View style={[styles.templatePreview, styles.educationTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <View style={[styles.templatePreviewFooter, styles.educationTemplateStyle]} />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'healthcare' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('healthcare')}
-            >
-              <View style={[styles.templatePreview, styles.healthcareTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <View style={[styles.templatePreviewFooter, styles.healthcareTemplateStyle]} />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'fitness' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('fitness')}
-            >
-              <View style={[styles.templatePreview, styles.fitnessTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <View style={[styles.templatePreviewFooter, styles.fitnessTemplateStyle]} />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'wedding' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('wedding')}
-            >
-              <View style={[styles.templatePreview, styles.weddingTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <View style={[styles.templatePreviewFooter, styles.weddingTemplateStyle]} />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'birthday' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('birthday')}
-            >
-              <View style={[styles.templatePreview, styles.birthdayTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <View style={[styles.templatePreviewFooter, styles.birthdayTemplateStyle]} />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'corporate' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('corporate')}
-            >
-              <View style={[styles.templatePreview, styles.corporateTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <View style={[styles.templatePreviewFooter, styles.corporateTemplateStyle]} />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'creative' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('creative')}
-            >
-              <View style={[styles.templatePreview, styles.creativeTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <View style={[styles.templatePreviewFooter, styles.creativeTemplateStyle]} />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'minimal' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('minimal')}
-            >
-              <View style={[styles.templatePreview, styles.minimalTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <View style={[styles.templatePreviewFooter, styles.minimalTemplateStyle]} />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'luxury' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('luxury')}
-            >
-              <View style={[styles.templatePreview, styles.luxuryTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <View style={[styles.templatePreviewFooter, styles.luxuryTemplateStyle]} />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'vintage' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('vintage')}
-            >
-              <View style={[styles.templatePreview, styles.vintageTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <View style={[styles.templatePreviewFooter, styles.vintageTemplateStyle]} />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'retro' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('retro')}
-            >
-              <View style={[styles.templatePreview, styles.retroTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <View style={[styles.templatePreviewFooter, styles.retroTemplateStyle]} />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'elegant' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('elegant')}
-            >
-              <View style={[styles.templatePreview, styles.elegantTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <View style={[styles.templatePreviewFooter, styles.elegantTemplateStyle]} />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'tech' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('tech')}
-            >
-              <View style={[styles.templatePreview, styles.techTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <View style={[styles.templatePreviewFooter, styles.techTemplateStyle]} />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'ocean' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('ocean')}
-            >
-              <View style={[styles.templatePreview, styles.oceanTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <View style={[styles.templatePreviewFooter, styles.oceanTemplateStyle]} />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'sunset' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('sunset')}
-            >
-              <View style={[styles.templatePreview, styles.sunsetTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <View style={[styles.templatePreviewFooter, styles.sunsetTemplateStyle]} />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'artistic' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('artistic')}
-            >
-              <View style={[styles.templatePreview, styles.artisticTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <View style={[styles.templatePreviewFooter, styles.artisticTemplateStyle]} />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'ombre-sunset' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('ombre-sunset')}
-            >
-              <View style={[styles.templatePreview, styles.ombreSunsetTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <LinearGradient
-                    colors={['#FF6B6B', '#FFA500', '#FFD700']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
-                  />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'ombre-ocean' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('ombre-ocean')}
-            >
-              <View style={[styles.templatePreview, styles.ombreOceanTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <LinearGradient
-                    colors={['#667eea', '#06b6d4', '#22c55e']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
-                  />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'ombre-purple' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('ombre-purple')}
-            >
-              <View style={[styles.templatePreview, styles.ombrePurpleTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <LinearGradient
-                    colors={['#9333ea', '#ec4899', '#f43f5e']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
-                  />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'ombre-forest' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('ombre-forest')}
-            >
-              <View style={[styles.templatePreview, styles.ombreForestTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <LinearGradient
-                    colors={['#065f46', '#059669', '#10b981']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
-                  />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'ombre-fire' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('ombre-fire')}
-            >
-              <View style={[styles.templatePreview, styles.ombreFireTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <LinearGradient
-                    colors={['#dc2626', '#f59e0b', '#fbbf24']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
-                  />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'ombre-night' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('ombre-night')}
-            >
-              <View style={[styles.templatePreview, styles.ombreNightTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <LinearGradient
-                    colors={['#1e3a8a', '#7c3aed', '#ec4899']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
-                  />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'ombre-tropical' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('ombre-tropical')}
-            >
-              <View style={[styles.templatePreview, styles.ombreTropicalTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <LinearGradient
-                    colors={['#f472b6', '#fb923c', '#06b6d4']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
-                  />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'ombre-autumn' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('ombre-autumn')}
-            >
-              <View style={[styles.templatePreview, styles.ombreAutumnTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <LinearGradient
-                    colors={['#78350f', '#ea580c', '#dc2626']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
-                  />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'ombre-rose' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('ombre-rose')}
-            >
-              <View style={[styles.templatePreview, styles.ombreRoseTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <LinearGradient
-                    colors={['#be123c', '#f472b6', '#fda4af']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
-                  />
-                </View>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.templateButton, selectedTemplate === 'ombre-galaxy' && styles.templateButtonActive]}
-              onPress={() => applyTemplate('ombre-galaxy')}
-            >
-              <View style={[styles.templatePreview, styles.ombreGalaxyTemplatePreview]}>
-                <View style={styles.templatePreviewContent}>
-                  <LinearGradient
-                    colors={['#6366f1', '#8b5cf6', '#06b6d4']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
-                  />
-                </View>
-              </View>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
+
+          {/* Frames Section */}
+          <View style={styles.framesSection}>
+            <View style={styles.framesHeader}>
+              <Text style={styles.framesTitle}>Frames</Text>
+            </View>
+            <FlatList
+              data={FRAME_OPTIONS}
+              renderItem={({ item: frame }) => (
+                <FrameItem
+                  frame={frame}
+                  isSelected={selectedFrame === frame.id}
+                  onPress={() => {
+                    if (selectedFrame === frame.id) {
+                      handleRemoveFrameOnly();
+                    } else {
+                      setSelectedFrame(frame.id);
+                      setVisibleFields(prev => ({ ...prev, footerBackground: false }));
+                      applyFrameLayout(frame.id);
+                    }
+                  }}
+                  styles={styles}
+                />
+              )}
+              keyExtractor={item => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.framesScrollContent}
+              initialNumToRender={6}
+              maxToRenderPerBatch={4}
+              windowSize={3}
+              removeClippedSubviews={true}
+            />
+          </View>
 
         </ScrollView>
       </View>
@@ -3264,14 +3348,14 @@ const renderLayer = (
               multiline
             />
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={styles.modalButton} 
+              <TouchableOpacity
+                style={styles.modalButton}
                 onPress={() => setShowTextModal(false)}
               >
                 <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.modalButtonPrimary]} 
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonPrimary]}
                 onPress={addTextLayer}
               >
                 <Text style={[styles.modalButtonText, styles.modalButtonTextPrimary]}>Add</Text>
@@ -3300,14 +3384,14 @@ const renderLayer = (
               <Image source={{ uri: newImageUrl }} style={styles.previewImage} />
             ) : null}
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={styles.modalButton} 
+              <TouchableOpacity
+                style={styles.modalButton}
                 onPress={() => setShowImageModal(false)}
               >
                 <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.modalButtonPrimary]} 
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonPrimary]}
                 onPress={addImageLayer}
                 disabled={!newImageUrl}
               >
@@ -3337,14 +3421,14 @@ const renderLayer = (
               <Image source={{ uri: newLogoUrl }} style={styles.previewLogo} />
             ) : null}
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={styles.modalButton} 
+              <TouchableOpacity
+                style={styles.modalButton}
                 onPress={() => setShowLogoModal(false)}
               >
                 <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.modalButtonPrimary]} 
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonPrimary]}
                 onPress={addLogoLayer}
                 disabled={!newLogoUrl}
               >
@@ -3379,8 +3463,8 @@ const renderLayer = (
                 </TouchableOpacity>
               ))}
             </ScrollView>
-            <TouchableOpacity 
-              style={styles.modalButton} 
+            <TouchableOpacity
+              style={styles.modalButton}
               onPress={() => setShowFontModal(false)}
             >
               <Text style={styles.modalButtonText}>Close</Text>
@@ -3401,79 +3485,14 @@ const renderLayer = (
         selectedTemplate={null}
       />
 
-      {/* Business Profile Selection Modal */}
-      <Modal
-        visible={showProfileSelectionModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => {
-          // Prevent closing without selection - user must select a profile or go back
-          Alert.alert(
-            'Selection Required',
-            'You must select a business profile to continue. If you want to go back, use the Cancel button.',
-            [{ text: 'OK' }]
-          );
-        }}
-      >
-        <View style={themeStyles.modalOverlay}>
-          <View style={themeStyles.modalContent}>
-            <Text style={themeStyles.modalTitle}>Select Business Profile</Text>
-            <Text style={themeStyles.modalSubtitle}>
-              Choose which business profile to use for your video. You must select one to continue.
-            </Text>
-            {loadingProfiles ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme?.colors?.primary || '#007AFF'} />
-                <Text style={themeStyles.modalSubtitle}>Loading profiles...</Text>
-              </View>
-            ) : (
-              <FlatList
-                data={businessProfiles}
-                renderItem={renderProfileItem}
-                keyExtractor={(item) => item.id}
-                style={styles.profileList}
-                showsVerticalScrollIndicator={false}
-                removeClippedSubviews={true}
-                maxToRenderPerBatch={5}
-                windowSize={10}
-                initialNumToRender={3}
-              />
-            )}
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, themeStyles.cancelButton]}
-                onPress={() => {
-                  setShowProfileSelectionModal(false);
-                  navigation.goBack(); // Go back to previous screen if user cancels
-                }}
-              >
-                <Text style={themeStyles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* Info Required Modal */}
+      <InfoRequiredModal
+        visible={showInfoRequiredModal}
+        fieldName={selectedFieldName}
+        onClose={() => setShowInfoRequiredModal(false)}
+      />
 
-      {/* Profile Modal (for manual selection later) */}
-      <Modal visible={showProfileModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Business Profile</Text>
-            <FlatList
-              data={businessProfiles}
-              renderItem={renderProfileItem}
-              keyExtractor={(item) => item.id}
-              style={styles.profileList}
-            />
-            <TouchableOpacity 
-              style={styles.modalButton} 
-              onPress={() => setShowProfileModal(false)}
-            >
-              <Text style={styles.modalButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+
 
       {/* Video Processing Modal - Removed, using direct generation */}
 
@@ -3694,10 +3713,12 @@ const styles = StyleSheet.create({
   },
   playButtonOverlay: {
     position: 'absolute',
-    bottom: moderateScale(12),
-    right: moderateScale(12),
+    top: '50%',
+    left: '50%',
+    marginTop: -moderateScale(40),
+    marginLeft: -moderateScale(40),
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: moderateScale(30),
+    borderRadius: moderateScale(40),
     padding: moderateScale(10),
   },
   playButton: {
@@ -4038,6 +4059,106 @@ const styles = StyleSheet.create({
   templateTextActive: {
     color: '#667eea',
     fontWeight: '700',
+  },
+
+  frameIntegrated: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    zIndex: 2, // Above video backdrop, below layers
+  },
+
+  // Frames Section Styles
+  framesSection: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: isTablet ? 16 : isLandscape ? 12 : isUltraSmallScreen ? 6 : isSmallScreen ? 8 : 12,
+    paddingHorizontal: isTablet ? 12 : isLandscape ? 8 : isUltraSmallScreen ? 4 : isSmallScreen ? 6 : 8,
+    paddingVertical: isTablet ? 12 : isLandscape ? 8 : isUltraSmallScreen ? 3 : isSmallScreen ? 4 : 6,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    marginBottom: isTablet ? 12 : isLandscape ? 8 : isUltraSmallScreen ? 4 : isSmallScreen ? 5 : 10,
+    marginHorizontal: isTablet ? 12 : isLandscape ? 8 : isUltraSmallScreen ? 4 : isSmallScreen ? 6 : 8,
+  },
+  framesHeader: {
+    alignItems: 'center',
+    marginBottom: isUltraSmallScreen ? 0 : isSmallScreen ? 0 : 1,
+  },
+  framesTitle: {
+    fontSize: isSmallScreen ? 11 : 14,
+    fontWeight: '700',
+    color: '#333333',
+    marginBottom: 0,
+    lineHeight: isUltraSmallScreen ? 12 : isSmallScreen ? 13 : 16,
+  },
+  framesSubtitle: {
+    fontSize: isSmallScreen ? 8 : 10,
+    color: '#666666',
+    marginTop: 1,
+  },
+  framesContent: {
+    height: isTablet ? 70 : isLandscape ? 65 : isUltraSmallScreen ? 55 : isSmallScreen ? 60 : 65,
+  },
+  framesScrollContent: {
+    paddingHorizontal: 5,
+    alignItems: 'center',
+  },
+  frameButton: {
+    alignItems: 'center',
+    marginHorizontal: isSmallScreen ? 4 : 8,
+    minWidth: isSmallScreen ? 55 : 80,
+  },
+  frameButtonActive: {
+    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+    borderRadius: isSmallScreen ? 6 : 12,
+    padding: isSmallScreen ? 4 : 8,
+  },
+  framePreview: {
+    width: (() => {
+      const isLandscape = screenWidth > screenHeight;
+      const isTablet = Math.min(screenWidth, screenHeight) >= 768;
+      if (isLandscape) {
+        return Math.max(49, (isTablet ? 80 : 70) * 0.7);
+      }
+      return Math.max(42, (screenWidth < 360 ? 60 : screenWidth >= 360 && screenWidth < 375 ? 65 : screenWidth >= 375 && screenWidth < 414 ? 70 : screenWidth >= 414 && screenWidth < 480 ? 75 : 80) * 0.7);
+    })(),
+    height: (() => {
+      const isLandscape = screenWidth > screenHeight;
+      const isTablet = Math.min(screenWidth, screenHeight) >= 768;
+      if (isLandscape) {
+        return Math.max(49, (isTablet ? 80 : 70) * 0.7);
+      }
+      return Math.max(42, (screenWidth < 360 ? 60 : screenWidth >= 360 && screenWidth < 375 ? 65 : screenWidth >= 375 && screenWidth < 414 ? 70 : screenWidth >= 414 && screenWidth < 480 ? 75 : 80) * 0.7);
+    })(),
+    borderRadius: isSmallScreen ? 6 : 8,
+    backgroundColor: '#f8f9fa',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: isSmallScreen ? 4 : 8,
+    borderWidth: 2,
+    borderColor: '#e9ecef',
+  },
+  framePreviewInner: {
+    width: 50,
+    height: 50,
+    backgroundColor: '#ffffff',
+    borderRadius: 4,
+  },
+  frameText: {
+    fontSize: isUltraSmallScreen ? 7 : isSmallScreen ? 8 : 10,
+    color: '#666666',
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: isUltraSmallScreen ? 8 : isSmallScreen ? 9 : 12,
   },
 
   // Header Button Styles

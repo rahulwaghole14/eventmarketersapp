@@ -275,7 +275,6 @@ const ProfileScreen: React.FC = () => {
     address: currentUser?.address || '',
     phone: currentUser?.phoneNumber || currentUser?.phone || '',
     alternatePhone: currentUser?.alternatePhone || '',
-    email: currentUser?.email || '',
     website: currentUser?.website || '',
     companyLogo: currentUser?.logo || currentUser?.companyLogo || '',
   });
@@ -299,6 +298,7 @@ const ProfileScreen: React.FC = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [showSignOutModal, setShowSignOutModal] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [showComingSoonModal, setShowComingSoonModal] = useState(false);
@@ -556,7 +556,6 @@ const ProfileScreen: React.FC = () => {
             console.log('─────────────────────────────────────────────────────────');
             console.log('📊 Individual User Data Fields:');
             console.log('   🆔 id:', completeUserData?.id || '(not set)');
-            console.log('   📧 email:', completeUserData?.email || '(not set)');
             console.log('   🏢 companyName:', (completeUserData as any)?.companyName || '(not set)');
             console.log('   🏢 name:', (completeUserData as any)?.name || '(not set)');
             console.log('   📱 phone:', (completeUserData as any)?.phone || '(not set)');
@@ -913,7 +912,7 @@ const ProfileScreen: React.FC = () => {
 
   const confirmSignOut = async () => {
     try {
-      setShowSignOutModal(false);
+      setIsSigningOut(true);
       
       // Clear subscription data immediately
       clearSubscriptionData();
@@ -922,8 +921,9 @@ const ProfileScreen: React.FC = () => {
       await authService.signOut();
       
       // Navigation will be handled by the auth state change listener
-              
+      setShowSignOutModal(false);
             } catch (error) {
+              setIsSigningOut(false);
               console.error('ProfileScreen: Sign out error:', error);
               Alert.alert(
                 'Sign Out Error', 
@@ -1145,7 +1145,6 @@ const ProfileScreen: React.FC = () => {
             address: currentUser?.address ?? '',
             phone: currentUser?.phoneNumber || currentUser?.phone || '',
             alternatePhone: currentUser?.alternatePhone ?? '',
-            email: currentUser?.email || '',
             website: currentUser?.website ?? '',
             companyLogo: currentUser?.logo || currentUser?.companyLogo || '',
           });
@@ -1197,7 +1196,6 @@ const ProfileScreen: React.FC = () => {
       console.log('   - address:', apiResponse.address);
       console.log('   - phone:', apiResponse.phoneNumber || apiResponse.phone);
       console.log('   - alternatePhone:', apiResponse.alternatePhone);
-      console.log('   - email:', apiResponse.email);
       console.log('   - website:', apiResponse.website);
       
       // Populate edit form DIRECTLY from API response (no merging, no fallbacks)
@@ -1208,7 +1206,6 @@ const ProfileScreen: React.FC = () => {
         address: apiResponse.address ?? '',
         phone: apiResponse.phoneNumber || apiResponse.phone || '',
         alternatePhone: apiResponse.alternatePhone ?? '',
-        email: apiResponse.email || '',
         website: apiResponse.website ?? '',
         companyLogo: apiResponse.logo || apiResponse.companyLogo || '',
       });
@@ -1244,10 +1241,6 @@ const ProfileScreen: React.FC = () => {
       return;
     }
 
-    if (!editFormData.email.trim()) {
-      Alert.alert('Error', 'Email is required');
-      return;
-    }
 
     if (!editFormData.phone.trim()) {
       Alert.alert('Error', 'Phone number is required');
@@ -1324,7 +1317,6 @@ const ProfileScreen: React.FC = () => {
       const logoValue = editFormData.companyLogo.trim() || null;
       const updateData = {
         name: editFormData.name.trim(),
-        email: editFormData.email.trim(),
         phone: editFormData.phone.trim(),
         description: editFormData.description.trim() || null,
         category: editFormData.category.trim() || null, // Send null if empty to allow clearing
@@ -1515,7 +1507,6 @@ const ProfileScreen: React.FC = () => {
       address: user?.address ?? '',
       phone: user?.phoneNumber || user?.phone || '',
       alternatePhone: user?.alternatePhone ?? '',
-      email: user?.email || '',
       website: user?.website ?? '',
       companyLogo: user?.logo || user?.companyLogo || '',
     });
@@ -1892,7 +1883,7 @@ const ProfileScreen: React.FC = () => {
                     <Text style={[styles.avatarText, {
                       fontSize: getFontSize(24),
                     }]}>
-                      {(currentUser?.companyName || currentUser?.displayName)?.charAt(0) || currentUser?.email?.charAt(0) || 'U'}
+                      {(currentUser?.companyName || currentUser?.displayName)?.charAt(0) || currentUser?.phone?.charAt(0) || currentUser?.phoneNumber?.charAt(0) || 'U'}
                     </Text>
                   </LinearGradient>
                   );
@@ -1923,7 +1914,7 @@ const ProfileScreen: React.FC = () => {
                   fontSize: getFontSize(8),
                   marginBottom: dynamicModerateScale(4),
                 }]}>
-                  {currentUser?.email || 'eventmarketer@example.com'}
+                  {currentUser?.phone || currentUser?.phoneNumber || 'No phone'}
                 </Text>
               </View>
             </View>
@@ -2413,8 +2404,7 @@ const ProfileScreen: React.FC = () => {
                   placeholderTextColor={theme.colors.textSecondary}
                   keyboardType="phone-pad"
                   maxLength={10}
-                  returnKeyType="next"
-                  onSubmitEditing={handleEditSubmitEditing('editEmail')}
+                  returnKeyType="done"
                 />
                 {phoneValidationError ? (
                   <Text style={[styles.validationError, { 
@@ -2429,35 +2419,6 @@ const ProfileScreen: React.FC = () => {
               </View>
 
 
-              {/* Email */}
-              <View style={[styles.inputGroup, {
-                marginBottom: dynamicModerateScale(12),
-              }]}>
-                <Text style={[styles.inputLabel, { 
-                  color: theme.colors.text,
-                  fontSize: getFontSize(9),
-                  marginBottom: dynamicModerateScale(3),
-                }]}>Email *</Text>
-                <TextInput
-                ref={registerEditInputRef('editEmail')}
-                  style={[styles.textInput, styles.readOnlyInput, { 
-                    backgroundColor: theme.colors.inputBackground,
-                    borderColor: theme.colors.border,
-                    color: theme.colors.textSecondary,
-                    paddingHorizontal: dynamicModerateScale(10),
-                    paddingVertical: dynamicModerateScale(7),
-                    fontSize: getFontSize(10),
-                    borderRadius: dynamicModerateScale(10),
-                  }]}
-                  value={editFormData.email}
-                  editable={false}
-                  placeholder="Enter your email"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                returnKeyType="done"
-                />
-              </View>
 
 
             </ScrollView>
@@ -2595,10 +2556,15 @@ const ProfileScreen: React.FC = () => {
                     borderRadius: dynamicModerateScale(10),
                   }]}
                   onPress={confirmSignOut}
+                  disabled={isSigningOut}
                 >
-                  <Text style={[styles.signOutConfirmButtonText, {
-                    fontSize: getFontSize(10),
-                  }]}>Sign Out</Text>
+                  {isSigningOut ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Text style={[styles.signOutConfirmButtonText, {
+                      fontSize: getFontSize(10),
+                    }]}>Sign Out</Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </View>

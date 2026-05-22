@@ -50,6 +50,7 @@ import authService from '../services/auth';
 import { performanceMonitor } from '../utils/performanceMonitor';
 import { requestDeduplication } from '../utils/requestDeduplication';
 import { RequestDeduplication } from '../utils/requestDeduplication';
+import { getAccessState, isAccessGranted } from '../utils/subscriptionAccess';
 // import SimpleFestivalCalendar from '../components/SimpleFestivalCalendar';
 import OptimizedImage from '../components/OptimizedImage';
 import ComingSoonModal from '../components/ComingSoonModal';
@@ -70,6 +71,7 @@ import responsiveUtils, {
   responsiveInput,
   responsiveCard
 } from '../utils/responsiveUtils';
+import { BASE_URL } from '../config/env';
 
 // Compact spacing multiplier to reduce all spacing
 const COMPACT_MULTIPLIER = 0.5;
@@ -820,7 +822,7 @@ let hasCheckedForUpdate = false;
 
 const HomeScreen: React.FC = React.memo(() => {
   const { isDarkMode, theme } = useTheme();
-  const { isSubscriptionActive, refreshSubscription } = useSubscription();
+  const { isSubscriptionActive, refreshSubscription, isSubscribed } = useSubscription();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<StackNavigationProp<MainStackParamList>>();
   const isFocused = useIsFocused();
@@ -833,8 +835,23 @@ const HomeScreen: React.FC = React.memo(() => {
   const [userProfile, setUserProfile] = useState(() => authService.getCurrentUser());
   const [userBusinessProfiles, setUserBusinessProfiles] = useState<BusinessProfile[]>([]);
   const [businessProfilesLoadingState, setBusinessProfilesLoadingState] = useState(false);
-  const { selectedBusinessProfile, setSelectedBusinessProfile, initializeSelectedProfile, isLoading: isContextLoading, setSelectedBusinessCategory } = useBusinessProfile();
-  const isActive = isSubscriptionActive;
+  const { 
+    selectedBusinessProfile, 
+    setSelectedBusinessProfile,
+    initializeSelectedProfile,
+    selectedBusinessCategory,
+    selectedBusinessCategoryId,
+    setSelectedBusinessCategory,
+    isLoading: isProfileLoading 
+  } = useBusinessProfile();
+  const isActive = useMemo(() => {
+    return isAccessGranted(
+      getAccessState({
+        businessProfile: selectedBusinessProfile,
+        isSubscribed,
+      })
+    );
+  }, [selectedBusinessProfile, isSubscribed, isSubscriptionActive]);
   const selectedBusinessProfileId = selectedBusinessProfile?.id || null;
   const [isBusinessProfileDropdownVisible, setIsBusinessProfileDropdownVisible] = useState(false);
   const [businessProfileDropdownPosition, setBusinessProfileDropdownPosition] = useState<{ top: number; left: number; width: number } | null>(null);
@@ -1779,7 +1796,6 @@ const HomeScreen: React.FC = React.memo(() => {
 
   const [isBusinessCategoriesModalVisible, setIsBusinessCategoriesModalVisible] = useState(false);
   const [isVideosModalVisible, setIsVideosModalVisible] = useState(false);
-  const [showVideoComingSoonModal, setShowVideoComingSoonModal] = useState(false);
   const [isCustomerSupportModalVisible, setIsCustomerSupportModalVisible] = useState(false);
 
   // Greeting section modal states
@@ -1932,10 +1948,10 @@ const HomeScreen: React.FC = React.memo(() => {
             if (template?.thumbnail) highPriorityImages.push(template.thumbnail);
           });
 
-          // Video content thumbnails (first 3) - commented out, not in use for now
-          // videoContent.slice(0, 3).forEach(video => {
-          //   if (video.thumbnail) highPriorityImages.push(video.thumbnail);
-          // });
+          // Video content thumbnails (first 3)
+          videoContent.slice(0, 3).forEach(video => {
+            if (video.thumbnail) highPriorityImages.push(video.thumbnail);
+          });
 
           if (highPriorityImages.length > 0) {
             Promise.allSettled(
@@ -1982,10 +1998,10 @@ const HomeScreen: React.FC = React.memo(() => {
             if (template?.thumbnail) mediumPriorityImages.push(template.thumbnail);
           });
 
-          // More video content - commented out, not in use for now
-          // videoContent.slice(3, 6).forEach(video => {
-          //   if (video.thumbnail) mediumPriorityImages.push(video.thumbnail);
-          // });
+          // More video content
+          videoContent.slice(3, 6).forEach(video => {
+            if (video.thumbnail) mediumPriorityImages.push(video.thumbnail);
+          });
 
           if (mediumPriorityImages.length > 0) {
             Promise.allSettled(
@@ -2033,7 +2049,7 @@ const HomeScreen: React.FC = React.memo(() => {
     };
 
     preloadCriticalImages();
-  }, [featuredContent, businessEthicsTemplates, successMindsetTemplates, socialMediaGrowthTemplates, moneyAndFinanceTemplates, businessLegendQuoteTemplates, businessMarketingTipsTemplates, businessQuotesTemplates, /* videoContent, */ businessCategoryPreviews, memoizedGreetingCategoryPreviews, calendarPosters]);
+  }, [featuredContent, businessEthicsTemplates, successMindsetTemplates, socialMediaGrowthTemplates, moneyAndFinanceTemplates, businessLegendQuoteTemplates, businessMarketingTipsTemplates, businessQuotesTemplates, videoContent, businessCategoryPreviews, memoizedGreetingCategoryPreviews, calendarPosters]);
 
   // Load data from APIs with caching for instant loads and request deduplication
   const loadApiData = useCallback(async (isRefresh: boolean = false) => {
@@ -2046,8 +2062,7 @@ const HomeScreen: React.FC = React.memo(() => {
       try {
         const cacheService = (await import('../services/cacheService')).default;
         const featuredCacheKey = 'home_featured_' + JSON.stringify({ limit: 1 });
-        // Video API commented out - not in use for now
-        // const videoCacheKey = 'home_videos_' + JSON.stringify({ limit: 1 });
+        const videoCacheKey = 'home_videos_' + JSON.stringify({ limit: 1 });
 
         // Cache keys for greeting sections (format: greeting_search_${query}_all)
         const greetingCacheKeys = [
@@ -2060,9 +2075,9 @@ const HomeScreen: React.FC = React.memo(() => {
           'greeting_search_business quotes_all',
         ];
 
-        const [cachedFeatured, /* cachedVideos, */ ...cachedGreetings] = await Promise.all([
+        const [cachedFeatured, cachedVideos, ...cachedGreetings] = await Promise.all([
           cacheService.get(featuredCacheKey),
-          // cacheService.get(videoCacheKey), // Video API commented out
+          cacheService.get(videoCacheKey),
           ...greetingCacheKeys.map(key => cacheService.get(key)),
         ]);
 
@@ -2088,12 +2103,11 @@ const HomeScreen: React.FC = React.memo(() => {
           });
         }
 
-        // Video API commented out - not in use for now
-        // if (cachedVideos && (cachedVideos as any).data) {
-        //   React.startTransition(() => {
-        //     setVideoContent((cachedVideos as any).data || []);
-        //   });
-        // }
+        if (cachedVideos && (cachedVideos as any).data) {
+          React.startTransition(() => {
+            setVideoContent((cachedVideos as any).data || []);
+          });
+        }
 
         // Load cached greeting sections immediately
         // IMPORTANT: Update state directly (not in startTransition) to ensure sections appear immediately
@@ -2220,11 +2234,11 @@ const HomeScreen: React.FC = React.memo(() => {
                 }
               });
               if (__DEV__) {
-                console.log('[FEATURED CONTENT] G�� Loaded:', response.data?.length || 0, 'items');
+                console.log('[FEATURED CONTENT] Loaded:', response.data?.length || 0, 'items');
               }
             } else {
               if (__DEV__) {
-                console.warn('[FEATURED CONTENT] G��n+� API returned unsuccessful response or invalid data:', {
+                console.warn('[FEATURED CONTENT] API returned unsuccessful response or invalid data:', {
                   success: response.success,
                   hasData: !!response.data,
                   isArray: Array.isArray(response.data),
@@ -2239,7 +2253,7 @@ const HomeScreen: React.FC = React.memo(() => {
             return { type: 'featured', response, success: response.success };
           }).catch(err => {
             if (__DEV__) {
-              console.error('[FEATURED CONTENT] G�� Error loading:', err?.message || err);
+              console.error('[FEATURED CONTENT] Error loading:', err?.message || err);
               console.error('[FEATURED CONTENT] Error details:', {
                 message: err?.message,
                 code: err?.code,
@@ -2258,50 +2272,56 @@ const HomeScreen: React.FC = React.memo(() => {
             return { type: 'featured', response: null, success: false };
           }),
 
-          // Video API commented out - not in use for now
-          // requestDeduplication.deduplicate(
-          //   RequestDeduplication.generateKey('videoContent', { limit: 1 }),
-          //   () => homeApi.getVideoContent({ limit: 1 })
-          // ).then(response => {
-          //   // Update videos immediately with first 1 item for instant loading
-          //   if (response.success) {
-          //     React.startTransition(() => {
-          //       setVideoContent(response.data);
-          //     });
-          //     if (__DEV__) {
-          //       console.log('[VIDEO CONTENT] G�� Loaded:', response.data?.length || 0, 'items');
-          //     }
-          //   } else {
-          //     if (__DEV__) {
-          //       console.warn('[VIDEO CONTENT] G��n+� API returned unsuccessful response:', response);
-          //     }
-          //     React.startTransition(() => {
-          //       setVideoContent([]);
-          //     });
-          //   }
-          //   return { type: 'videos', response, success: response.success };
-          // }).catch(err => {
-          //   if (__DEV__) {
-          //     console.error('[VIDEO CONTENT] G�� Error loading:', err?.message || err);
-          //     console.error('[VIDEO CONTENT] Error details:', {
-          //       message: err?.message,
-          //       code: err?.code,
-          //       response: err?.response?.data,
-          //       status: err?.response?.status,
-          //       url: err?.config?.url,
-          //     });
-          //   }
-          //   if (err?.message === 'NETWORK_ERROR' || err?.message === 'TIMEOUT') {
-          //     networkErrors.push('videos');
-          //   }
-          //   React.startTransition(() => {
-          //     setVideoContent([]);
-          //   });
-          //   return { type: 'videos', response: null, success: false };
-          // }),
-
-          // Return a resolved promise to maintain promise array structure
-          Promise.resolve({ type: 'videos', response: null, success: false }),
+            requestDeduplication.deduplicate(
+              RequestDeduplication.generateKey('videoContent', { limit: 1, category: selectedBusinessCategory || undefined, businessCategoryId: selectedBusinessCategoryId || undefined }),
+              () => {
+                const params = { limit: 1, category: selectedBusinessCategory || undefined, businessCategoryId: selectedBusinessCategoryId || undefined };
+                if (__DEV__) {
+                  console.log('🎬 [VIDEO CONTENT] Fetching from:', BASE_URL);
+                  console.log('🎬 [VIDEO CONTENT] Params:', JSON.stringify(params));
+                }
+                return homeApi.getVideoContent(params);
+              }
+            ).then(response => {
+            // Update videos immediately with first 1 item for instant loading
+            if (response.success) {
+              React.startTransition(() => {
+                setVideoContent(response.data);
+              });
+              if (__DEV__) {
+                console.log('🎬 [VIDEO CONTENT] Loaded:', response.data?.length || 0, 'items for category:', selectedBusinessCategory);
+                if (response.data?.length === 0) {
+                  console.log('❓ [VIDEO CONTENT] No items found. Check if backend category name matches:', selectedBusinessCategory);
+                }
+              }
+            } else {
+              if (__DEV__) {
+                console.warn('[VIDEO CONTENT] API returned unsuccessful response:', response);
+              }
+              React.startTransition(() => {
+                setVideoContent([]);
+              });
+            }
+            return { type: 'videos', response, success: response.success };
+          }).catch(err => {
+            if (__DEV__) {
+              console.error('[VIDEO CONTENT] Error loading:', err?.message || err);
+              console.error('[VIDEO CONTENT] Error details:', {
+                message: err?.message,
+                code: err?.code,
+                response: err?.response?.data,
+                status: err?.response?.status,
+                url: err?.config?.url,
+              });
+            }
+            if (err?.message === 'NETWORK_ERROR' || err?.message === 'TIMEOUT') {
+              networkErrors.push('videos');
+            }
+            React.startTransition(() => {
+              setVideoContent([]);
+            });
+            return { type: 'videos', response: null, success: false };
+          }),
         ];
 
         // Don't wait - let promises resolve in background and update UI as they complete
@@ -2372,16 +2392,15 @@ const HomeScreen: React.FC = React.memo(() => {
               });
             }
 
-            // Load full video content (20 items) - commented out, not in use for now
-            // const fullVideosResponse = await requestDeduplication.deduplicate(
-            //   RequestDeduplication.generateKey('videoContent', { limit: 20 }),
-            //   () => homeApi.getVideoContent({ limit: 20 })
-            // );
-            // if (fullVideosResponse.success && fullVideosResponse.data.length > 1) {
-            //   React.startTransition(() => {
-            //     setVideoContent(fullVideosResponse.data);
-            //   });
-            // }
+            const fullVideosResponse = await requestDeduplication.deduplicate(
+              RequestDeduplication.generateKey('videoContent', { limit: 20, category: selectedBusinessCategory || undefined, businessCategoryId: selectedBusinessCategoryId || undefined }),
+              () => homeApi.getVideoContent({ limit: 20, category: selectedBusinessCategory || undefined, businessCategoryId: selectedBusinessCategoryId || undefined })
+            );
+            if (fullVideosResponse.success && fullVideosResponse.data.length > 1) {
+              React.startTransition(() => {
+                setVideoContent(fullVideosResponse.data);
+              });
+            }
           } catch (error) {
             if (__DEV__) {
               devError('Error loading remaining content in background:', error);
@@ -2530,7 +2549,7 @@ const HomeScreen: React.FC = React.memo(() => {
         });
       }
     });
-  }, [filterDiwaliContent]);
+  }, [filterDiwaliContent, selectedBusinessCategory]);
 
   // Helper function to convert CalendarPoster to Template format
   const convertCalendarPosterToTemplate = useCallback((poster: CalendarPoster): Template => {
@@ -2675,6 +2694,18 @@ const HomeScreen: React.FC = React.memo(() => {
       isMounted = false;
     };
   }, [loadApiData, loadCalendarPosters, startProgressiveImagePreloading]); // Include startProgressiveImagePreloading in dependencies
+
+  // Reload data when business category changes
+  useEffect(() => {
+    if (apiDataLoadedRef.current && (selectedBusinessCategory || selectedBusinessCategoryId)) {
+      if (__DEV__) {
+        console.log('🔄 [HOME SCREEN] Business category changed to:', selectedBusinessCategory, '(ID:', selectedBusinessCategoryId, ') - Refreshing home screen data');
+      }
+      loadApiData(true).catch(err => {
+        if (__DEV__) console.error('Error refreshing home screen data after category change:', err);
+      });
+    }
+  }, [selectedBusinessCategory, selectedBusinessCategoryId, loadApiData]);
 
   // Load greeting categories - consolidated with greetingCategoriesList loading below
 
@@ -4250,12 +4281,24 @@ const HomeScreen: React.FC = React.memo(() => {
     const matchedVideo = videoContentMap.get(template.id);
 
     if (matchedVideo) {
-      // Pre-filter related videos for faster access
-      const related = videoContent.filter(video => video.id !== matchedVideo.id);
-      navigation.navigate('VideoPlayer', {
-        selectedVideo: matchedVideo,
-        relatedVideos: related,
-      });
+      if (isActive) {
+        navigation.navigate('VideoEditor', {
+          selectedVideo: {
+            uri: matchedVideo.videoUrl,
+            title: matchedVideo.title,
+            description: matchedVideo.description,
+          },
+          selectedLanguage: 'English',
+          selectedTemplateId: matchedVideo.id,
+        });
+      } else {
+        // Pre-filter related videos for faster access
+        const related = videoContent.filter(video => video.id !== matchedVideo.id);
+        navigation.navigate('VideoPlayer', {
+          selectedVideo: matchedVideo,
+          relatedVideos: related,
+        });
+      }
       return;
     }
 
@@ -4801,9 +4844,6 @@ const HomeScreen: React.FC = React.memo(() => {
   }, [handleTemplatePress, theme, cardWidth, filteredGreetingCategoriesList, businessCategories, memoizedGreetingCategoryImages]);
 
 
-  const handleVideoCardPress = useCallback(() => {
-    setShowVideoComingSoonModal(true);
-  }, []);
 
   const renderVideoTemplate = useCallback(({ item }: { item: VideoContent }) => {
     return (
@@ -4813,10 +4853,10 @@ const HomeScreen: React.FC = React.memo(() => {
         theme={theme}
         playIconSize={playIconSize}
         getThumbnailUrl={getThumbnailUrl}
-        onPress={handleVideoCardPress}
+        onPress={() => handleTemplatePress(item)}
       />
     );
-  }, [theme, cardWidth, playIconSize, handleVideoCardPress, getThumbnailUrl]);
+  }, [theme, cardWidth, playIconSize, handleTemplatePress, getThumbnailUrl]);
 
   // Carousel card dimensions with spacing
   const SCREEN_WIDTH = screenWidth;
@@ -6972,7 +7012,7 @@ const HomeScreen: React.FC = React.memo(() => {
           {renderSearchResults()}
           
           {/* Video Section - Hidden when searching */}
-          {!isSearching && searchQuery.trim() === '' && videoContent.length > 0 && (
+          {/* {!isSearching && searchQuery.trim() === '' && videoContent.length > 0 && (
             <View style={styles.videoSection}>
               <View style={styles.sectionHeader}>
                 <Text style={[styles.sectionTitle, { paddingHorizontal: 0, color: theme.colors.text, fontWeight: 'bold' }]}>
@@ -6999,7 +7039,7 @@ const HomeScreen: React.FC = React.memo(() => {
                 maintainVisibleContentPosition={null}
               />
             </View>
-          )}
+          )} */}
 
 
           {/* Business Ethics Section - Hidden when searching */}
@@ -7822,12 +7862,6 @@ const HomeScreen: React.FC = React.memo(() => {
         </View>
       </Modal>
 
-      <ComingSoonModal
-        visible={showVideoComingSoonModal}
-        onClose={() => setShowVideoComingSoonModal(false)}
-        title="Video Editor Coming Soon"
-        subtitle="We are polishing the video creation experience. Stay tuned for the next update!"
-      />
 
 
       {/* Business Ethics Modal */}

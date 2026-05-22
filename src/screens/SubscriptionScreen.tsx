@@ -27,6 +27,7 @@ import PlanCard from '../components/PlanCard';
 import { useTheme } from '../context/ThemeContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { useBusinessProfile } from '../context/BusinessProfileContext';
+import businessProfileService from '../services/businessProfile';
 import subscriptionApi, { SubscriptionPlan, SubscriptionStatus } from '../services/subscriptionApi';
 import authService from '../services/auth';
 import api from '../services/api';
@@ -771,7 +772,7 @@ const SubscriptionScreen: React.FC = () => {
               console.log('🔄 Refreshing business profile after payment success:', businessProfileId);
               try {
                 // Use business profile service to refresh the specific profile
-                const refreshedProfile = await businessProfileService.getBusinessProfileById(businessProfileId);
+                const refreshedProfile = await businessProfileService.getBusinessProfile(businessProfileId);
                 if (refreshedProfile) {
                   console.log('✅ Business profile refreshed with new status:', refreshedProfile.subscriptionStatus);
                 }

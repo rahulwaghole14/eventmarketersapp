@@ -26,7 +26,8 @@
       android:allowBackup="false"
       android:theme="@style/AppTheme"
       android:supportsRtl="true"
-      android:extractNativeLibs="false">
+      android:extractNativeLibs="false"
+      android:usesCleartextTraffic="true">
       <!-- Support for 16 KB page sizes (required for Android 15+ and Play Store) -->
       <meta-data
         android:name="android.app.allow_16kb_page_sizes"

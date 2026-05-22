@@ -2,10 +2,12 @@ export type RootStackParamList = {
   MainApp: undefined;
   Login: undefined;
   Registration: undefined;
+  CategorySelection: undefined;
+  BusinessProfileCreation: { category: string; subCategory: string };
   ForgotPassword: undefined;
   VerifyResetCode: { email: string };
   ResetPassword: { email: string; code: string };
-  EmailVerification: { email: string };
+  EmailVerification: { email?: string; phone?: string };
   Splash: undefined;
   PrivacyPolicy: undefined;
 };

@@ -526,6 +526,7 @@ class HomeApiService {
         
         if (params?.limit) queryParams.append('limit', params.limit.toString());
         if (params?.category) queryParams.append('category', params.category);
+        if (params?.businessCategoryId) queryParams.append('businessCategoryId', params.businessCategoryId);
         if (params?.location) queryParams.append('location', params.location);
         if (params?.dateFrom) queryParams.append('dateFrom', params.dateFrom);
         if (params?.dateTo) queryParams.append('dateTo', params.dateTo);
@@ -600,6 +601,7 @@ class HomeApiService {
         
         if (params?.limit) queryParams.append('limit', params.limit.toString());
         if (params?.category) queryParams.append('category', params.category);
+        if (params?.businessCategoryId) queryParams.append('businessCategoryId', params.businessCategoryId);
         if (params?.subcategory) queryParams.append('subcategory', params.subcategory);
         if (params?.isPremium !== undefined) queryParams.append('isPremium', params.isPremium.toString());
         if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
@@ -677,6 +679,7 @@ class HomeApiService {
         
         if (params?.limit) queryParams.append('limit', params.limit.toString());
         if (params?.category) queryParams.append('category', params.category);
+        if (params?.businessCategoryId) queryParams.append('businessCategoryId', params.businessCategoryId);
         if (params?.language) queryParams.append('language', params.language);
         if (params?.isPremium !== undefined) queryParams.append('isPremium', params.isPremium.toString());
         if (params?.sortBy) queryParams.append('sortBy', params.sortBy);

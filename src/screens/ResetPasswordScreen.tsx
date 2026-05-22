@@ -18,7 +18,7 @@ import { RouteProp } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../context/ThemeContext';
 import loginAPIs from '../services/loginAPIs';
-import { RootStackParamList } from '../navigation/AppNavigator';
+import { RootStackParamList } from '../navigation/types';
 
 type ResetPasswordNavigationProp = StackNavigationProp<RootStackParamList, 'ResetPassword'>;
 type ResetPasswordRouteProp = RouteProp<RootStackParamList, 'ResetPassword'>;

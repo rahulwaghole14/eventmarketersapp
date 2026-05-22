@@ -3,7 +3,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import loginAPIs from '../services/loginAPIs';
 import OtpVerificationComponent from '../components/OtpVerificationComponent';
-import { RootStackParamList } from '../navigation/AppNavigator';
+import { RootStackParamList } from '../navigation/types';
 
 type VerifyScreenNavigationProp = StackNavigationProp<RootStackParamList, 'VerifyResetCode'>;
 type VerifyScreenRouteProp = RouteProp<RootStackParamList, 'VerifyResetCode'>;

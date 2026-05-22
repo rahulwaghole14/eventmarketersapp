@@ -22,7 +22,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useBusinessProfile } from '../context/BusinessProfileContext';
 import ImagePickerModal from '../components/ImagePickerModal';
 import OptimizedImage from '../components/OptimizedImage';
-import ComingSoonModal from '../components/ComingSoonModal';
+import { launchImageLibrary } from 'react-native-image-picker';
 import logger from '../utils/logger';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -69,7 +69,6 @@ const TemplateGalleryScreen: React.FC = () => {
   const navigation = useNavigation<StackNavigationProp<MainStackParamList>>();
   const [imagePickerVisible, setImagePickerVisible] = useState(false);
   const [uploadedPhotos, setUploadedPhotos] = useState<UploadedPhoto[]>([]);
-  const [showVideoComingSoonModal, setShowVideoComingSoonModal] = useState(false);
 
   // Dynamic dimensions for responsive layout
   const [dimensions, setDimensions] = useState(() => {
@@ -160,9 +159,39 @@ const TemplateGalleryScreen: React.FC = () => {
   };
 
   const handleVideoUpload = useCallback(() => {
-    // Show coming soon modal instead of opening video picker
-    setShowVideoComingSoonModal(true);
-  }, []);
+    try {
+      const options = {
+        mediaType: 'video' as const,
+        selectionLimit: 1,
+      };
+
+      launchImageLibrary(options, (response) => {
+        if (response.didCancel) return;
+        
+        if (response.errorCode) {
+          Alert.alert('Error', response.errorMessage || 'Failed to select video');
+          return;
+        }
+
+        if (response.assets && response.assets[0] && response.assets[0].uri) {
+          const videoUri = response.assets[0].uri;
+          
+          navigation.navigate('VideoEditor', {
+            selectedVideo: {
+              uri: videoUri,
+              title: 'Custom Upload',
+              description: 'Your uploaded video',
+            },
+            selectedLanguage: 'English',
+            selectedTemplateId: 'custom_video_' + Date.now(),
+          } as any);
+        }
+      });
+    } catch (error) {
+      console.error('Video gallery error:', error);
+      Alert.alert('Error', 'Failed to open gallery');
+    }
+  }, [navigation]);
 
   // Handle photo press from gallery
   const handlePhotoPress = (photo: UploadedPhoto) => {
@@ -431,13 +460,6 @@ const TemplateGalleryScreen: React.FC = () => {
         onImageSelected={handleImageSelected}
       />
 
-      {/* Coming Soon Modal for Video */}
-      <ComingSoonModal
-        visible={showVideoComingSoonModal}
-        onClose={() => setShowVideoComingSoonModal(false)}
-        title="Video Editor Coming Soon"
-        subtitle="We are polishing the video creation experience. Stay tuned for the next update!"
-      />
     </SafeAreaView>
   );
 };

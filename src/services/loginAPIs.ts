@@ -19,9 +19,9 @@ import authApi from './authApi';
  * Based on actual RegistrationScreen.tsx form fields
  */
 export interface UserRegistrationRequest {
-  email: string;
-  password: string;
-  companyName: string;
+  email?: string;
+  password?: string;
+  companyName?: string;
   phoneNumber: string;
   // Additional fields from registration form
   description?: string;
@@ -43,8 +43,9 @@ export interface UserRegistrationRequest {
  * Used in login page
  */
 export interface UserLoginRequest {
-  email: string;
-  password: string;
+  email?: string;
+  password?: string;
+  phone?: string;
   // Optional: Remember me functionality
   rememberMe?: boolean;
 }
@@ -153,7 +154,7 @@ class LoginAPIsService {
    */
   async registerUser(data: UserRegistrationRequest): Promise<AuthResponse> {
     try {
-      console.log('📝 Registering new user:', data.email);
+      console.log('📝 Registering new user with phone:', data.phoneNumber);
 
       // Clear all caches before registration to ensure fresh start
       console.log('🗑️ Clearing all caches before registration...');
@@ -168,10 +169,8 @@ class LoginAPIsService {
         // Create FormData for file upload
         const formData = new FormData();
         
-        // Add all text fields
-        formData.append('email', data.email);
-        formData.append('password', data.password);
-        formData.append('companyName', data.companyName);
+        // Add all text fields (no email/password - server derives internally from phone)
+        if (data.companyName) formData.append('companyName', data.companyName);
         formData.append('phone', data.phoneNumber);
         
         // Add optional fields if they exist
@@ -214,20 +213,17 @@ class LoginAPIsService {
       } else {
         console.log('📤 [REGISTRATION] No local logo file, using regular JSON request');
         
-        // Regular JSON request when no local file needs to be uploaded
+        // Regular JSON request - only phone is sent, server derives email/password internally
         response = await api.post('/api/mobile/auth/register', {
-          email: data.email,
-          password: data.password,
+          phone: data.phoneNumber,
           companyName: data.companyName,
-          phone: data.phoneNumber, // Backend expects 'phone', not 'phoneNumber'
-          // Additional fields from registration form
           description: data.description,
           category: data.category,
           subCategory: data.subCategory || data.subcategory,
           address: data.address,
           alternatePhone: data.alternatePhone,
           website: data.website,
-          companyLogo: data.companyLogo, // Will be null or URL if already uploaded
+          companyLogo: data.companyLogo,
           displayName: data.displayName,
           promoCode: data.promoCode,
         });
@@ -236,7 +232,7 @@ class LoginAPIsService {
       if (response.data.success) {
         // Handle email verification required response
         if (response.data.requiresVerification === true) {
-          console.log('📧 Email verification required for registration');
+          console.log('📱 OTP verification required — WhatsApp code sent to phone');
           return {
             success: true,
             data: {
@@ -338,7 +334,7 @@ class LoginAPIsService {
    */
   async loginUser(data: UserLoginRequest): Promise<AuthResponse> {
     try {
-      console.log('🔐 Logging in user:', data.email);
+      console.log('📱 Logging in user with phone:', data.phone);
 
       // Clear all caches before login to ensure fresh data for new user
       console.log('🗑️ Clearing all caches before login...');
@@ -350,6 +346,7 @@ class LoginAPIsService {
       const response = await api.post('/api/mobile/auth/login', {
         email: data.email,
         password: data.password,
+        phone: data.phone,
         rememberMe: data.rememberMe || false,
       });
 
@@ -357,6 +354,21 @@ class LoginAPIsService {
       console.log('📡 API Response data:', response.data);
 
       if (response.data.success) {
+        // Handle OTP verification required response
+        if (response.data.requiresVerification === true) {
+          console.log('📱 OTP verification required — WhatsApp code sent to phone');
+          return {
+            success: true,
+            data: {
+              user: {} as UserProfile,
+              token: '',
+              expiresIn: 0
+            },
+            message: 'OTP verification required',
+            requiresVerification: true
+          };
+        }
+
         // Store user data and token in auth service
         console.log('🔍 Response data structure:', JSON.stringify(response.data.data, null, 2));
         const { user, accessToken, token } = response.data.data;
@@ -687,14 +699,16 @@ class LoginAPIsService {
    * Endpoint: POST /api/mobile/auth/verify-email
    * Used in: Email verification screen
    */
-  async verifyEmailCode(data: { email: string; otpCode: string }): Promise<{ success: boolean; message: string; token?: string; user?: any; businessProfile?: any }> {
+  async verifyEmailCode(data: { email?: string; phone?: string; otpCode: string; promoCode?: string }): Promise<{ success: boolean; message: string; token?: string; user?: any; businessProfile?: any; data?: { token?: string; user?: any; businessProfile?: any } }> {
     try {
-      console.log('📧 Verifying email code for:', data.email);
+      console.log('📧 Verifying email/phone code for:', data.email || data.phone);
       console.log('📧 Sending OTP code:', data.otpCode); // Debug log
 
       const response = await api.post('/api/mobile/auth/verify-email', {
-        email: data.email,
-        otpCode: data.otpCode, // Backend expects otpCode, not code
+        phone: data.phone,
+        code: data.otpCode,
+        otpCode: data.otpCode,
+        promoCode: data.promoCode,
       });
 
       console.log('✅ Email verification successful');
@@ -710,12 +724,12 @@ class LoginAPIsService {
    * Endpoint: POST /api/mobile/auth/resend-verification
    * Used in: Email verification screen
    */
-  async resendEmailVerification(data: { email: string }): Promise<{ success: boolean; message: string }> {
+  async resendEmailVerification(data: { email?: string; phone?: string }): Promise<{ success: boolean; message: string }> {
     try {
-      console.log('📧 Resending verification code to:', data.email);
+      console.log('📧 Resending verification code to:', data.email || data.phone);
 
       const response = await api.post('/api/mobile/auth/resend-verification', {
-        email: data.email,
+        phone: data.phone,
       });
 
       console.log('✅ Verification code resent');
