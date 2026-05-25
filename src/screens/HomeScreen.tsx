@@ -7012,7 +7012,7 @@ const HomeScreen: React.FC = React.memo(() => {
           {renderSearchResults()}
           
           {/* Video Section - Hidden when searching */}
-          {/* {!isSearching && searchQuery.trim() === '' && videoContent.length > 0 && (
+          {!isSearching && searchQuery.trim() === '' && videoContent.length > 0 && (
             <View style={styles.videoSection}>
               <View style={styles.sectionHeader}>
                 <Text style={[styles.sectionTitle, { paddingHorizontal: 0, color: theme.colors.text, fontWeight: 'bold' }]}>
@@ -7039,7 +7039,7 @@ const HomeScreen: React.FC = React.memo(() => {
                 maintainVisibleContentPosition={null}
               />
             </View>
-          )} */}
+          )}
 
 
           {/* Business Ethics Section - Hidden when searching */}

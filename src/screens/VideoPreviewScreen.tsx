@@ -229,6 +229,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [actionType, setActionType] = useState<'share' | 'download' | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [videoError, setVideoError] = useState(false);
   const [isDemoVideo, setIsDemoVideo] = useState(false);
@@ -441,6 +442,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
 
   // Share functionality
   const handleShare = async () => {
+    setIsSharing(true);
     try {
       // Use the processed video path if available, otherwise use original
       const videoPath = processedVideoPath || selectedVideo.uri;
@@ -500,6 +502,8 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
           }
         ]
       );
+    } finally {
+      setIsSharing(false);
     }
   };
 
@@ -884,15 +888,15 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
           <TouchableOpacity
             style={styles.actionButton}
             onPress={handleShare}
-            disabled={isDownloading}
+            disabled={isSharing || isDownloading}
           >
             <LinearGradient
-              colors={isDownloading ? ['#cccccc', '#999999'] : ['#667eea', '#764ba2']}
+              colors={isSharing ? ['#cccccc', '#999999'] : ['#667eea', '#764ba2']}
               style={styles.shareButtonGradient}
             >
               <Icon name="share" size={getIconSize(24)} color="#ffffff" />
               <Text style={styles.shareButtonText}>
-                {isDownloading ? 'Processing...' : 'Share'}
+                {isSharing ? 'Processing...' : 'Share'}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -900,7 +904,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
           <TouchableOpacity
             style={styles.actionButton}
             onPress={handleQuickDownload}
-            disabled={isDownloading}
+            disabled={isSharing || isDownloading}
           >
             <LinearGradient
               colors={isDownloading ? ['#cccccc', '#999999'] : ['#28a745', '#20c997']}

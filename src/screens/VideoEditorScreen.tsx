@@ -58,9 +58,47 @@ const FRAME_OPTIONS = Object.keys(FRAME_ASSETS).map(id => ({
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-// Calculate video canvas dimensions - fixed at 720x487.2 template aspect ratio for perfect frame scaling
-const videoCanvasWidth = Math.min(screenWidth - 24, screenWidth * 0.92);
-const videoCanvasHeight = Math.round(videoCanvasWidth * (487.2 / 720));
+// Calculate video canvas dimensions - same as poster editor canvas size (square)
+const getCanvasDimensions = () => {
+  const isTabletDevice = Math.min(screenWidth, screenHeight) >= 600;
+  const isFoldableExpanded = screenWidth > 550 && (screenWidth / screenHeight > 0.7 && screenWidth / screenHeight < 1.3);
+  const isUltraSmallDevice = screenWidth < 360;
+  const isSmallDevice = screenWidth >= 360 && screenWidth < 375;
+  const isMediumDevice = screenWidth >= 375 && screenWidth < 414;
+  const isLargeDevice = screenWidth >= 414 && screenWidth < 480;
+
+  let canvasWidthRatio = 0.95;
+
+  if (isTabletDevice || isFoldableExpanded) {
+    canvasWidthRatio = 0.65;
+  } else if (isUltraSmallDevice) {
+    canvasWidthRatio = 0.95;
+  } else if (isSmallDevice) {
+    canvasWidthRatio = 0.93;
+  } else if (isMediumDevice) {
+    canvasWidthRatio = 0.92;
+  } else if (isLargeDevice) {
+    canvasWidthRatio = 0.90;
+  } else {
+    canvasWidthRatio = 0.88;
+  }
+
+  let canvasWidth = screenWidth * canvasWidthRatio;
+  const maxHeightAllowed = screenHeight * (isFoldableExpanded ? 0.42 : 0.5);
+  if (canvasWidth > maxHeightAllowed) {
+    canvasWidth = maxHeightAllowed;
+  }
+
+  return {
+    width: Math.round(canvasWidth),
+    height: Math.round(canvasWidth), // Square!
+  };
+};
+
+const initialCanvasDims = getCanvasDimensions();
+const videoCanvasWidth = initialCanvasDims.width;
+const videoCanvasHeight = initialCanvasDims.height;
+
 
 const POSTER_BASE_WIDTH = 720;
 const POSTER_BASE_HEIGHT = 487.2;
@@ -581,7 +619,18 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   const pulseLoopRef = useRef<Animated.CompositeAnimation | null>(null);
   const processingProgressAnim = useRef(new Animated.Value(0)).current;
   const progressLoopRef = useRef<Animated.CompositeAnimation | null>(null);
-  const [progressBarWidth, setProgressBarWidth] = useState(0);
+  const [displayProgress, setDisplayProgress] = useState(0);
+  const currentAnimValueRef = useRef(0);
+  const maxTargetValRef = useRef(0);
+
+  useEffect(() => {
+    const listenerId = processingProgressAnim.addListener(({ value }) => {
+      currentAnimValueRef.current = value;
+    });
+    return () => {
+      processingProgressAnim.removeListener(listenerId);
+    };
+  }, [processingProgressAnim]);
 
   // State for video layers
   const [layers, setLayers] = useState<ComposerVideoLayer[]>([]);
@@ -683,6 +732,8 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
 
   useEffect(() => {
     if (isProcessing) {
+      maxTargetValRef.current = 0;
+      setDisplayProgress(0);
       setShowProcessingOverlay(true);
       processingOverlayAnim.stopAnimation();
       processingCardScale.stopAnimation();
@@ -745,46 +796,71 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         if (finished) {
           setShowProcessingOverlay(false);
           processingProgressAnim.setValue(0);
+          setDisplayProgress(0);
         }
       });
     }
   }, [isProcessing, processingOverlayAnim, processingCardScale, processingPulseAnim, processingProgressAnim]);
 
   useEffect(() => {
-    if (!isProcessing || progressBarWidth <= 0) {
+    if (!isProcessing) {
       return;
     }
 
     if (processingProgress > 0) {
-      progressLoopRef.current?.stop();
-      progressLoopRef.current = null;
+      // 1. Update display progress state if it's greater than current
+      setDisplayProgress(prev => Math.max(prev, processingProgress));
+
+      // 2. Stop the indeterminate loop if it is still running
+      const currentVal = currentAnimValueRef.current;
+      if (progressLoopRef.current) {
+        progressLoopRef.current.stop();
+        progressLoopRef.current = null;
+        // Freeze the value at its current visual position
+        processingProgressAnim.setValue(currentVal);
+        // Set the initial max target to the current frozen value
+        maxTargetValRef.current = currentVal;
+      }
+
+      // Calculate target value based on real progress (percentage directly: 0 to 100)
+      const targetVal = Math.min(100, Math.max(processingProgress, 0));
+
+      // 3. Ensure the target value only moves forward
+      const nextTarget = Math.max(maxTargetValRef.current, targetVal);
+      maxTargetValRef.current = nextTarget;
+
       Animated.timing(processingProgressAnim, {
-        toValue: (progressBarWidth * Math.min(100, Math.max(processingProgress, 0))) / 100,
+        toValue: nextTarget,
         duration: 320,
         easing: Easing.out(Easing.ease),
         useNativeDriver: false,
       }).start();
-    } else if (!progressLoopRef.current) {
+
+    } else if (maxTargetValRef.current === 0 && !progressLoopRef.current) {
       processingProgressAnim.setValue(0);
-      progressLoopRef.current = Animated.loop(
-        Animated.sequence([
-          Animated.timing(processingProgressAnim, {
-            toValue: progressBarWidth * 0.75,
-            duration: 1200,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: false,
-          }),
-          Animated.timing(processingProgressAnim, {
-            toValue: progressBarWidth * 0.25,
-            duration: 1200,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: false,
-          }),
-        ]),
-      );
+      progressLoopRef.current = Animated.sequence([
+        Animated.timing(processingProgressAnim, {
+          toValue: 20,
+          duration: 3000,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: false,
+        }),
+        Animated.timing(processingProgressAnim, {
+          toValue: 40,
+          duration: 8000,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: false,
+        }),
+        Animated.timing(processingProgressAnim, {
+          toValue: 60,
+          duration: 15000,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: false,
+        }),
+      ]);
       progressLoopRef.current.start();
     }
-  }, [isProcessing, processingProgress, progressBarWidth, processingProgressAnim]);
+  }, [isProcessing, processingProgress, processingProgressAnim]);
 
   const buildOverlayPayload = useCallback(async (): Promise<{
     payload: OverlayPayload[];
@@ -1379,6 +1455,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
     } finally {
       setIsProcessing(false);
       setProcessingProgress(0);
+      setDisplayProgress(0);
     }
   }, [layers, isProcessing, currentCanvasWidth, currentCanvasHeight, selectedProfile, navigation, validateBusinessContent]);
 
@@ -1402,6 +1479,8 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
       setProcessingProgress(0);
       Alert.alert('Timeout', 'Processing took too long. The video may still be processing in the background. Please check again later.');
     }, 300000); // 5 minute timeout (300 seconds)
+
+    let processingSuccess = false;
 
     try {
       if (layers.length === 0) {
@@ -1570,6 +1649,19 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         console.log('📁 Original video path:', videoUri);
         console.log('📝 Note: CSS overlays will be applied in VideoPreviewScreen');
 
+        // Force progress bar to 100% and wait for the animation to finish
+        setProcessingProgress(100);
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        processingSuccess = true;
+
+        // Clean up processing state after a delay (once navigation transition completes)
+        setTimeout(() => {
+          setIsProcessing(false);
+          setProcessingProgress(0);
+          setDisplayProgress(0);
+        }, 1000);
+
         // Navigate to video preview
         navigation.navigate('VideoPreview', {
           selectedVideo: { uri: videoUri }, // Keep original video as selectedVideo
@@ -1595,8 +1687,11 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
     } finally {
       console.log('🔍 DEBUG: Cleaning up - clearing timeout and resetting state');
       clearTimeout(timeoutId);
-      setIsProcessing(false);
-      setProcessingProgress(0);
+      if (!processingSuccess) {
+        setIsProcessing(false);
+        setProcessingProgress(0);
+        setDisplayProgress(0);
+      }
     }
   }, [layers, selectedVideo, isProcessing, currentCanvasWidth, currentCanvasHeight, selectedProfile, navigation, validateBusinessContent]);
 
@@ -1739,6 +1834,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
     const scaleY = canvasHeight / POSTER_BASE_HEIGHT;
 
     const newLayers: ComposerVideoLayer[] = [];
+    const isTabletDevice = Math.min(screenWidth, screenHeight) >= 600;
 
     const buildFooterLayers = (
       companyName: string | undefined,
@@ -1749,39 +1845,17 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
       address?: string,
       services?: string[]
     ) => {
-      const contactLineHeight = isTablet
-        ? 20
-        : isUltraSmallScreen
-          ? 12
-          : isSmallScreen
-            ? 13
-            : isMediumScreen
-              ? 14
-              : 15;
-      const footerPadding = isTablet
-        ? 10
-        : isUltraSmallScreen
-          ? 6
-          : isSmallScreen
-            ? 7
-            : 8;
-      const footerHeight = (contactLineHeight * 3) + (footerPadding * 2);
+      const contactLineHeight = isTabletDevice ? 20 : 16;
+      const footerPadding = 10; // Top and bottom padding
+      const footerHeight = (contactLineHeight * 3) + (footerPadding * 2); // 3 lines + padding
       const footerY = canvasHeight - footerHeight;
 
       const getResponsiveFooterFontSize = (baseSize: number) => {
-        const scaleFactor = Math.min(canvasWidth / 400, canvasHeight / 600);
-        return Math.max(baseSize * scaleFactor, baseSize * 0.8);
+        const scaleFactor = Math.min(canvasWidth / 400, canvasHeight / 600); // Scale based on canvas size
+        return Math.max(baseSize * scaleFactor, baseSize * 0.8); // Minimum 80% of base size
       };
 
-      const footerTextSize = getResponsiveFooterFontSize(
-        isTablet
-          ? 14
-          : isUltraSmallScreen
-            ? 9
-            : isSmallScreen
-              ? 10
-              : 11
-      );
+      const footerTextSize = getResponsiveFooterFontSize(isTabletDevice ? 14 : 11);
 
       newLayers.push({
         id: generateId(),
@@ -1806,17 +1880,14 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         fieldType: 'footerBackground',
       });
 
-      const footerBackgroundLayer = layers.find(layer => layer.fieldType === 'footerBackground');
-
       const leftColumnX = Math.round(20 * scaleX);
-      const rightColumnX = Math.round(370 * scaleX);
 
       if (phone) {
         newLayers.push({
           id: generateId(),
           type: 'text',
           content: `📞 ${phone}`,
-          position: { x: Math.round(219 * scaleX), y: Math.round(425 * scaleY) },
+          position: { x: 539.3 * scaleX, y: 436.0 * scaleY },
           size: { width: (canvasWidth - 40) / 2, height: contactLineHeight },
           style: {
             fontSize: footerTextSize,
@@ -1833,7 +1904,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
           id: generateId(),
           type: 'text',
           content: `✉️ ${email}`,
-          position: { x: leftColumnX, y: Math.round(443 * scaleY) },
+          position: { x: leftColumnX, y: Math.round(436.0 * scaleY) },
           size: { width: (canvasWidth - 40) / 2, height: contactLineHeight },
           style: {
             fontSize: footerTextSize,
@@ -1905,7 +1976,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
           position: { x: leftColumnX, y: Math.round(464 * scaleY) },
           size: { width: canvasWidth - 40, height: contactLineHeight },
           style: {
-            fontSize: Math.max(isTablet ? 12 : 9, footerTextSize),
+            fontSize: Math.max(isTabletDevice ? 12 : 9, footerTextSize),
             color: '#ffffff',
             fontFamily: 'System',
             fontWeight: '400',
@@ -1920,11 +1991,12 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
 
       if (selectedProfile.logo) {
         const logoSize = Math.max(40, Math.min(80, canvasWidth * 0.15));
+        const responsiveLogoX = (285.6769230769231 / 375) * canvasWidth;
         newLayers.push({
           id: generateId(),
           type: 'logo',
           content: selectedProfile.logo,
-          position: { x: canvasWidth - Math.round(100 * scaleX), y: Math.round(20 * scaleY) },
+          position: { x: Math.min(responsiveLogoX, canvasWidth - logoSize - 10), y: 5.638499431602881 },
           size: { width: logoSize, height: logoSize },
           fieldType: 'logo',
         });
@@ -1932,12 +2004,13 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
 
       if (selectedProfile.name) {
         const companyNameSize = Math.max(16, Math.min(24, canvasWidth * 0.06));
+        const responsiveNameX = (9.538461538461538 / 375) * canvasWidth;
         newLayers.push({
           id: generateId(),
           type: 'text',
           content: selectedProfile.name,
-          position: { x: Math.round(20 * scaleX), y: Math.round(30 * scaleY) },
-          size: { width: canvasWidth - Math.round(140 * scaleX), height: Math.round(60 * scaleY) },
+          position: { x: Math.min(responsiveNameX, canvasWidth * 0.05), y: 5.638499431602881 },
+          size: { width: canvasWidth - 140, height: 60 },
           style: {
             fontSize: companyNameSize,
             color: '#ffffff',
@@ -1958,14 +2031,16 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         selectedProfile.services
       );
     } else {
+      const companyNameSize = Math.max(16, Math.min(24, canvasWidth * 0.06));
+      const responsiveNameX = (9.538461538461538 / 375) * canvasWidth;
       newLayers.push({
         id: generateId(),
         type: 'text',
         content: 'Your Business Name',
-        position: { x: Math.round(20 * scaleX), y: Math.round(30 * scaleY) },
-        size: { width: canvasWidth - Math.round(140 * scaleX), height: Math.round(60 * scaleY) },
+        position: { x: Math.min(responsiveNameX, canvasWidth * 0.05), y: 5.638499431602881 },
+        size: { width: canvasWidth - 140, height: 60 },
         style: {
-          fontSize: Math.max(16, Math.min(24, canvasWidth * 0.06)),
+          fontSize: companyNameSize,
           color: '#ffffff',
           fontFamily: 'System',
           fontWeight: '600',
@@ -1973,12 +2048,14 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         fieldType: 'companyName',
       });
 
+      const logoSize = Math.max(40, Math.min(80, canvasWidth * 0.15));
+      const responsiveLogoX = (285.6769230769231 / 375) * canvasWidth;
       newLayers.push({
         id: generateId(),
         type: 'logo',
         content: 'https://via.placeholder.com/80x80/667eea/ffffff?text=LOGO',
-        position: { x: canvasWidth - Math.round(100 * scaleX), y: Math.round(20 * scaleY) },
-        size: { width: Math.max(40, Math.min(80, canvasWidth * 0.15)), height: Math.max(40, Math.min(80, canvasWidth * 0.15)) },
+        position: { x: Math.min(responsiveLogoX, canvasWidth - logoSize - 10), y: 5.638499431602881 },
+        size: { width: logoSize, height: logoSize },
         fieldType: 'logo',
       });
 
@@ -2227,7 +2304,6 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         selectedTemplateId: selectedTemplateId || 'custom',
         layers,
         selectedProfile,
-        businessProfile: selectedBusinessProfile,
         processedVideoPath: undefined,
         canvasData: {
           width: currentCanvasWidth,
@@ -2242,6 +2318,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
     setProcessingProgress(0);
 
     let overlaySnapshotPath: string | undefined;
+    let processingSuccess = false;
 
     try {
       if (overlayImageUri) {
@@ -2255,6 +2332,19 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         overlayPayload,
         { fileName: `overlay_${Date.now()}.mp4` }
       );
+
+      // Force progress bar to 100% and wait for the animation to finish
+      setProcessingProgress(100);
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      processingSuccess = true;
+
+      // Clean up processing state after a delay (once navigation transition completes)
+      setTimeout(() => {
+        setIsProcessing(false);
+        setProcessingProgress(0);
+        setDisplayProgress(0);
+      }, 1000);
 
       navigation.navigate('VideoPreview', {
         selectedVideo: { uri: selectedVideo.uri },
@@ -2292,8 +2382,11 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         },
       });
     } finally {
-      setIsProcessing(false);
-      setProcessingProgress(0);
+      if (!processingSuccess) {
+        setIsProcessing(false);
+        setProcessingProgress(0);
+        setDisplayProgress(0);
+      }
       if (overlaySnapshotPath) {
         const cleanupPath = overlaySnapshotPath.replace('file://', '');
         RNFS.unlink(cleanupPath).catch(() => { });
@@ -2530,12 +2623,13 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
 
           {/* Frame integrated overlay */}
           {selectedFrame && (
-            <Image
-              source={FRAME_OPTIONS.find(f => f.id === selectedFrame)?.source}
-              style={styles.frameIntegrated}
-              resizeMode="stretch"
-              pointerEvents="none"
-            />
+            <View style={styles.frameIntegrated} pointerEvents="none">
+              <Image
+                source={FRAME_OPTIONS.find(f => f.id === selectedFrame)?.source}
+                style={{ width: '100%', height: '100%' }}
+                resizeMode="contain"
+              />
+            </View>
           )}
 
           {/* Video Layers */}
@@ -2607,12 +2701,13 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
             >
               <View style={{ flex: 1, backgroundColor: 'transparent' }}>
                 {selectedFrame && (
-                  <Image
-                    source={FRAME_OPTIONS.find(f => f.id === selectedFrame)?.source}
-                    style={styles.frameIntegrated}
-                    resizeMode="stretch"
-                    pointerEvents="none"
-                  />
+                  <View style={styles.frameIntegrated} pointerEvents="none">
+                    <Image
+                      source={FRAME_OPTIONS.find(f => f.id === selectedFrame)?.source}
+                      style={{ width: '100%', height: '100%' }}
+                      resizeMode="contain"
+                    />
+                  </View>
                 )}
                 {layers.map((l, idx) => {
                   if (l.fieldType && !getEffectiveToggleValue(l.fieldType)) return null;
@@ -2646,12 +2741,13 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
             >
               <View style={{ width: exportWidth, height: exportHeight, backgroundColor: 'transparent' }}>
                 {selectedFrame && (
-                  <Image
-                    source={FRAME_OPTIONS.find(f => f.id === selectedFrame)?.source}
-                    style={styles.frameIntegrated}
-                    resizeMode="stretch"
-                    pointerEvents="none"
-                  />
+                  <View style={styles.frameIntegrated} pointerEvents="none">
+                    <Image
+                      source={FRAME_OPTIONS.find(f => f.id === selectedFrame)?.source}
+                      style={{ width: '100%', height: '100%' }}
+                      resizeMode="contain"
+                    />
+                  </View>
                 )}
                 {layers.map((l, idx) => {
                   if (l.fieldType && !getEffectiveToggleValue(l.fieldType)) return null;
@@ -2707,25 +2803,22 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
                     <Text style={styles.processingCaption}>
                       Adding overlays and finishing touches
                     </Text>
-                    <View
-                      style={styles.progressBar}
-                      onLayout={event => {
-                        const width = event.nativeEvent.layout.width;
-                        if (Math.abs(width - progressBarWidth) > 1) {
-                          setProgressBarWidth(width);
-                        }
-                      }}
-                    >
+                    <View style={styles.progressBar}>
                       <Animated.View
                         style={[
                           styles.progressFill,
-                          { width: progressBarWidth > 0 ? processingProgressAnim : 0 },
+                          {
+                            width: processingProgressAnim.interpolate({
+                              inputRange: [0, 100],
+                              outputRange: ['0%', '100%'],
+                            }),
+                          },
                         ]}
                       />
                     </View>
                     <Text style={styles.progressValue}>
-                      {processingProgress > 0
-                        ? `${Math.min(100, Math.max(1, Math.round(processingProgress)))}%`
+                      {displayProgress > 0
+                        ? `${Math.min(100, Math.max(1, Math.round(displayProgress)))}%`
                         : 'Processing...'}
                     </Text>
                   </Animated.View>
@@ -3652,7 +3745,6 @@ const styles = StyleSheet.create({
   canvas: {
     borderRadius: 0,
     shadowColor: '#000',
-    borderWidth: 1,
     shadowOffset: {
       width: 0,
       height: 8,
@@ -3720,6 +3812,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     borderRadius: moderateScale(40),
     padding: moderateScale(10),
+    zIndex: 999,
+    elevation: 999,
   },
   playButton: {
     width: moderateScale(60),
