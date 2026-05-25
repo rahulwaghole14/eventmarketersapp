@@ -19,6 +19,7 @@ import {
   ActivityIndicator,
   NativeModules,
   Easing,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import Video from 'react-native-video';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
@@ -355,6 +356,7 @@ const DraggableLayer = React.memo(({
   isSelected,
   onSelect,
   onDragEnd,
+  onResize,
   currentCanvasWidth,
   currentCanvasHeight,
   selectedTemplate,
@@ -367,6 +369,7 @@ const DraggableLayer = React.memo(({
   isSelected: boolean;
   onSelect: (id: string) => void;
   onDragEnd: (id: string, x: number, y: number) => void;
+  onResize?: (id: string, width: number, height: number) => void;
   currentCanvasWidth: number;
   currentCanvasHeight: number;
   selectedTemplate: string;
@@ -375,12 +378,37 @@ const DraggableLayer = React.memo(({
   const dragStartRef = useRef<{ x: number; y: number; layerX: number; layerY: number } | null>(null);
   const [actualDimensions, setActualDimensions] = useState<{ width: number, height: number } | null>(null);
 
+  // Pinch-to-zoom state (for logo/image layers)
+  const pinchScaleAnim = useRef(new Animated.Value(1)).current;
+  const lastPinchScale = useRef(1);
+  const [isPinching, setIsPinching] = useState(false);
+  const [liveScale, setLiveScale] = useState(1);
+
+  const pinchStartRef = useRef<{ initialDistance: number; initialWidth: number; initialHeight: number } | null>(null);
+  const pinchActiveRef = useRef(false);
+
+  const getTouchDistance = (touches: any[]) => {
+    if (touches.length < 2) return 0;
+    const t1 = touches[0];
+    const t2 = touches[1];
+    const dx = t1.pageX - t2.pageX;
+    const dy = t1.pageY - t2.pageY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
   // Keep local position in sync with parent when not actively dragging
   useEffect(() => {
     if (!dragStartRef.current) {
       setLocalPos({ x: layer.position.x, y: layer.position.y });
     }
   }, [layer.position.x, layer.position.y]);
+
+  // Reset pinch scale when layer size changes externally
+  useEffect(() => {
+    pinchScaleAnim.setValue(1);
+    lastPinchScale.current = 1;
+    setLiveScale(1);
+  }, [layer.size.width, layer.size.height]);
 
   const left = Math.round((localPos.x || 0) * scaleX);
   const top = Math.round((localPos.y || 0) * scaleY);
@@ -389,6 +417,7 @@ const DraggableLayer = React.memo(({
 
   const isBackground = layer.type === 'text' && layer.content === '' && layer.fieldType === 'footerBackground';
   const isTextLayer = layer.type === 'text' && !isBackground;
+  const isPinchable = (layer.type === 'logo' || layer.type === 'image') && scaleX === 1 && scaleY === 1;
 
   const currentWidth = (isTextLayer && actualDimensions) ? actualDimensions.width : explicitWidth;
   const currentHeight = (isTextLayer && actualDimensions) ? actualDimensions.height : explicitHeight;
@@ -442,8 +471,38 @@ const DraggableLayer = React.memo(({
     return scaled;
   };
 
+  const imageRadius = (layer as any).isCircular
+    ? explicitWidth / 2
+    : ((layer as any).borderRadius ? (layer as any).borderRadius * scaleX : 0);
+
+  const renderImageContent = () => (
+    <Image
+      source={{ uri: layer.content }}
+      style={[
+        styles.layerImage,
+        { borderRadius: imageRadius },
+      ]}
+      resizeMode="cover"
+    />
+  );
+
+  const renderLogoContent = () => (
+    <Image
+      source={{ uri: layer.content }}
+      style={[
+        styles.layerLogo,
+        {
+          borderRadius: (layer as any).isCircular
+            ? explicitWidth / 2
+            : ((layer as any).borderRadius ? (layer as any).borderRadius * scaleX : 0),
+        },
+      ]}
+      resizeMode="contain"
+    />
+  );
+
   return (
-    <View
+    <Animated.View
       style={[
         styles.layer,
         {
@@ -451,7 +510,7 @@ const DraggableLayer = React.memo(({
           top,
           zIndex: zIndex + 5,
           elevation: zIndex + 10,
-          backgroundColor: 'rgba(0, 0, 0, 0.01)', // Invisible background to force Android hardware layer compositing
+          backgroundColor: 'rgba(0, 0, 0, 0.01)',
           overflow: 'visible',
           borderRadius: (layer as any).isCircular
             ? explicitWidth / 2
@@ -459,6 +518,7 @@ const DraggableLayer = React.memo(({
         },
         isTextLayer ? { maxWidth: currentCanvasWidth } : { width: explicitWidth, height: explicitHeight },
         isSelected && scaleX === 1 && scaleY === 1 && styles.selectedLayer,
+        isPinchable && { transform: [{ scale: pinchScaleAnim }] },
       ]}
       onLayout={(e) => {
         if (isTextLayer) {
@@ -468,7 +528,7 @@ const DraggableLayer = React.memo(({
           });
         }
       }}
-      onStartShouldSetResponder={() => scaleX === 1 && scaleY === 1}
+      onStartShouldSetResponder={() => scaleX === 1 && scaleY === 1 && !isPinching}
       onResponderGrant={(evt) => {
         if (scaleX === 1 && scaleY === 1) {
           onSelect(layer.id);
@@ -478,30 +538,79 @@ const DraggableLayer = React.memo(({
             layerX: localPos.x,
             layerY: localPos.y,
           };
+          pinchActiveRef.current = false;
         }
       }}
       onResponderMove={(evt) => {
-        if (scaleX === 1 && scaleY === 1 && dragStartRef.current) {
-          const deltaX = evt.nativeEvent.pageX - dragStartRef.current.x;
-          const deltaY = evt.nativeEvent.pageY - dragStartRef.current.y;
+        if (scaleX !== 1 || scaleY !== 1) return;
+        const touches = evt.nativeEvent.touches || [];
 
-          let newX = dragStartRef.current.layerX + deltaX;
-          let newY = dragStartRef.current.layerY + deltaY;
+        if (touches.length === 1 && !pinchActiveRef.current) {
+          // Normal drag
+          if (dragStartRef.current) {
+            const deltaX = evt.nativeEvent.pageX - dragStartRef.current.x;
+            const deltaY = evt.nativeEvent.pageY - dragStartRef.current.y;
 
-          // Clamp elements to stay within canvas boundaries using actual visual dimensions
-          const maxX = Math.max(0, currentCanvasWidth - currentWidth);
-          const maxY = Math.max(0, currentCanvasHeight - currentHeight);
+            let newX = dragStartRef.current.layerX + deltaX;
+            let newY = dragStartRef.current.layerY + deltaY;
 
-          newX = Math.max(0, Math.min(newX, maxX));
-          newY = Math.max(0, Math.min(newY, maxY));
+            const maxX = Math.max(0, currentCanvasWidth - currentWidth);
+            const maxY = Math.max(0, currentCanvasHeight - currentHeight);
 
-          setLocalPos({ x: newX, y: newY });
+            newX = Math.max(0, Math.min(newX, maxX));
+            newY = Math.max(0, Math.min(newY, maxY));
+
+            setLocalPos({ x: newX, y: newY });
+          }
+        } else if (touches.length === 2 && isPinchable) {
+          // Pinch zoom
+          dragStartRef.current = null;
+          pinchActiveRef.current = true;
+
+          const dist = getTouchDistance(touches);
+          if (dist > 0) {
+            if (!pinchStartRef.current) {
+              setIsPinching(true);
+              pinchStartRef.current = {
+                initialDistance: dist,
+                initialWidth: layer.size.width || explicitWidth,
+                initialHeight: layer.size.height || explicitHeight,
+              };
+            } else {
+              const scale = dist / pinchStartRef.current.initialDistance;
+              setLiveScale(scale);
+              pinchScaleAnim.setValue(scale);
+            }
+          }
         }
       }}
-      onResponderRelease={() => {
-        if (dragStartRef.current) {
+      onResponderRelease={(evt) => {
+        if (dragStartRef.current && !pinchActiveRef.current) {
           onDragEnd(layer.id, localPos.x, localPos.y);
-          dragStartRef.current = null;
+        }
+        dragStartRef.current = null;
+
+        if (pinchActiveRef.current) {
+          setIsPinching(false);
+          const finalScale = liveScale;
+          const minSize = 20;
+          const maxW = currentCanvasWidth;
+          const maxH = currentCanvasHeight;
+
+          const baseW = pinchStartRef.current ? pinchStartRef.current.initialWidth : (layer.size.width || explicitWidth);
+          const baseH = pinchStartRef.current ? pinchStartRef.current.initialHeight : (layer.size.height || explicitHeight);
+
+          const newW = Math.max(minSize, Math.min(maxW, baseW * finalScale));
+          const newH = Math.max(minSize, Math.min(maxH, baseH * finalScale));
+
+          if (onResize) {
+            onResize(layer.id, newW, newH);
+          }
+
+          pinchStartRef.current = null;
+          pinchScaleAnim.setValue(1);
+          setLiveScale(1);
+          pinchActiveRef.current = false;
         }
       }}
     >
@@ -557,35 +666,33 @@ const DraggableLayer = React.memo(({
           </Text>
         )
       )}
-      {layer.type === 'image' && (
-        <Image
-          source={{ uri: layer.content }}
-          style={[
-            styles.layerImage,
-            {
-              borderRadius: (layer as any).isCircular
-                ? explicitWidth / 2
-                : ((layer as any).borderRadius ? (layer as any).borderRadius * scaleX : 0),
-            }
-          ]}
-          resizeMode="cover"
-        />
+
+      {layer.type === 'image' && renderImageContent()}
+
+      {layer.type === 'logo' && renderLogoContent()}
+
+      {/* Pinch scale indicator badge */}
+      {isPinching && isPinchable && (
+        <View
+          style={{
+            position: 'absolute',
+            top: -28,
+            left: '50%',
+            transform: [{ translateX: -28 }],
+            backgroundColor: 'rgba(102, 126, 234, 0.92)',
+            borderRadius: 12,
+            paddingHorizontal: 8,
+            paddingVertical: 3,
+            zIndex: 9999,
+            elevation: 9999,
+          }}
+        >
+          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>
+            {Math.round(liveScale * 100)}%
+          </Text>
+        </View>
       )}
-      {layer.type === 'logo' && (
-        <Image
-          source={{ uri: layer.content }}
-          style={[
-            styles.layerLogo,
-            {
-              borderRadius: (layer as any).isCircular
-                ? explicitWidth / 2
-                : ((layer as any).borderRadius ? (layer as any).borderRadius * scaleX : 0),
-            }
-          ]}
-          resizeMode="contain"
-        />
-      )}
-    </View>
+    </Animated.View>
   );
 });
 
@@ -647,6 +754,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   const [newImageUrl, setNewImageUrl] = useState('');
   const [newLogoUrl, setNewLogoUrl] = useState('');
   const [showLogoModal, setShowLogoModal] = useState(false);
+  const [showDeleteElementModal, setShowDeleteElementModal] = useState(false);
   const [languageMenuVisible, setLanguageMenuVisible] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState(normalizeLanguageId(initialLanguage));
 
@@ -685,6 +793,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
     services: true,
   });
   const [selectedFont, setSelectedFont] = useState('System');
+  const [selectedFontSize, setSelectedFontSize] = useState<number>(16);
   const [fontSearchQuery, setFontSearchQuery] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('business');
   const [originalLayers, setOriginalLayers] = useState<ComposerVideoLayer[]>([]);
@@ -698,7 +807,34 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   const currentCanvasHeight = canvasDimensions.height;
   const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: number } | null>(null);
 
+  const canvasTopOffset = insets.top + moderateScale(12);
+  const canvasBottomY = canvasTopOffset + currentCanvasHeight;
+  const fontModalSpacing = moderateScale(24);
+  const bottomSafeArea = Math.max(insets.bottom, responsiveSpacing.lg);
+  const desiredTop = canvasBottomY + fontModalSpacing;
+  const availableBelowCanvas = screenHeight - desiredTop - bottomSafeArea;
+  const minFontModalHeight = screenHeight * 0.18;
+  const maxFontModalHeight = screenHeight * 0.4;
+  const fontModalMaxHeight = availableBelowCanvas >= minFontModalHeight
+    ? Math.min(availableBelowCanvas, maxFontModalHeight)
+    : maxFontModalHeight;
+  const fallbackTop = screenHeight - fontModalMaxHeight - bottomSafeArea;
+  const fontModalTopOffset = availableBelowCanvas >= minFontModalHeight
+    ? desiredTop
+    : Math.max(canvasBottomY - currentCanvasHeight / 2, fallbackTop);
+  const fontModalWidth = Math.min(currentCanvasWidth * 0.88, screenWidth * 0.9);
+
   const generateId = () => Math.random().toString(36).substr(2, 9);
+
+  // Sync selectedFontSize with selected text layer's current font size
+  useEffect(() => {
+    if (selectedLayer) {
+      const layer = layers.find(l => l.id === selectedLayer);
+      if (layer && layer.type === 'text' && layer.style?.fontSize) {
+        setSelectedFontSize(layer.style.fontSize);
+      }
+    }
+  }, [selectedLayer, layers]);
 
   useEffect(() => {
     if (Platform.OS !== 'android') {
@@ -1070,6 +1206,92 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
       fontSize: 13,
       color: theme?.colors?.textSecondary || '#666666',
       lineHeight: 18,
+    },
+    // Delete Modal Styles - Fully responsive
+    deleteModalContainer: {
+      borderRadius: moderateScale(14),
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: moderateScale(4),
+      },
+      shadowOpacity: isDarkMode ? 0.3 : 0.2,
+      shadowRadius: moderateScale(10),
+      elevation: moderateScale(8),
+    },
+    deleteModalHeader: {
+      alignItems: 'center' as const,
+      position: 'relative' as const,
+    },
+    deleteIconContainer: {
+      width: moderateScale(50),
+      height: moderateScale(50),
+      borderRadius: moderateScale(25),
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+    },
+    deleteModalTitle: {
+      fontSize: moderateScale(16),
+      fontWeight: '700' as const,
+      textAlign: 'center' as const,
+    },
+    closeModalButton: {
+      position: 'absolute' as const,
+      top: 0,
+      right: 0,
+      width: moderateScale(26),
+      height: moderateScale(26),
+      borderRadius: moderateScale(13),
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+    },
+    deleteModalContent: {
+      // Dynamic marginBottom handled inline
+    },
+    deleteModalMessage: {
+      textAlign: 'center' as const,
+      // Dynamic fontSize and lineHeight handled inline
+    },
+    deleteModalButtons: {
+      flexDirection: 'row' as const,
+      gap: moderateScale(8),
+    },
+    deleteModalCancelButton: {
+      flex: 1,
+      alignItems: 'center' as const,
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: moderateScale(1.5),
+      },
+      shadowOpacity: isDarkMode ? 0.15 : 0.08,
+      shadowRadius: moderateScale(3),
+      elevation: moderateScale(2),
+      paddingVertical: moderateScale(10),
+      borderRadius: moderateScale(8),
+    },
+    deleteModalCancelText: {
+      fontWeight: '600' as const,
+      fontSize: moderateScale(13),
+    },
+    deleteModalDeleteButton: {
+      flex: 1,
+      alignItems: 'center' as const,
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: moderateScale(1.5),
+      },
+      shadowOpacity: 0.15,
+      shadowRadius: moderateScale(3),
+      elevation: moderateScale(2),
+      paddingVertical: moderateScale(10),
+      borderRadius: moderateScale(8),
+    },
+    deleteModalDeleteText: {
+      fontWeight: '600' as const,
+      color: '#ffffff',
+      fontSize: moderateScale(13),
     },
   });
 
@@ -2193,6 +2415,13 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
     }
   };
 
+  const confirmDeleteElement = () => {
+    if (selectedLayer) {
+      deleteLayer(selectedLayer);
+      setShowDeleteElementModal(false);
+    }
+  };
+
   // Camera and gallery access
   const requestCameraPermission = async () => {
     if (Platform.OS === 'android') {
@@ -2254,16 +2483,52 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
     }
   };
 
-  // Font handling
-  const handleFontSelect = (fontFamily: string) => {
-    setSelectedFont(fontFamily);
-    if (selectedLayer) {
-      updateLayer(selectedLayer, {
-        style: { ...layers.find(l => l.id === selectedLayer)?.style, fontFamily }
-      });
-    }
-    setShowFontModal(false);
-  };
+  // Apply font style
+  const applyFontStyle = useCallback((fontFamily: string) => {
+    const actualFontFamily = getFontFamily(fontFamily);
+    setSelectedFont(actualFontFamily);
+    setLayers(prev => prev.map(layer => {
+      if (layer.type === 'text') {
+        if (selectedLayer && layer.id === selectedLayer) {
+          return { ...layer, style: { ...layer.style, fontFamily: actualFontFamily, fontSize: selectedFontSize } };
+        } else if (!selectedLayer) {
+          return { ...layer, style: { ...layer.style, fontFamily: actualFontFamily } };
+        }
+      }
+      return layer;
+    }));
+  }, [selectedLayer, selectedFontSize]);
+
+  // Apply font size (selected layer or all text when none selected)
+  const applyFontSize = useCallback((fontSize: number) => {
+    setSelectedFontSize(fontSize);
+    setLayers(prev => prev.map(layer => {
+      if (layer.type !== 'text') {
+        return layer;
+      }
+      if (selectedLayer) {
+        return layer.id === selectedLayer
+          ? { ...layer, style: { ...layer.style, fontSize } }
+          : layer;
+      }
+      return { ...layer, style: { ...layer.style, fontSize } };
+    }));
+  }, [selectedLayer]);
+
+  // Apply text color (selected layer or all text when none selected)
+  const applyTextColor = useCallback((color: string) => {
+    setLayers(prev => prev.map(layer => {
+      if (layer.type !== 'text') {
+        return layer;
+      }
+      if (selectedLayer) {
+        return layer.id === selectedLayer
+          ? { ...layer, style: { ...layer.style, color } }
+          : layer;
+      }
+      return { ...layer, style: { ...layer.style, color } };
+    }));
+  }, [selectedLayer]);
 
   // Navigation
   const handleBack = () => {
@@ -2500,6 +2765,15 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
     ));
   }, []);
 
+  // Pinch-to-zoom: commit new size from DraggableLayer back to layer state
+  const handleLayerResize = useCallback((layerId: string, newWidth: number, newHeight: number) => {
+    setLayers(prev => prev.map(l =>
+      l.id === layerId
+        ? { ...l, size: { width: Math.round(newWidth), height: Math.round(newHeight) } }
+        : l
+    ));
+  }, []);
+
   const renderLayer = (
     layer: ComposerVideoLayer,
     index: number,
@@ -2520,6 +2794,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         isSelected={selectedLayer === layer.id}
         onSelect={setSelectedLayer}
         onDragEnd={handleDragEnd}
+        onResize={handleLayerResize}
         currentCanvasWidth={currentCanvasWidth || videoCanvasWidth}
         currentCanvasHeight={currentCanvasHeight || videoCanvasHeight}
         selectedTemplate={selectedTemplate}
@@ -2621,6 +2896,17 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
             repeat={true}
           />
 
+          <TouchableWithoutFeedback
+            onPress={() => {
+              setIsVideoPlaying(!isVideoPlaying);
+              if (selectedLayer) {
+                setSelectedLayer(null);
+              }
+            }}
+          >
+            <View style={StyleSheet.absoluteFillObject} />
+          </TouchableWithoutFeedback>
+
           {/* Frame integrated overlay */}
           {selectedFrame && (
             <View style={styles.frameIntegrated} pointerEvents="none">
@@ -2644,20 +2930,23 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
           })}
 
 
-          <TouchableOpacity
+          <View
             style={[styles.playButtonOverlay, isVideoPlaying && { opacity: 0 }]}
-            onPress={() => setIsVideoPlaying(!isVideoPlaying)}
-            activeOpacity={0.8}
-            hitSlop={{ top: 150, bottom: 150, left: 150, right: 150 }}
+            pointerEvents={isVideoPlaying ? 'none' : 'auto'}
           >
-            <View style={styles.playButton}>
-              <Icon
-                name="play-arrow"
-                size={48}
-                color="#ffffff"
-              />
-            </View>
-          </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setIsVideoPlaying(!isVideoPlaying)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.playButton}>
+                <Icon
+                  name="play-arrow"
+                  size={48}
+                  color="#ffffff"
+                />
+              </View>
+            </TouchableOpacity>
+          </View>
 
           {languageMenuVisible && (
             <View style={styles.languageDropdownMenuSmall}>
@@ -2877,6 +3166,22 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
                   <Text style={styles.toolbarButtonText}>Font</Text>
                 </LinearGradient>
               </TouchableOpacity>
+
+              {selectedLayer && (
+                <TouchableOpacity
+                  style={styles.toolbarButton}
+                  onPress={() => setShowDeleteElementModal(true)}
+                  activeOpacity={0.8}
+                >
+                  <LinearGradient
+                    colors={['#ff4757', '#ff3742']}
+                    style={styles.toolbarButtonGradient}
+                  >
+                    <Icon name="delete" size={getResponsiveIconSize(16)} color="#ffffff" />
+                    <Text style={styles.toolbarButtonText}>Delete</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              )}
 
             </ScrollView>
           </View>
@@ -3532,36 +3837,260 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         </View>
       </Modal>
 
-      {/* Font Modal */}
-      <Modal visible={showFontModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Font</Text>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search fonts..."
-              value={fontSearchQuery}
-              onChangeText={setFontSearchQuery}
-            />
-            <ScrollView style={styles.fontList}>
-              {Object.entries(SYSTEM_FONTS).map(([key, font]) => (
-                <TouchableOpacity
-                  key={key}
-                  style={styles.fontItem}
-                  onPress={() => handleFontSelect(font)}
-                >
-                  <Text style={[styles.fontItemText, { fontFamily: getFontFamily(font) }]}>
-                    {key.charAt(0).toUpperCase() + key.slice(1)}
+      {/* Font Style Modal */}
+      <Modal
+        visible={showFontModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowFontModal(false)}
+      >
+        <View style={styles.fontModalRoot}>
+          <TouchableWithoutFeedback onPress={() => setShowFontModal(false)}>
+            <View style={[
+              styles.fontModalBackdrop,
+              { top: fontModalTopOffset }
+            ]} />
+          </TouchableWithoutFeedback>
+          <View style={[
+            styles.fontModalWrapper,
+            { top: fontModalTopOffset }
+          ]}>
+            <View style={[
+              styles.fontModalContent,
+              {
+                width: fontModalWidth,
+                height: fontModalMaxHeight
+              }
+            ]}>
+              {/* Modal Header */}
+              <View style={styles.fontModalHeader}>
+                <View>
+                  <Text style={styles.modalTitle}>Font & Size</Text>
+                  <Text style={styles.modalSubtitle}>
+                    {selectedLayer ? 'Customize selected text' : 'Choose a font style'}
                   </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.fontModalCloseButton}
+                  onPress={() => setShowFontModal(false)}
+                >
+                  <Icon name="close" size={getResponsiveIconSize()} color="#666666" />
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity
-              style={styles.modalButton}
-              onPress={() => setShowFontModal(false)}
-            >
-              <Text style={styles.modalButtonText}>Close</Text>
-            </TouchableOpacity>
+              </View>
+
+              {/* Scrollable Content Container */}
+              <ScrollView
+                style={styles.fontModalScrollView}
+                contentContainerStyle={styles.fontModalScrollContent}
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
+              >
+                {/* Font Size Controls */}
+                <View style={styles.fontSizeControlsContainer}>
+                  <View style={styles.fontSizeHeader}>
+                    <Icon name="format-size" size={getResponsiveIconSize()} color="#667eea" />
+                    <View style={styles.fontSizeHeaderTextGroup}>
+                      <Text style={styles.fontSizeLabel}>Font Size</Text>
+                      {!selectedLayer && (
+                        <Text style={styles.fontSizeHelperText}>No layer selected — applies to all text</Text>
+                      )}
+                    </View>
+                  </View>
+                  <View style={styles.fontSizeButtons}>
+                    {[10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48].map(size => (
+                      <TouchableOpacity
+                        key={size}
+                        style={[
+                          styles.fontSizeButton,
+                          selectedFontSize === size && styles.fontSizeButtonActive
+                        ]}
+                        onPress={() => applyFontSize(size)}
+                      >
+                        <Text style={[
+                          styles.fontSizeButtonText,
+                          selectedFontSize === size && styles.fontSizeButtonTextActive
+                        ]}>
+                          {size}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Text Color Section */}
+                <View style={styles.textColorControlsContainer}>
+                  <View style={styles.textColorHeader}>
+                    <Icon name="palette" size={getResponsiveIconSize()} color="#667eea" />
+                    <View style={styles.textColorHeaderTextGroup}>
+                      <Text style={styles.textColorLabel}>TEXT COLOR</Text>
+                      {!selectedLayer && (
+                        <Text style={styles.textColorHelperText}>No layer selected — applies to all text</Text>
+                      )}
+                    </View>
+                  </View>
+                  <View style={styles.colorPalette}>
+                    {[
+                      '#000000', // Black
+                      '#FFFFFF', // White
+                      '#FF0000', // Red
+                      '#00FF00', // Green
+                      '#0000FF', // Blue
+                      '#FFA500', // Orange
+                      '#800080', // Purple
+                      '#808080', // Gray
+                    ].map(color => (
+                      <TouchableOpacity
+                        key={color}
+                        style={[
+                          styles.colorSwatch,
+                          { backgroundColor: color },
+                          color === '#FFFFFF' && styles.whiteSwatchBorder
+                        ]}
+                        onPress={() => applyTextColor(color)}
+                      />
+                    ))}
+                  </View>
+                </View>
+
+                {/* Font Family Section */}
+                <View style={styles.fontFamilySection}>
+                  <View style={styles.fontFamilySectionHeader}>
+                    <Icon name="font-download" size={getResponsiveIconSize()} color="#667eea" />
+                    <Text style={styles.fontFamilySectionTitle}>Font Family</Text>
+                  </View>
+                </View>
+                {/* System Fonts Category */}
+                <View style={styles.fontCategorySection}>
+                  <Text style={styles.fontCategoryTitle}>System Fonts</Text>
+                  <View style={styles.fontCategoryGrid}>
+                    <TouchableOpacity
+                      style={styles.fontOptionButton}
+                      onPress={() => applyFontStyle(SYSTEM_FONTS.default)}
+                    >
+                      <Text style={[styles.fontPreviewText, { fontFamily: SYSTEM_FONTS.default }]}>Aa</Text>
+                      <Text style={styles.fontOptionName}>System</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.fontOptionButton}
+                      onPress={() => applyFontStyle(SYSTEM_FONTS.serif)}
+                    >
+                      <Text style={[styles.fontPreviewText, { fontFamily: SYSTEM_FONTS.serif }]}>Aa</Text>
+                      <Text style={styles.fontOptionName}>Serif</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.fontOptionButton}
+                      onPress={() => applyFontStyle(SYSTEM_FONTS.monospace)}
+                    >
+                      <Text style={[styles.fontPreviewText, { fontFamily: SYSTEM_FONTS.monospace }]}>Aa</Text>
+                      <Text style={styles.fontOptionName}>Monospace</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.fontOptionButton}
+                      onPress={() => applyFontStyle(SYSTEM_FONTS.cursive)}
+                    >
+                      <Text style={[styles.fontPreviewText, { fontFamily: SYSTEM_FONTS.cursive }]}>Aa</Text>
+                      <Text style={styles.fontOptionName}>Cursive</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.fontOptionButton}
+                      onPress={() => applyFontStyle(SYSTEM_FONTS.fantasy)}
+                    >
+                      <Text style={[styles.fontPreviewText, { fontFamily: SYSTEM_FONTS.fantasy }]}>Aa</Text>
+                      <Text style={styles.fontOptionName}>Fantasy</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Google Fonts - Sans-serif */}
+                <View style={styles.fontCategorySection}>
+                  <Text style={styles.fontCategoryTitle}>Sans-Serif Fonts</Text>
+                  <View style={styles.fontCategoryGrid}>
+                    {getFontsByCategory('sans-serif').slice(0, 6).map((font) => (
+                      <TouchableOpacity
+                        key={font.name}
+                        style={styles.fontOptionButton}
+                        onPress={() => applyFontStyle(font.name)}
+                      >
+                        <Text style={[styles.fontPreviewText, { fontFamily: getFontFamily(font.name) }]}>Aa</Text>
+                        <Text style={styles.fontOptionName}>{font.displayName}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Google Fonts - Serif */}
+                <View style={styles.fontCategorySection}>
+                  <Text style={styles.fontCategoryTitle}>Serif Fonts</Text>
+                  <View style={styles.fontCategoryGrid}>
+                    {getFontsByCategory('serif').slice(0, 4).map((font) => (
+                      <TouchableOpacity
+                        key={font.name}
+                        style={styles.fontOptionButton}
+                        onPress={() => applyFontStyle(font.name)}
+                      >
+                        <Text style={[styles.fontPreviewText, { fontFamily: getFontFamily(font.name) }]}>Aa</Text>
+                        <Text style={styles.fontOptionName}>{font.displayName}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Google Fonts - Display */}
+                <View style={styles.fontCategorySection}>
+                  <Text style={styles.fontCategoryTitle}>Display Fonts</Text>
+                  <View style={styles.fontCategoryGrid}>
+                    {getFontsByCategory('display').slice(0, 4).map((font) => (
+                      <TouchableOpacity
+                        key={font.name}
+                        style={styles.fontOptionButton}
+                        onPress={() => applyFontStyle(font.name)}
+                      >
+                        <Text style={[styles.fontPreviewText, { fontFamily: getFontFamily(font.name) }]}>Aa</Text>
+                        <Text style={styles.fontOptionName}>{font.displayName}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Google Fonts - Handwriting */}
+                <View style={styles.fontCategorySection}>
+                  <Text style={styles.fontCategoryTitle}>Handwriting Fonts</Text>
+                  <View style={styles.fontCategoryGrid}>
+                    {getFontsByCategory('handwriting').slice(0, 4).map((font) => (
+                      <TouchableOpacity
+                        key={font.name}
+                        style={styles.fontOptionButton}
+                        onPress={() => applyFontStyle(font.name)}
+                      >
+                        <Text style={[styles.fontPreviewText, { fontFamily: getFontFamily(font.name) }]}>Aa</Text>
+                        <Text style={styles.fontOptionName}>{font.displayName}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Google Fonts - Monospace */}
+                <View style={styles.fontCategorySection}>
+                  <Text style={styles.fontCategoryTitle}>Monospace Fonts</Text>
+                  <View style={styles.fontCategoryGrid}>
+                    {getFontsByCategory('monospace').slice(0, 2).map((font) => (
+                      <TouchableOpacity
+                        key={font.name}
+                        style={styles.fontOptionButton}
+                        onPress={() => applyFontStyle(font.name)}
+                      >
+                        <Text style={[styles.fontPreviewText, { fontFamily: getFontFamily(font.name) }]}>Aa</Text>
+                        <Text style={styles.fontOptionName}>{font.displayName}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </ScrollView>
+            </View>
           </View>
         </View>
       </Modal>
@@ -3584,6 +4113,146 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         fieldName={selectedFieldName}
         onClose={() => setShowInfoRequiredModal(false)}
       />
+
+      {/* Delete Element Confirmation Modal - Responsive across all screen sizes */}
+      <Modal
+        visible={showDeleteElementModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowDeleteElementModal(false)}
+        statusBarTranslucent={true}
+      >
+        <View style={[styles.modalOverlay, { paddingHorizontal: isTablet ? responsiveSpacing.xl : isLandscape ? responsiveSpacing.lg : responsiveSpacing.md }]}>
+          <View style={[
+            themeStyles.deleteModalContainer,
+            {
+              backgroundColor: theme?.colors?.surface || '#ffffff',
+              width: isTablet
+                ? screenWidth * 0.5
+                : isLandscape
+                  ? screenWidth * 0.6
+                  : isUltraSmallScreen
+                    ? screenWidth * 0.92
+                    : isSmallScreen
+                      ? screenWidth * 0.9
+                      : screenWidth * 0.85,
+              maxWidth: isTablet ? 500 : 450,
+              paddingHorizontal: isTablet ? responsiveSpacing.xl : isLandscape ? responsiveSpacing.lg : isUltraSmallScreen ? responsiveSpacing.md : responsiveSpacing.lg,
+              paddingVertical: isTablet ? responsiveSpacing.xl : isLandscape ? responsiveSpacing.lg : isUltraSmallScreen ? responsiveSpacing.md : responsiveSpacing.lg,
+            }
+          ]}>
+            <View style={themeStyles.deleteModalHeader}>
+              <View style={[
+                themeStyles.deleteIconContainer,
+                {
+                  backgroundColor: '#ff444420',
+                  marginBottom: isTablet ? responsiveSpacing.md : responsiveSpacing.sm
+                }
+              ]}>
+                <Icon
+                  name="warning"
+                  size={isTablet ? 36 : isLandscape ? 32 : isUltraSmallScreen ? 24 : 32}
+                  color="#ff4444"
+                />
+              </View>
+              <Text
+                style={[
+                  themeStyles.deleteModalTitle,
+                  {
+                    color: theme?.colors?.text || '#333333',
+                    marginBottom: isTablet ? responsiveSpacing.sm : responsiveSpacing.xs
+                  }
+                ]}
+              >
+                Delete Element
+              </Text>
+              <TouchableOpacity
+                style={[
+                  themeStyles.closeModalButton,
+                  { backgroundColor: theme?.colors?.border || '#e9ecef' }
+                ]}
+                onPress={() => setShowDeleteElementModal(false)}
+                activeOpacity={0.7}
+              >
+                <Icon
+                  name="close"
+                  size={isTablet ? 24 : isLandscape ? 22 : isUltraSmallScreen ? 18 : 20}
+                  color={theme?.colors?.textSecondary || '#666666'}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <View style={[
+              themeStyles.deleteModalContent,
+              {
+                marginBottom: isTablet ? responsiveSpacing.lg : responsiveSpacing.md,
+                paddingHorizontal: isTablet ? responsiveSpacing.md : isUltraSmallScreen ? responsiveSpacing.xs : responsiveSpacing.sm
+              }
+            ]}>
+              <Text style={[
+                themeStyles.deleteModalMessage,
+                {
+                  color: theme?.colors?.text || '#333333',
+                  fontSize: isTablet ? 16 : isLandscape ? 15 : isUltraSmallScreen ? 13 : 15,
+                  lineHeight: isTablet ? 24 : isLandscape ? 22 : isUltraSmallScreen ? 18 : 22,
+                }
+              ]}>
+                Are you sure you want to delete this element? This action cannot be undone.
+              </Text>
+            </View>
+
+            <View style={[
+              themeStyles.deleteModalButtons,
+              {
+                gap: isTablet ? responsiveSpacing.md : isLandscape ? responsiveSpacing.sm : isUltraSmallScreen ? responsiveSpacing.xs : responsiveSpacing.sm
+              }
+            ]}>
+              <TouchableOpacity
+                style={[
+                  themeStyles.deleteModalCancelButton,
+                  {
+                    backgroundColor: theme?.colors?.border || '#e9ecef',
+                    paddingVertical: isTablet ? 16 : isLandscape ? 14 : isUltraSmallScreen ? 12 : 14,
+                    borderRadius: isTablet ? 12 : isLandscape ? 10 : isUltraSmallScreen ? 8 : 10,
+                  }
+                ]}
+                onPress={() => setShowDeleteElementModal(false)}
+              >
+                <Text style={[
+                  themeStyles.deleteModalCancelText,
+                  {
+                    color: theme?.colors?.text || '#333333',
+                    fontSize: isTablet ? 17 : isLandscape ? 16 : isUltraSmallScreen ? 14 : 16,
+                  }
+                ]}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  themeStyles.deleteModalDeleteButton,
+                  {
+                    backgroundColor: '#ff4444',
+                    paddingVertical: isTablet ? 16 : isLandscape ? 14 : isUltraSmallScreen ? 12 : 14,
+                    borderRadius: isTablet ? 12 : isLandscape ? 10 : isUltraSmallScreen ? 8 : 10,
+                  }
+                ]}
+                onPress={confirmDeleteElement}
+              >
+                <Text style={[
+                  themeStyles.deleteModalDeleteText,
+                  {
+                    fontSize: isTablet ? 17 : isLandscape ? 16 : isUltraSmallScreen ? 14 : 16,
+                  }
+                ]}>
+                  Delete
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
 
 
@@ -3812,8 +4481,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     borderRadius: moderateScale(40),
     padding: moderateScale(10),
-    zIndex: 999,
-    elevation: 999,
+    zIndex: 10,
+    elevation: 10,
   },
   playButton: {
     width: moderateScale(60),
@@ -3974,24 +4643,281 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   // Font modal styles
-  searchInput: {
-    borderWidth: 1,
-    borderColor: '#cccccc',
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 15,
+  fontModalRoot: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
-  fontList: {
-    maxHeight: 200,
-    marginBottom: 15,
+  fontModalBackdrop: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.25)',
   },
-  fontItem: {
-    padding: 10,
+  fontModalWrapper: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    paddingHorizontal: moderateScale(6),
+  },
+  fontModalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: moderateScale(14),
+    padding: moderateScale(12),
+    flexDirection: 'column',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 10,
+    overflow: 'hidden',
+  },
+  fontModalScrollView: {
+    flex: 1,
+    marginTop: moderateScale(3),
+    minHeight: 0,
+  },
+  fontModalScrollContent: {
+    paddingBottom: moderateScale(12),
+    paddingHorizontal: moderateScale(2),
+  },
+  fontModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: isLandscape
+      ? (isTablet ? moderateScale(7) : moderateScale(6))
+      : (isUltraSmallScreen ? moderateScale(5) : isSmallScreen ? moderateScale(5) : isTablet ? moderateScale(7) : moderateScale(6)),
+    paddingBottom: isLandscape
+      ? (isTablet ? moderateScale(6) : moderateScale(5))
+      : (isUltraSmallScreen ? moderateScale(4) : isSmallScreen ? moderateScale(5) : isTablet ? moderateScale(6) : moderateScale(5)),
     borderBottomWidth: 1,
-    borderBottomColor: '#eeeeee',
+    borderBottomColor: '#e9ecef',
   },
-  fontItemText: {
-    fontSize: 16,
+  fontModalCloseButton: {
+    padding: moderateScale(3),
+    borderRadius: moderateScale(14),
+    backgroundColor: '#f8f9fa',
+    width: isLandscape
+      ? (isTablet ? moderateScale(28) : moderateScale(26))
+      : (isUltraSmallScreen ? moderateScale(24) : isSmallScreen ? moderateScale(26) : isTablet ? moderateScale(28) : moderateScale(26)),
+    height: isLandscape
+      ? (isTablet ? moderateScale(28) : moderateScale(26))
+      : (isUltraSmallScreen ? moderateScale(24) : isSmallScreen ? moderateScale(26) : isTablet ? moderateScale(28) : moderateScale(26)),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fontSizeControlsContainer: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: moderateScale(6),
+    padding: isLandscape
+      ? (isTablet ? moderateScale(10) : moderateScale(8))
+      : (isUltraSmallScreen ? moderateScale(8) : isSmallScreen ? moderateScale(8) : isTablet ? moderateScale(10) : moderateScale(8)),
+    marginBottom: moderateScale(8),
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  fontSizeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: moderateScale(6),
+    gap: moderateScale(4),
+  },
+  fontSizeHeaderTextGroup: {
+    flexDirection: 'column',
+  },
+  fontSizeLabel: {
+    fontSize: isLandscape
+      ? (isTablet ? moderateScale(12) : moderateScale(11))
+      : (isUltraSmallScreen ? moderateScale(10) : isSmallScreen ? moderateScale(10.5) : isTablet ? moderateScale(12) : moderateScale(11)),
+    fontWeight: '700',
+    color: '#333333',
+  },
+  fontSizeHelperText: {
+    fontSize: moderateScale(8.5),
+    color: '#888888',
+  },
+  fontSizeButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    gap: isUltraSmallScreen ? moderateScale(3) : moderateScale(4),
+  },
+  fontSizeButton: {
+    paddingVertical: isLandscape
+      ? (isTablet ? moderateScale(7) : moderateScale(6))
+      : (isUltraSmallScreen ? moderateScale(5) : isSmallScreen ? moderateScale(5) : isTablet ? moderateScale(7) : moderateScale(6)),
+    paddingHorizontal: isLandscape
+      ? (isTablet ? moderateScale(10) : moderateScale(8))
+      : (isUltraSmallScreen ? moderateScale(6) : isSmallScreen ? moderateScale(7) : isTablet ? moderateScale(10) : moderateScale(8)),
+    borderRadius: moderateScale(5),
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    minWidth: isUltraSmallScreen ? moderateScale(34) : isSmallScreen ? moderateScale(36) : moderateScale(38),
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  fontSizeButtonActive: {
+    backgroundColor: '#667eea',
+    borderColor: '#667eea',
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  fontSizeButtonText: {
+    fontSize: isLandscape
+      ? (isTablet ? moderateScale(11) : moderateScale(10))
+      : (isUltraSmallScreen ? moderateScale(9) : isSmallScreen ? moderateScale(9.5) : isTablet ? moderateScale(11) : moderateScale(10)),
+    fontWeight: '600',
+    color: '#666666',
+  },
+  fontSizeButtonTextActive: {
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  textColorControlsContainer: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: moderateScale(6),
+    padding: isLandscape
+      ? (isTablet ? moderateScale(10) : moderateScale(8))
+      : (isUltraSmallScreen ? moderateScale(8) : isSmallScreen ? moderateScale(8) : isTablet ? moderateScale(10) : moderateScale(8)),
+    marginBottom: moderateScale(8),
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  textColorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: moderateScale(6),
+    gap: moderateScale(4),
+  },
+  textColorHeaderTextGroup: {
+    flexDirection: 'column',
+  },
+  textColorLabel: {
+    fontSize: isLandscape
+      ? (isTablet ? moderateScale(12) : moderateScale(11))
+      : (isUltraSmallScreen ? moderateScale(10) : isSmallScreen ? moderateScale(10.5) : isTablet ? moderateScale(12) : moderateScale(11)),
+    fontWeight: '700',
+    color: '#333333',
+  },
+  textColorHelperText: {
+    fontSize: moderateScale(8.5),
+    color: '#888888',
+  },
+  colorPalette: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    gap: isUltraSmallScreen ? moderateScale(3) : moderateScale(4),
+  },
+  colorSwatch: {
+    width: isUltraSmallScreen ? moderateScale(28) : isSmallScreen ? moderateScale(30) : moderateScale(32),
+    height: isUltraSmallScreen ? moderateScale(28) : isSmallScreen ? moderateScale(30) : moderateScale(32),
+    borderRadius: moderateScale(16),
+    borderWidth: 2,
+    borderColor: '#e9ecef',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  whiteSwatchBorder: {
+    borderColor: '#cccccc',
+  },
+  fontFamilySection: {
+    marginBottom: moderateScale(5),
+  },
+  fontFamilySectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(3),
+    paddingBottom: moderateScale(5),
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  fontFamilySectionTitle: {
+    fontSize: isLandscape
+      ? (isTablet ? moderateScale(11) : moderateScale(10))
+      : (isUltraSmallScreen ? moderateScale(9.5) : isSmallScreen ? moderateScale(10) : isTablet ? moderateScale(11) : moderateScale(10.5)),
+    fontWeight: '700',
+    color: '#333333',
+  },
+  fontCategorySection: {
+    marginBottom: isLandscape
+      ? (isTablet ? moderateScale(10) : moderateScale(8))
+      : (isUltraSmallScreen ? moderateScale(6) : isSmallScreen ? moderateScale(7) : isTablet ? moderateScale(10) : moderateScale(8)),
+  },
+  fontCategoryTitle: {
+    fontSize: isLandscape
+      ? (isTablet ? moderateScale(10) : moderateScale(9))
+      : (isUltraSmallScreen ? moderateScale(8.5) : isSmallScreen ? moderateScale(9) : isTablet ? moderateScale(10) : moderateScale(9.5)),
+    fontWeight: '600',
+    color: '#667eea',
+    marginBottom: moderateScale(5),
+    marginLeft: moderateScale(2),
+  },
+  fontCategoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: isUltraSmallScreen ? moderateScale(2.5) : moderateScale(3),
+  },
+  fontOptionButton: {
+    width: (() => {
+      const modalWidth = isLandscape
+        ? (isTablet ? screenWidth * 0.65 : screenWidth * 0.75)
+        : (isUltraSmallScreen ? screenWidth * 0.95 : isSmallScreen ? screenWidth * 0.92 : isMediumScreen ? screenWidth * 0.88 : isLargeScreen ? screenWidth * 0.85 : isTablet ? screenWidth * 0.8 : screenWidth * 0.85);
+      const padding = isLandscape
+        ? (isTablet ? 18 : 14)
+        : (isUltraSmallScreen ? 10 : isSmallScreen ? 12 : isMediumScreen ? 14 : isLargeScreen ? 16 : isTablet ? 18 : 16);
+      const gapSize = isUltraSmallScreen ? moderateScale(2.5) : moderateScale(3);
+      const scrollPadding = moderateScale(2) * 2;
+      const availableWidth = modalWidth - (padding * 2) - scrollPadding;
+      const columns = isLandscape ? (isTablet ? 4 : 3) : (isUltraSmallScreen ? 2 : isTablet ? 4 : 3);
+      return (availableWidth - (gapSize * (columns - 1))) / columns;
+    })(),
+    backgroundColor: '#ffffff',
+    borderRadius: moderateScale(4),
+    padding: isLandscape
+      ? (isTablet ? moderateScale(6) : moderateScale(5))
+      : (isUltraSmallScreen ? moderateScale(4) : isSmallScreen ? moderateScale(4) : isTablet ? moderateScale(6) : moderateScale(5)),
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  fontPreviewText: {
+    fontSize: isLandscape
+      ? (isTablet ? moderateScale(16) : moderateScale(14))
+      : (isUltraSmallScreen ? moderateScale(13) : isSmallScreen ? moderateScale(14) : isTablet ? moderateScale(18) : moderateScale(15)),
+    fontWeight: '400',
+    color: '#333333',
+    marginBottom: moderateScale(1.5),
+  },
+  fontOptionName: {
+    fontSize: isLandscape
+      ? (isTablet ? moderateScale(7) : moderateScale(6.5))
+      : (isUltraSmallScreen ? moderateScale(6) : isSmallScreen ? moderateScale(6.5) : isTablet ? moderateScale(7.5) : moderateScale(7)),
+    fontWeight: '600',
+    color: '#666666',
+    textAlign: 'center',
+    lineHeight: isLandscape
+      ? (isTablet ? moderateScale(9) : moderateScale(8))
+      : (isUltraSmallScreen ? moderateScale(8) : isSmallScreen ? moderateScale(8) : isTablet ? moderateScale(9.5) : moderateScale(9)),
   },
   // Controls Container
   controlsContainer: {
