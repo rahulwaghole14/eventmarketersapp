@@ -2157,7 +2157,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
           id: generateId(),
           type: 'text',
           content: `📞 ${phone}`,
-          position: { x: 539.3 * scaleX, y: 436.0 * scaleY },
+          position: { x: 500.3 * scaleX, y: 430.0 * scaleY },
           size: { width: (canvasWidth - 40) / 2, height: contactLineHeight },
           style: {
             fontSize: footerTextSize,
@@ -2174,7 +2174,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
           id: generateId(),
           type: 'text',
           content: `✉️ ${email}`,
-          position: { x: leftColumnX, y: Math.round(436.0 * scaleY) },
+          position: { x: leftColumnX, y: Math.round(450.0 * scaleY) },
           size: { width: (canvasWidth - 40) / 2, height: contactLineHeight },
           style: {
             fontSize: footerTextSize,
@@ -2191,7 +2191,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
           id: generateId(),
           type: 'text',
           content: `🌐 ${website}`,
-          position: { x: Math.round(12 * scaleX), y: Math.round(423 * scaleY) },
+          position: { x: Math.round(12 * scaleX), y: Math.round(430 * scaleY) },
           size: { width: (canvasWidth - 40) / 2, height: contactLineHeight },
           style: {
             fontSize: footerTextSize,
@@ -2208,7 +2208,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
           id: generateId(),
           type: 'text',
           content: `🏢 ${category}`,
-          position: { x: Math.round(225 * scaleX), y: Math.round(446 * scaleY) },
+          position: { x: Math.round(275 * scaleX), y: Math.round(430 * scaleY) },
           size: { width: (canvasWidth - 40) / 2, height: contactLineHeight },
           style: {
             fontSize: footerTextSize,
@@ -2225,7 +2225,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
           id: generateId(),
           type: 'text',
           content: `📍 ${address}`,
-          position: { x: Math.round(434 * scaleX), y: Math.round(426 * scaleY) },
+          position: { x: Math.round(500 * scaleX), y: Math.round(450 * scaleY) },
           size: { width: (canvasWidth - 40) / 2, height: contactLineHeight },
           style: {
             fontSize: footerTextSize,
@@ -3046,21 +3046,23 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
               style={{ flex: 1, backgroundColor: 'transparent' }}
               options={{ format: 'png', quality: 1, result: 'tmpfile' }}
             >
-              <View style={{ flex: 1, backgroundColor: 'transparent' }}>
-                {selectedFrame && (
-                  <View style={styles.frameIntegrated} pointerEvents="none">
-                    <Image
-                      source={FRAME_OPTIONS.find(f => f.id === selectedFrame)?.source}
-                      style={{ width: '100%', height: '100%' }}
-                      resizeMode="contain"
-                    />
-                  </View>
-                )}
-                {layers.map((l, idx) => {
-                  if (l.fieldType && !getEffectiveToggleValue(l.fieldType)) return null;
-                  return renderLayer(l, idx);
-                })}
-              </View>
+              {isCapturing ? (
+                <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+                  {selectedFrame && (
+                    <View style={styles.frameIntegrated} pointerEvents="none">
+                      <Image
+                        source={FRAME_OPTIONS.find(f => f.id === selectedFrame)?.source}
+                        style={{ width: '100%', height: '100%' }}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  )}
+                  {layers.map((l, idx) => {
+                    if (l.fieldType && !getEffectiveToggleValue(l.fieldType)) return null;
+                    return renderLayer(l, idx);
+                  })}
+                </View>
+              ) : null}
             </ViewShot>
           </View>
 
