@@ -427,6 +427,7 @@ const DraggableLayer = React.memo(({
   currentCanvasWidth,
   currentCanvasHeight,
   selectedTemplate,
+  onLogoToggleShape,
 }: {
   layer: ComposerVideoLayer;
   index: number;
@@ -440,6 +441,7 @@ const DraggableLayer = React.memo(({
   currentCanvasWidth: number;
   currentCanvasHeight: number;
   selectedTemplate: string;
+  onLogoToggleShape?: (id: string) => void;
 }) => {
   const [localPos, setLocalPos] = useState({ x: layer.position.x, y: layer.position.y });
   const dragStartRef = useRef<{ x: number; y: number; layerX: number; layerY: number } | null>(null);
@@ -653,6 +655,16 @@ const DraggableLayer = React.memo(({
       }}
       onResponderRelease={(evt) => {
         if (dragStartRef.current && !pinchActiveRef.current) {
+          const deltaX = evt.nativeEvent.pageX - dragStartRef.current.x;
+          const deltaY = evt.nativeEvent.pageY - dragStartRef.current.y;
+          const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+          
+          if (distance < 8) {
+            // It's a tap/click!
+            if (layer.type === 'logo' && onLogoToggleShape) {
+              onLogoToggleShape(layer.id);
+            }
+          }
           onDragEnd(layer.id, localPos.x, localPos.y);
         }
         dragStartRef.current = null;
@@ -845,6 +857,8 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   // Business profiles
   const selectedProfile = selectedBusinessProfile;
   const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [showFrameRemovalModal, setShowFrameRemovalModal] = useState(false);
+  const [pendingTemplate, setPendingTemplate] = useState<string | null>(null);
 
   // Template state
   const [showFontModal, setShowFontModal] = useState(false);
@@ -857,7 +871,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
     website: true,
     category: true,
     address: true,
-    services: true,
+    services: false,
   });
   const [selectedFont, setSelectedFont] = useState('System');
   const [selectedFontSize, setSelectedFontSize] = useState<number>(16);
@@ -2089,7 +2103,14 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   }, []);
 
   // Apply template function
-  const applyTemplate = (template: string) => {
+  const applyTemplate = (template: string, forceBypassFrameCheck = false) => {
+    // Check if a frame is applied and show warning modal
+    if (selectedFrame && !forceBypassFrameCheck) {
+      setPendingTemplate(template);
+      setShowFrameRemovalModal(true);
+      return;
+    }
+
     // Reset frame auto-layout and original backup layer state when loading a new template
     setOriginalLayers([]);
     setIsAutoLayoutApplied({});
@@ -2765,6 +2786,8 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
 
   // Handle frame removal modal/button actions
   const handleRemoveFrameOnly = useCallback(() => {
+    setShowFrameRemovalModal(false);
+
     console.log('🖼️ [FRAME REMOVAL] Starting frame removal process:', {
       currentFrame: selectedFrame,
       originalLayersCount: originalLayers.length
@@ -2786,7 +2809,29 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
     setSelectedFrame(null);
     setIsAutoLayoutApplied({});
     setVisibleFields(prev => ({ ...prev, footerBackground: true }));
-  }, [selectedFrame, originalLayers]);
+    
+    if (pendingTemplate) {
+      applyTemplate(pendingTemplate, true);
+    }
+    setPendingTemplate(null);
+  }, [selectedFrame, originalLayers, pendingTemplate]);
+
+  const handleCancelFrameRemoval = useCallback(() => {
+    setShowFrameRemovalModal(false);
+    setPendingTemplate(null);
+  }, []);
+
+  const handleLogoToggleShape = useCallback((layerId: string) => {
+    setLayers(prev => prev.map(layer => {
+      if (layer.id === layerId && layer.type === 'logo') {
+        return {
+          ...layer,
+          isCircular: !(layer as any).isCircular
+        };
+      }
+      return layer;
+    }));
+  }, []);
 
   // Synchronize frame state: hide/show footerBackground when frame changes
   useEffect(() => {
@@ -2856,6 +2901,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         currentCanvasWidth={currentCanvasWidth || videoCanvasWidth}
         currentCanvasHeight={currentCanvasHeight || videoCanvasHeight}
         selectedTemplate={selectedTemplate}
+        onLogoToggleShape={handleLogoToggleShape}
       />
     );
   };
@@ -2914,9 +2960,16 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         <TouchableOpacity
           onPress={handleBack}
           style={styles.backButton}
-          activeOpacity={0.7}
+          activeOpacity={0.85}
         >
-          <Text style={styles.backButtonText}>Back</Text>
+          <LinearGradient
+            colors={[theme?.colors?.secondary || '#667eea', theme?.colors?.primary || '#764ba2']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.backButtonGradient}
+          >
+            <Text style={styles.backButtonText}>Back</Text>
+          </LinearGradient>
         </TouchableOpacity>
 
         <View style={styles.headerContent} />
@@ -2924,9 +2977,16 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         <TouchableOpacity
           onPress={handleNext}
           style={styles.nextButton}
-          activeOpacity={0.7}
+          activeOpacity={0.85}
         >
-          <Text style={styles.nextButtonText}>Next</Text>
+          <LinearGradient
+            colors={[theme?.colors?.secondary || '#667eea', theme?.colors?.primary || '#764ba2']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.nextButtonGradient}
+          >
+            <Text style={styles.nextButtonText}>Next</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
 
@@ -3336,16 +3396,6 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
                 <Icon name="place" size={getResponsiveIconSize(16)} color={getEffectiveToggleValue('address') ? "#ffffff" : "#667eea"} />
                 <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('address') && styles.fieldToggleButtonTextActive]}>
                   Address
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.fieldToggleButton, getEffectiveToggleValue('services') && styles.fieldToggleButtonActive]}
-                onPress={() => toggleFieldVisibility('services')}
-              >
-                <Icon name="handyman" size={getResponsiveIconSize(16)} color={getEffectiveToggleValue('services') ? "#ffffff" : "#667eea"} />
-                <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('services') && styles.fieldToggleButtonTextActive]}>
-                  Services
                 </Text>
               </TouchableOpacity>
             </ScrollView>
@@ -3843,6 +3893,82 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         onClose={() => setShowInfoRequiredModal(false)}
       />
 
+      {/* Frame Removal Warning Modal */}
+      <Modal
+        visible={showFrameRemovalModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCancelFrameRemoval}
+        statusBarTranslucent={true}
+      >
+        <View style={themeStyles.modalOverlay}>
+          <View style={[
+            styles.frameRemovalModalContent,
+            { backgroundColor: theme?.colors?.surface || '#ffffff' }
+          ]}>
+            {/* Icon Container */}
+            <View style={styles.frameRemovalIconContainer}>
+              <View style={styles.frameRemovalIconBackground}>
+                <Icon
+                  name="image-not-supported"
+                  size={moderateScale(32)}
+                  color="#ff6b6b"
+                />
+              </View>
+            </View>
+
+            {/* Text Content */}
+            <View style={styles.frameRemovalTextContainer}>
+              <Text style={[
+                styles.frameRemovalTitle,
+                { color: theme?.colors?.text || '#333333' }
+              ]}>
+                Remove the frame
+              </Text>
+              <Text style={[
+                styles.frameRemovalSubtitle,
+                { color: theme?.colors?.textSecondary || '#666666' }
+              ]}>
+                Remove the frame to apply a new template
+              </Text>
+            </View>
+
+            {/* Action Buttons */}
+            <View style={styles.frameRemovalButtonContainer}>
+              <TouchableOpacity
+                style={[styles.frameRemovalButton, styles.frameRemovalCancelButton]}
+                onPress={handleCancelFrameRemoval}
+              >
+                <Icon
+                  name="close"
+                  size={moderateScale(18)}
+                  color="#666666"
+                  style={styles.frameRemovalButtonIcon}
+                />
+                <Text style={styles.frameRemovalCancelButtonText}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.frameRemovalButton, styles.frameRemovalConfirmButton]}
+                onPress={handleRemoveFrameOnly}
+              >
+                <Icon
+                  name="delete-outline"
+                  size={moderateScale(18)}
+                  color="#ffffff"
+                  style={styles.frameRemovalButtonIcon}
+                />
+                <Text style={styles.frameRemovalConfirmButtonText}>
+                  Remove Frame
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Delete Element Confirmation Modal - Responsive across all screen sizes */}
       <Modal
         visible={showDeleteElementModal}
@@ -4008,15 +4134,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   backButton: {
+    borderRadius: moderateScale(6),
+    overflow: 'hidden',
+  },
+  backButtonGradient: {
     paddingHorizontal: moderateScale(12),
-    paddingVertical: moderateScale(6),
-    borderRadius: moderateScale(12),
-    backgroundColor: 'rgba(0, 0, 0, 0.12)',
+    paddingVertical: moderateScale(8),
+    borderRadius: moderateScale(6),
     justifyContent: 'center',
     alignItems: 'center',
   },
   backButtonText: {
-    color: '#000000',
+    color: '#ffffff',
     fontSize: moderateScale(11),
     fontWeight: '600',
   },
@@ -4050,15 +4179,18 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   nextButton: {
+    borderRadius: moderateScale(6),
+    overflow: 'hidden',
+  },
+  nextButtonGradient: {
     paddingHorizontal: moderateScale(12),
-    paddingVertical: moderateScale(6),
-    borderRadius: moderateScale(12),
-    backgroundColor: 'rgba(0, 0, 0, 0.12)',
+    paddingVertical: moderateScale(8),
+    borderRadius: moderateScale(6),
     justifyContent: 'center',
     alignItems: 'center',
   },
   nextButtonText: {
-    color: '#000000',
+    color: '#ffffff',
     fontSize: moderateScale(11),
     fontWeight: '600',
   },
@@ -5230,6 +5362,98 @@ const styles = StyleSheet.create({
   },
   elegantTemplateStyle: {
     backgroundColor: 'rgba(212, 175, 55, 0.8)',
+  },
+  // Enhanced Frame Removal Modal Styles
+  frameRemovalModalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: moderateScale(20),
+    padding: moderateScale(24),
+    width: screenWidth * 0.9,
+    maxWidth: moderateScale(400),
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: moderateScale(8),
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: moderateScale(16),
+    elevation: moderateScale(12),
+  },
+  frameRemovalIconContainer: {
+    alignItems: 'center',
+    marginBottom: moderateScale(20),
+  },
+  frameRemovalIconBackground: {
+    width: moderateScale(80),
+    height: moderateScale(80),
+    borderRadius: moderateScale(40),
+    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 107, 107, 0.2)',
+  },
+  frameRemovalTextContainer: {
+    alignItems: 'center',
+    marginBottom: moderateScale(24),
+  },
+  frameRemovalTitle: {
+    fontSize: moderateScale(20),
+    fontWeight: '700' as const,
+    color: '#2d3748',
+    textAlign: 'center',
+    marginBottom: moderateScale(8),
+  },
+  frameRemovalSubtitle: {
+    fontSize: moderateScale(14),
+    color: '#718096',
+    textAlign: 'center',
+    lineHeight: moderateScale(20),
+    paddingHorizontal: moderateScale(8),
+  },
+  frameRemovalButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: moderateScale(12),
+  },
+  frameRemovalButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: moderateScale(14),
+    paddingHorizontal: moderateScale(16),
+    borderRadius: moderateScale(12),
+    minHeight: moderateScale(48),
+  },
+  frameRemovalCancelButton: {
+    backgroundColor: '#f7fafc',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+  },
+  frameRemovalConfirmButton: {
+    backgroundColor: '#ff6b6b',
+    shadowColor: '#ff6b6b',
+    shadowOffset: {
+      width: 0,
+      height: moderateScale(4),
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: moderateScale(8),
+    elevation: moderateScale(6),
+  },
+  frameRemovalButtonIcon: {
+    marginRight: moderateScale(8),
+  },
+  frameRemovalCancelButtonText: {
+    fontSize: moderateScale(14),
+    fontWeight: '600',
+    color: '#666666',
+  },
+  frameRemovalConfirmButtonText: {
+    fontSize: moderateScale(14),
+    fontWeight: '600',
+    color: '#ffffff',
   },
 });
 

@@ -671,9 +671,11 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
     // Reset auto-layout state when frame is removed
     setIsAutoLayoutApplied({});
 
-    // Clear pending template - only remove frame, don't apply template
+    if (pendingTemplate) {
+      applyTemplate(pendingTemplate, true);
+    }
     setPendingTemplate(null);
-    console.log('🖼️ [FRAME REMOVAL] Frame removed without applying template');
+    console.log('🖼️ [FRAME REMOVAL] Frame removed and pending template applied');
   };
 
   const handleCancelFrameRemoval = () => {
@@ -2778,9 +2780,9 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   }, []);
 
   // Apply template to poster
-  const applyTemplate = useCallback((templateType: string) => {
+  const applyTemplate = useCallback((templateType: string, forceBypassFrameCheck = false) => {
     // Check if a frame is applied and show warning modal
-    if (selectedFrame) {
+    if (selectedFrame && !forceBypassFrameCheck) {
       setPendingTemplate(templateType);
       setShowFrameRemovalModal(true);
       return;

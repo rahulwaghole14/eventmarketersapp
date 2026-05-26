@@ -1498,7 +1498,7 @@ const HomeScreen: React.FC = React.memo(() => {
   // Responsive icon sizes for different UI elements
   const searchIconSize = getIconSize(12);
   const statusIconSize = getIconSize(8);
-  const playIconSize = getIconSize(16);
+  const playIconSize = getIconSize(24);
 
   // Responsive modal columns: 2 for phones, 4 for tablets
   const modalColumns = useMemo(() => isTabletDevice ? 4 : 2, [isTabletDevice]);
@@ -5315,6 +5315,9 @@ const HomeScreen: React.FC = React.memo(() => {
             colors={['transparent', 'rgba(0,0,0,0.8)']}
             style={styles.upcomingEventModalOverlay}
           />
+          <View style={styles.videoPlayOverlay}>
+            <Icon name="play-arrow" size={playIconSize} color="#ffffff" />
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -5898,18 +5901,7 @@ const HomeScreen: React.FC = React.memo(() => {
 
   const renderVideoModalItem = useCallback(({ item, index }: { item: VideoContent; index: number }) => {
     const handlePress = () => {
-      const videoData: Template = {
-        id: item.id,
-        name: item.title,
-        thumbnail: item.thumbnail,
-        category: item.category,
-        downloads: 0,
-        isDownloaded: false,
-      };
-      navigation.navigate('VideoPlayer', {
-        selectedVideo: videoData,
-        relatedVideos: videoContent.slice(0, 6),
-      });
+      handleTemplatePress(item);
     };
     return (
       <ModalVideoItem
@@ -5921,7 +5913,7 @@ const HomeScreen: React.FC = React.memo(() => {
         onPress={handlePress}
       />
     );
-  }, [modalCardWidth, modalCardGap, modalColumns, navigation, videoContent]);
+  }, [modalCardWidth, modalCardGap, modalColumns, handleTemplatePress]);
 
 
   const renderBusinessEthicsModalItem = useCallback(({ item, index }: { item: Template; index: number }) => {
@@ -6700,7 +6692,7 @@ const HomeScreen: React.FC = React.memo(() => {
 
         {/* Search Bar */}
         {isSearchBarVisible && (
-          <View style={{ position: 'relative', zIndex: 10 }}>
+          <View style={{ position: 'relative', zIndex: 1000, elevation: 10 }}>
             <View style={styles.searchContainer}>
               <View style={[styles.searchBar, { backgroundColor: theme.colors.cardBackground }]}>
                 <Icon name="search" size={searchIconSize} color={theme.colors.textSecondary} style={styles.searchIcon} />
@@ -7367,7 +7359,7 @@ const HomeScreen: React.FC = React.memo(() => {
           
           {/* Business Category Modal Search Bar */}
           {isBusinessModalSearchBarVisible && (
-            <View style={{ position: 'relative', zIndex: 10, backgroundColor: theme.colors.background }}>
+            <View style={{ position: 'relative', zIndex: 1000, elevation: 10, backgroundColor: theme.colors.background }}>
               <View style={styles.searchContainer}>
                 <View style={[styles.searchBar, { backgroundColor: theme.colors.cardBackground }]}>
                   <Icon name="search" size={searchIconSize} color={theme.colors.textSecondary} style={styles.searchIcon} />
@@ -7546,7 +7538,7 @@ const HomeScreen: React.FC = React.memo(() => {
           
           {/* General Category Modal Search Bar */}
           {isGeneralModalSearchBarVisible && (
-            <View style={{ position: 'relative', zIndex: 10, backgroundColor: theme.colors.background }}>
+            <View style={{ position: 'relative', zIndex: 1000, elevation: 10, backgroundColor: theme.colors.background }}>
               <View style={styles.searchContainer}>
                 <View style={[styles.searchBar, { backgroundColor: theme.colors.cardBackground }]}>
                   <Icon name="search" size={searchIconSize} color={theme.colors.textSecondary} style={styles.searchIcon} />
@@ -7701,54 +7693,54 @@ const HomeScreen: React.FC = React.memo(() => {
       {/* Video Content Modal */}
       <Modal
         visible={isFocused && isVideosModalVisible}
-        transparent={true}
+        transparent={false}
         animationType="slide"
+        presentationStyle="fullScreen"
+        statusBarTranslucent={true}
         onRequestClose={closeVideosModal}
       >
-        <View style={styles.modalOverlay}>
+        <SafeAreaView style={[
+          styles.fullScreenGreetingModalContent,
+          { backgroundColor: theme.colors.background }
+        ]}>
+          <LinearGradient
+            colors={[theme.colors.background, theme.colors.cardBackground]}
+            style={styles.upcomingEventsModalGradient}
+          >
+            <View style={styles.upcomingEventsModalHeader}>
+              <View style={styles.upcomingEventsModalTitleContainer}>
+                <Text style={[styles.upcomingEventsModalTitle, { color: theme.colors.text }]}>Video Content</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.upcomingEventsCloseButton}
+                onPress={closeVideosModal}
+              >
+                <Text style={[styles.upcomingEventsCloseButtonText, { color: theme.colors.text }]}>×</Text>
+              </TouchableOpacity>
+            </View>
+          </LinearGradient>
           <View style={[
-            styles.upcomingEventsModalContent,
+            styles.upcomingEventsModalBody,
             { backgroundColor: theme.colors.background }
           ]}>
-            <LinearGradient
-              colors={[theme.colors.background, theme.colors.cardBackground]}
-              style={styles.upcomingEventsModalGradient}
-            >
-              <View style={styles.upcomingEventsModalHeader}>
-                <View style={styles.upcomingEventsModalTitleContainer}>
-                  <Text style={[styles.upcomingEventsModalTitle, { color: theme.colors.text }]}>Video Content</Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.upcomingEventsCloseButton}
-                  onPress={closeVideosModal}
-                >
-                  <Text style={[styles.upcomingEventsCloseButtonText, { color: theme.colors.text }]}>×</Text>
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
-            <View style={[
-              styles.upcomingEventsModalBody,
-              { backgroundColor: theme.colors.background }
-            ]}>
-              <FlatList
-                key={`videos-modal-${videoContent.length}`}
-                data={videoContent}
-                keyExtractor={keyExtractorId}
-                numColumns={modalColumns}
-                columnWrapperStyle={styles.upcomingEventModalRow}
-                contentContainerStyle={styles.upcomingEventsModalScroll}
-                showsVerticalScrollIndicator={false}
-                removeClippedSubviews={true}
-                maxToRenderPerBatch={10}
-                windowSize={5}
-                initialNumToRender={10}
-                updateCellsBatchingPeriod={50}
-                getItemLayout={getModalItemLayout}
-                renderItem={renderVideoModalItem}
-              />
-            </View>
+            <FlatList
+              key={`videos-modal-${videoContent.length}`}
+              data={videoContent}
+              keyExtractor={keyExtractorId}
+              numColumns={modalColumns}
+              columnWrapperStyle={styles.upcomingEventModalRow}
+              contentContainerStyle={styles.upcomingEventsModalScroll}
+              showsVerticalScrollIndicator={false}
+              removeClippedSubviews={true}
+              maxToRenderPerBatch={10}
+              windowSize={5}
+              initialNumToRender={10}
+              updateCellsBatchingPeriod={50}
+              getItemLayout={getModalItemLayout}
+              renderItem={renderVideoModalItem}
+            />
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
 
       {/* Customer Support Modal */}
@@ -8436,10 +8428,9 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    height: moderateScale(44),
     borderRadius: moderateScale(12),
     paddingHorizontal: moderateScale(10),
-    paddingVertical: moderateScale(6),
-    minHeight: moderateScale(36),
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -8457,6 +8448,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: moderateScale(12),
     fontWeight: '500',
+    paddingVertical: 0,
   },
   searchResultsTextContainer: {
     paddingHorizontal: moderateScale(16),
@@ -9608,11 +9600,10 @@ const styles = StyleSheet.create({
   // Recent Searches Styles
   dropdown: {
     position: 'absolute',
-    top: '100%',   // directly below search bar
+    top: moderateScale(56), // Positioned directly below search container
     left: 0,
     right: 0,
-    marginTop: -moderateScale(10),
-    zIndex: 999,
+    zIndex: 9999,
     alignItems: 'center', // Properly center dropdown on tablets
     paddingHorizontal: moderateScale(12), // Match searchContainer padding
   },

@@ -93,6 +93,7 @@ const SMALL_SCREEN_WIDTH_THRESHOLD = 450;
 interface RecentSearchListProps {
   recentSearches: string[];
   onSelectSearch: (search: string) => void;
+  onDeleteSearch: (search: string) => void;
   onClearAll: () => void;
   theme: any;
 }
@@ -100,6 +101,7 @@ interface RecentSearchListProps {
 const RecentSearchList: React.FC<RecentSearchListProps> = React.memo(({
   recentSearches,
   onSelectSearch,
+  onDeleteSearch,
   onClearAll,
   theme
 }) => {
@@ -133,31 +135,40 @@ const RecentSearchList: React.FC<RecentSearchListProps> = React.memo(({
       >
         <View style={styles.recentSearchesList}>
           {recentSearches.map((search, index) => (
-            <TouchableOpacity
+            <View
               key={`${search}-${index}`}
               style={[styles.recentSearchItem, { borderBottomColor: theme.colors.border }]}
-              onPress={() => {
-                { __DEV__ && console.log('👆 RecentSearchItem pressed:', search) }
-                onSelectSearch(search)
-              }}
-              activeOpacity={0.7}
             >
-              <Icon
-                name="history"
-                size={moderateScale(16)}
-                color={theme.colors.textSecondary}
-                style={styles.recentSearchIcon}
-              />
-              <Text style={[styles.recentSearchText, { color: theme.colors.text, flex: 1 }]}>
-                {search}
-              </Text>
-              <Icon
-                name="arrow-forward"
-                size={moderateScale(14)}
-                color={theme.colors.textSecondary}
-                style={styles.recentSearchArrowIcon}
-              />
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
+                onPress={() => {
+                  { __DEV__ && console.log('👆 RecentSearchItem pressed:', search) }
+                  onSelectSearch(search)
+                }}
+                activeOpacity={0.7}
+              >
+                <Icon
+                  name="history"
+                  size={moderateScale(16)}
+                  color={theme.colors.textSecondary}
+                  style={styles.recentSearchIcon}
+                />
+                <Text style={[styles.recentSearchText, { color: theme.colors.text, flex: 1 }]}>
+                  {search}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => onDeleteSearch(search)}
+                style={{ padding: moderateScale(4) }}
+                activeOpacity={0.7}
+              >
+                <Icon
+                  name="close"
+                  size={moderateScale(16)}
+                  color={theme.colors.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
           ))}
         </View>
       </ScrollView>
@@ -167,6 +178,7 @@ const RecentSearchList: React.FC<RecentSearchListProps> = React.memo(({
   return (
     prevProps.recentSearches === nextProps.recentSearches &&
     prevProps.onSelectSearch === nextProps.onSelectSearch &&
+    prevProps.onDeleteSearch === nextProps.onDeleteSearch &&
     prevProps.onClearAll === nextProps.onClearAll &&
     prevProps.theme === nextProps.theme
   );
@@ -1358,6 +1370,19 @@ const GreetingTemplatesScreen: React.FC = () => {
     // The search will be triggered automatically by the filtering logic
   }, []);
 
+  const deleteRecentSearch = useCallback(async (searchToDelete: string) => {
+    try {
+      setRecentSearches(prev => {
+        const updated = prev.filter(search => search !== searchToDelete);
+        AsyncStorage.setItem('GREETING_TEMPLATES_RECENT_SEARCHES', JSON.stringify(updated))
+          .catch(error => console.warn('Failed to update recent searches:', error));
+        return updated;
+      });
+    } catch (error) {
+      console.warn('Failed to delete recent search:', error);
+    }
+  }, []);
+
   // Load recent searches on component mount
   useEffect(() => {
     loadRecentSearches();
@@ -1822,7 +1847,8 @@ const GreetingTemplatesScreen: React.FC = () => {
                   marginHorizontal: moderateScale(8),
                   marginVertical: moderateScale(3),
                   position: 'relative', // Ensure relative parent for absolute dropdown
-                  zIndex: 10,
+                  zIndex: 1000,
+                  elevation: 10,
                 },
               ]}
             >
@@ -1872,6 +1898,7 @@ const GreetingTemplatesScreen: React.FC = () => {
                   <RecentSearchList
                     recentSearches={recentSearches}
                     onSelectSearch={selectRecentSearch}
+                    onDeleteSearch={deleteRecentSearch}
                     onClearAll={clearRecentSearches}
                     theme={theme}
                   />
@@ -1965,8 +1992,8 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    height: moderateScale(46),
     paddingHorizontal: moderateScale(8),
-    paddingVertical: verticalScale(3),
     borderRadius: moderateScale(14),
     shadowColor: '#000',
     shadowOffset: {
@@ -1980,8 +2007,9 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     marginLeft: moderateScale(4),
-    fontSize: moderateScale(10),
+    fontSize: moderateScale(14),
     fontWeight: '500',
+    paddingVertical: 0,
   },
   categoriesList: {
     paddingHorizontal: moderateScale(16),
@@ -2107,30 +2135,23 @@ const styles = StyleSheet.create({
   // Recent Searches Styles
   dropdown: {
     position: 'absolute',
-    top: '100%',   // directly below search bar
+    top: moderateScale(48), // Positioned directly below search bar with gap
     left: 0,
     right: 0,
-    marginTop: -moderateScale(10),
-    zIndex: 999,
+    zIndex: 9999,
     width: '100%',
     maxWidth: 600,
     alignSelf: 'center',
-    paddingHorizontal: moderateScale(12),
+    paddingHorizontal: moderateScale(4),
   },
   recentSearchesContainer: {
-    marginTop: 0,
-    borderBottomLeftRadius: moderateScale(12),
-    borderBottomRightRadius: moderateScale(12),
+    borderRadius: moderateScale(12),
     padding: moderateScale(16),
-    width: '100%',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: moderateScale(2),
-    },
+    shadowOffset: { width: 0, height: moderateScale(4) },
     shadowOpacity: 0.1,
-    shadowRadius: moderateScale(4),
-    elevation: 3,
+    shadowRadius: moderateScale(8),
+    elevation: 4,
   },
   recentSearchesHeader: {
     flexDirection: 'row',
