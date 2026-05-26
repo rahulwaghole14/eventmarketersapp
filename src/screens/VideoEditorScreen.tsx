@@ -281,6 +281,73 @@ const OMBRE_GRADIENTS: Record<string, string[]> = {
   'ombre-galaxy': ['#6366f1', '#8b5cf6', '#06b6d4'],
 };
 
+const TEMPLATE_OPTIONS = [
+  { id: 'business', label: 'Business' },
+  { id: 'event', label: 'Event' },
+  { id: 'restaurant', label: 'Restaurant' },
+  { id: 'fashion', label: 'Fashion' },
+  { id: 'real-estate', label: 'Real Estate' },
+  { id: 'education', label: 'Education' },
+  { id: 'healthcare', label: 'Healthcare' },
+  { id: 'fitness', label: 'Fitness' },
+  { id: 'wedding', label: 'Wedding' },
+  { id: 'birthday', label: 'Birthday' },
+  { id: 'corporate', label: 'Corporate' },
+  { id: 'creative', label: 'Creative' },
+  { id: 'luxury', label: 'Luxury' },
+  { id: 'vintage', label: 'Vintage' },
+  { id: 'retro', label: 'Retro' },
+  { id: 'elegant', label: 'Elegant' },
+  { id: 'tech', label: 'Tech' },
+  { id: 'ocean', label: 'Ocean' },
+  { id: 'sunset', label: 'Sunset' },
+  { id: 'artistic', label: 'Artistic' },
+  { id: 'ombre-sunset', label: 'Ombre Sunset' },
+  { id: 'ombre-ocean', label: 'Ombre Ocean' },
+  { id: 'ombre-purple', label: 'Ombre Purple' },
+  { id: 'ombre-forest', label: 'Ombre Forest' },
+  { id: 'ombre-fire', label: 'Ombre Fire' },
+  { id: 'ombre-night', label: 'Ombre Night' },
+  { id: 'ombre-tropical', label: 'Ombre Tropical' },
+  { id: 'ombre-autumn', label: 'Ombre Autumn' },
+  { id: 'ombre-rose', label: 'Ombre Rose' },
+  { id: 'ombre-galaxy', label: 'Ombre Galaxy' },
+];
+
+const TEMPLATE_COLORS: Record<string, { backgroundColor: string; gradient?: string[] }> = {
+  'business': { backgroundColor: 'rgba(102, 126, 234, 0.9)' },
+  'event': { backgroundColor: 'rgba(239, 68, 68, 0.9)' },
+  'restaurant': { backgroundColor: 'rgba(34, 197, 94, 0.9)' },
+  'fashion': { backgroundColor: 'rgba(236, 72, 153, 0.9)' },
+  'real-estate': { backgroundColor: 'rgba(245, 158, 11, 0.9)' },
+  'education': { backgroundColor: 'rgba(59, 130, 246, 0.9)' },
+  'healthcare': { backgroundColor: 'rgba(6, 182, 212, 0.9)' },
+  'fitness': { backgroundColor: 'rgba(168, 85, 247, 0.9)' },
+  'wedding': { backgroundColor: 'rgba(212, 175, 55, 0.9)' },
+  'birthday': { backgroundColor: 'rgba(251, 146, 60, 0.9)' },
+  'corporate': { backgroundColor: 'rgba(1, 6, 13, 0.95)' },
+  'creative': { backgroundColor: 'rgba(147, 51, 234, 0.9)' },
+  'minimal': { backgroundColor: 'rgba(255, 255, 255, 0.95)' },
+  'luxury': { backgroundColor: 'rgba(212, 175, 55, 0.95)' },
+  'vintage': { backgroundColor: 'rgba(120, 113, 108, 0.9)' },
+  'retro': { backgroundColor: 'rgba(251, 146, 60, 0.9)' },
+  'elegant': { backgroundColor: 'rgba(139, 69, 19, 0.9)' },
+  'tech': { backgroundColor: 'rgba(30, 41, 59, 0.95)' },
+  'ocean': { backgroundColor: 'rgba(6, 182, 212, 0.9)' },
+  'sunset': { backgroundColor: 'rgba(239, 68, 68, 0.9)' },
+  'artistic': { backgroundColor: 'rgba(168, 85, 247, 0.9)' },
+  'ombre-sunset': { backgroundColor: 'rgba(255, 107, 107, 0.9)', gradient: OMBRE_GRADIENTS['ombre-sunset'] },
+  'ombre-ocean': { backgroundColor: 'rgba(102, 126, 234, 0.9)', gradient: OMBRE_GRADIENTS['ombre-ocean'] },
+  'ombre-purple': { backgroundColor: 'rgba(147, 51, 234, 0.9)', gradient: OMBRE_GRADIENTS['ombre-purple'] },
+  'ombre-forest': { backgroundColor: 'rgba(6, 95, 70, 0.9)', gradient: OMBRE_GRADIENTS['ombre-forest'] },
+  'ombre-fire': { backgroundColor: 'rgba(220, 38, 38, 0.9)', gradient: OMBRE_GRADIENTS['ombre-fire'] },
+  'ombre-night': { backgroundColor: 'rgba(30, 58, 138, 0.9)', gradient: OMBRE_GRADIENTS['ombre-night'] },
+  'ombre-tropical': { backgroundColor: 'rgba(244, 114, 182, 0.9)', gradient: OMBRE_GRADIENTS['ombre-tropical'] },
+  'ombre-autumn': { backgroundColor: 'rgba(120, 53, 15, 0.9)', gradient: OMBRE_GRADIENTS['ombre-autumn'] },
+  'ombre-rose': { backgroundColor: 'rgba(190, 18, 60, 0.9)', gradient: OMBRE_GRADIENTS['ombre-rose'] },
+  'ombre-galaxy': { backgroundColor: 'rgba(99, 102, 241, 0.9)', gradient: OMBRE_GRADIENTS['ombre-galaxy'] },
+};
+
 const ensureOpaqueColor = (color?: string) => {
   if (!color) return color;
   const trimmed = color.trim();
@@ -798,6 +865,21 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   const [selectedTemplate, setSelectedTemplate] = useState('business');
   const [originalLayers, setOriginalLayers] = useState<ComposerVideoLayer[]>([]);
   const [originalTemplate, setOriginalTemplate] = useState<string>('business');
+
+  const getTemplateColor = useCallback((templateId: string) => {
+    const templateStyle = TEMPLATE_COLORS[templateId];
+    if (templateStyle && templateStyle.backgroundColor) {
+      return templateStyle.backgroundColor;
+    }
+    return 'rgba(102, 126, 234, 0.8)';
+  }, []);
+
+  const getActiveTemplateButtonStyle = useCallback((templateId: string) => {
+    const baseColor = getTemplateColor(templateId);
+    return {
+      backgroundColor: toRgba(baseColor, 0.15),
+    };
+  }, [getTemplateColor]);
 
   const [canvasDimensions, setCanvasDimensions] = useState({
     width: videoCanvasWidth,
@@ -1944,41 +2026,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   const applyTemplateStylesToLayers = useCallback((templateType: string, targetLayers: ComposerVideoLayer[], canvasWidth: number, canvasHeight: number): ComposerVideoLayer[] => {
     return targetLayers.map(layer => {
       if (layer.fieldType === 'footerBackground') {
-        const templateStyles: Record<string, { backgroundColor: string; gradient?: string[] }> = {
-          'business': { backgroundColor: 'rgba(102, 126, 234, 0.9)' },
-          'event': { backgroundColor: 'rgba(239, 68, 68, 0.9)' },
-          'restaurant': { backgroundColor: 'rgba(34, 197, 94, 0.9)' },
-          'fashion': { backgroundColor: 'rgba(236, 72, 153, 0.9)' },
-          'real-estate': { backgroundColor: 'rgba(245, 158, 11, 0.9)' },
-          'education': { backgroundColor: 'rgba(59, 130, 246, 0.9)' },
-          'healthcare': { backgroundColor: 'rgba(6, 182, 212, 0.9)' },
-          'fitness': { backgroundColor: 'rgba(168, 85, 247, 0.9)' },
-          'wedding': { backgroundColor: 'rgba(212, 175, 55, 0.9)' },
-          'birthday': { backgroundColor: 'rgba(251, 146, 60, 0.9)' },
-          'corporate': { backgroundColor: 'rgba(30, 41, 59, 0.95)' },
-          'creative': { backgroundColor: 'rgba(147, 51, 234, 0.9)' },
-          'minimal': { backgroundColor: 'rgba(255, 255, 255, 0.95)' },
-          'luxury': { backgroundColor: 'rgba(212, 175, 55, 0.95)' },
-          'vintage': { backgroundColor: 'rgba(120, 113, 108, 0.9)' },
-          'retro': { backgroundColor: 'rgba(251, 146, 60, 0.9)' },
-          'elegant': { backgroundColor: 'rgba(139, 69, 19, 0.9)' },
-          'tech': { backgroundColor: 'rgba(30, 41, 59, 0.95)' },
-          'ocean': { backgroundColor: 'rgba(6, 182, 212, 0.9)' },
-          'sunset': { backgroundColor: 'rgba(239, 68, 68, 0.9)' },
-          'artistic': { backgroundColor: 'rgba(168, 85, 247, 0.9)' },
-          'ombre-sunset': { backgroundColor: 'rgba(255, 107, 107, 0.9)', gradient: OMBRE_GRADIENTS['ombre-sunset'] },
-          'ombre-ocean': { backgroundColor: 'rgba(102, 126, 234, 0.9)', gradient: OMBRE_GRADIENTS['ombre-ocean'] },
-          'ombre-purple': { backgroundColor: 'rgba(147, 51, 234, 0.9)', gradient: OMBRE_GRADIENTS['ombre-purple'] },
-          'ombre-forest': { backgroundColor: 'rgba(6, 95, 70, 0.9)', gradient: OMBRE_GRADIENTS['ombre-forest'] },
-          'ombre-fire': { backgroundColor: 'rgba(220, 38, 38, 0.9)', gradient: OMBRE_GRADIENTS['ombre-fire'] },
-          'ombre-night': { backgroundColor: 'rgba(30, 58, 138, 0.9)', gradient: OMBRE_GRADIENTS['ombre-night'] },
-          'ombre-tropical': { backgroundColor: 'rgba(244, 114, 182, 0.9)', gradient: OMBRE_GRADIENTS['ombre-tropical'] },
-          'ombre-autumn': { backgroundColor: 'rgba(120, 53, 15, 0.9)', gradient: OMBRE_GRADIENTS['ombre-autumn'] },
-          'ombre-rose': { backgroundColor: 'rgba(190, 18, 60, 0.9)', gradient: OMBRE_GRADIENTS['ombre-rose'] },
-          'ombre-galaxy': { backgroundColor: 'rgba(99, 102, 241, 0.9)', gradient: OMBRE_GRADIENTS['ombre-galaxy'] },
-        };
-
-        const style = templateStyles[templateType] || templateStyles.business;
+        const style = TEMPLATE_COLORS[templateType] || TEMPLATE_COLORS.business;
 
         return {
           ...layer,
@@ -2356,22 +2404,32 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
 
   // Layer management
   const addTextLayer = () => {
-    const newLayer: ComposerVideoLayer = {
-      id: generateId(),
-      type: 'text',
-      content: 'New Text',
-      position: { x: screenWidth / 2 - 50, y: screenHeight / 2 - 20 },
-      size: { width: 100, height: 40 },
-      style: {
-        fontSize: 20,
-        color: '#ffffff',
-        fontFamily: selectedFont,
-        fontWeight: 'normal',
-      },
-    };
-    setLayers([...layers, newLayer]);
-    setSelectedLayer(newLayer.id);
-    setShowTextModal(false);
+    if (newText.trim()) {
+      // Ensure text is truncated to 100 characters (safety measure)
+      const truncatedText = newText.slice(0, 100);
+
+      // Calculate dynamic width based on text content (approximate)
+      const estimatedWidth = Math.max(truncatedText.length * 10, 50); // Minimum 50px width
+
+      const newLayer: ComposerVideoLayer = {
+        id: generateId(),
+        type: 'text',
+        content: truncatedText,
+        position: { x: currentCanvasWidth / 2 - estimatedWidth / 2, y: currentCanvasHeight / 2 - 20 },
+        size: { width: estimatedWidth, height: 40 },
+        zIndex: layers.length,
+        style: {
+          fontSize: 20,
+          color: '#ffffff',
+          fontFamily: selectedFont,
+          fontWeight: 'normal',
+        },
+      };
+      setLayers([...layers, newLayer]);
+      setSelectedLayer(newLayer.id);
+      setNewText('');
+      setShowTextModal(false);
+    }
   };
 
   const addImageLayer = () => {
@@ -3303,396 +3361,43 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.templatesScrollContent}
             >
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'business' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('business')}
-              >
-                <View style={[styles.templatePreview, styles.businessTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <View style={[styles.templatePreviewFooter, styles.businessTemplateStyle]} />
-                  </View>
-                </View>
-              </TouchableOpacity>
+              {TEMPLATE_OPTIONS.map(option => {
+                const isSelected = selectedTemplate === option.id;
+                const previewStyleName = `${option.id.replace(/-([a-z])/g, g => g[1].toUpperCase())}TemplatePreview`;
+                const footerStyleName = `${option.id.replace(/-([a-z])/g, g => g[1].toUpperCase())}TemplateStyle`;
 
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'event' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('event')}
-              >
-                <View style={[styles.templatePreview, styles.eventTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <View style={[styles.templatePreviewFooter, styles.eventTemplateStyle]} />
-                  </View>
-                </View>
-              </TouchableOpacity>
+                const previewStyle = (styles as any)[previewStyleName];
+                const footerStyle = (styles as any)[footerStyleName];
 
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'restaurant' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('restaurant')}
-              >
-                <View style={[styles.templatePreview, styles.restaurantTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <View style={[styles.templatePreviewFooter, styles.restaurantTemplateStyle]} />
-                  </View>
-                </View>
-              </TouchableOpacity>
+                const isOmbre = option.id.startsWith('ombre-');
 
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'fashion' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('fashion')}
-              >
-                <View style={[styles.templatePreview, styles.fashionTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <View style={[styles.templatePreviewFooter, styles.fashionTemplateStyle]} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'real-estate' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('real-estate')}
-              >
-                <View style={[styles.templatePreview, styles.realEstateTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <View style={[styles.templatePreviewFooter, styles.realEstateTemplateStyle]} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'education' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('education')}
-              >
-                <View style={[styles.templatePreview, styles.educationTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <View style={[styles.templatePreviewFooter, styles.educationTemplateStyle]} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'healthcare' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('healthcare')}
-              >
-                <View style={[styles.templatePreview, styles.healthcareTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <View style={[styles.templatePreviewFooter, styles.healthcareTemplateStyle]} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'fitness' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('fitness')}
-              >
-                <View style={[styles.templatePreview, styles.fitnessTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <View style={[styles.templatePreviewFooter, styles.fitnessTemplateStyle]} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'wedding' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('wedding')}
-              >
-                <View style={[styles.templatePreview, styles.weddingTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <View style={[styles.templatePreviewFooter, styles.weddingTemplateStyle]} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'birthday' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('birthday')}
-              >
-                <View style={[styles.templatePreview, styles.birthdayTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <View style={[styles.templatePreviewFooter, styles.birthdayTemplateStyle]} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'corporate' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('corporate')}
-              >
-                <View style={[styles.templatePreview, styles.corporateTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <View style={[styles.templatePreviewFooter, styles.corporateTemplateStyle]} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'creative' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('creative')}
-              >
-                <View style={[styles.templatePreview, styles.creativeTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <View style={[styles.templatePreviewFooter, styles.creativeTemplateStyle]} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'minimal' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('minimal')}
-              >
-                <View style={[styles.templatePreview, styles.minimalTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <View style={[styles.templatePreviewFooter, styles.minimalTemplateStyle]} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'luxury' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('luxury')}
-              >
-                <View style={[styles.templatePreview, styles.luxuryTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <View style={[styles.templatePreviewFooter, styles.luxuryTemplateStyle]} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'vintage' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('vintage')}
-              >
-                <View style={[styles.templatePreview, styles.vintageTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <View style={[styles.templatePreviewFooter, styles.vintageTemplateStyle]} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'retro' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('retro')}
-              >
-                <View style={[styles.templatePreview, styles.retroTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <View style={[styles.templatePreviewFooter, styles.retroTemplateStyle]} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'elegant' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('elegant')}
-              >
-                <View style={[styles.templatePreview, styles.elegantTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <View style={[styles.templatePreviewFooter, styles.elegantTemplateStyle]} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'tech' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('tech')}
-              >
-                <View style={[styles.templatePreview, styles.techTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <View style={[styles.templatePreviewFooter, styles.techTemplateStyle]} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'ocean' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('ocean')}
-              >
-                <View style={[styles.templatePreview, styles.oceanTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <View style={[styles.templatePreviewFooter, styles.oceanTemplateStyle]} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'sunset' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('sunset')}
-              >
-                <View style={[styles.templatePreview, styles.sunsetTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <View style={[styles.templatePreviewFooter, styles.sunsetTemplateStyle]} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'artistic' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('artistic')}
-              >
-                <View style={[styles.templatePreview, styles.artisticTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <View style={[styles.templatePreviewFooter, styles.artisticTemplateStyle]} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'ombre-sunset' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('ombre-sunset')}
-              >
-                <View style={[styles.templatePreview, styles.ombreSunsetTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <LinearGradient
-                      colors={['#FF6B6B', '#FFA500', '#FFD700']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
-                    />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'ombre-ocean' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('ombre-ocean')}
-              >
-                <View style={[styles.templatePreview, styles.ombreOceanTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <LinearGradient
-                      colors={['#667eea', '#06b6d4', '#22c55e']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
-                    />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'ombre-purple' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('ombre-purple')}
-              >
-                <View style={[styles.templatePreview, styles.ombrePurpleTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <LinearGradient
-                      colors={['#9333ea', '#ec4899', '#f43f5e']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
-                    />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'ombre-forest' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('ombre-forest')}
-              >
-                <View style={[styles.templatePreview, styles.ombreForestTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <LinearGradient
-                      colors={['#065f46', '#059669', '#10b981']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
-                    />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'ombre-fire' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('ombre-fire')}
-              >
-                <View style={[styles.templatePreview, styles.ombreFireTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <LinearGradient
-                      colors={['#dc2626', '#f59e0b', '#fbbf24']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
-                    />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'ombre-night' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('ombre-night')}
-              >
-                <View style={[styles.templatePreview, styles.ombreNightTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <LinearGradient
-                      colors={['#1e3a8a', '#7c3aed', '#ec4899']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
-                    />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'ombre-tropical' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('ombre-tropical')}
-              >
-                <View style={[styles.templatePreview, styles.ombreTropicalTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <LinearGradient
-                      colors={['#f472b6', '#fb923c', '#06b6d4']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
-                    />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'ombre-autumn' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('ombre-autumn')}
-              >
-                <View style={[styles.templatePreview, styles.ombreAutumnTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <LinearGradient
-                      colors={['#78350f', '#ea580c', '#dc2626']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
-                    />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'ombre-rose' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('ombre-rose')}
-              >
-                <View style={[styles.templatePreview, styles.ombreRoseTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <LinearGradient
-                      colors={['#be123c', '#f472b6', '#fda4af']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
-                    />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.templateButton, selectedTemplate === 'ombre-galaxy' && styles.templateButtonActive]}
-                onPress={() => applyTemplate('ombre-galaxy')}
-              >
-                <View style={[styles.templatePreview, styles.ombreGalaxyTemplatePreview]}>
-                  <View style={styles.templatePreviewContent}>
-                    <LinearGradient
-                      colors={['#6366f1', '#8b5cf6', '#06b6d4']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
-                    />
-                  </View>
-                </View>
-              </TouchableOpacity>
+                return (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[
+                      styles.templateButton,
+                      isSelected && styles.templateButtonActive,
+                      isSelected && getActiveTemplateButtonStyle(option.id)
+                    ]}
+                    onPress={() => applyTemplate(option.id)}
+                  >
+                    <View style={[styles.templatePreview, previewStyle]}>
+                      <View style={styles.templatePreviewContent}>
+                        {isOmbre ? (
+                          <LinearGradient
+                            colors={OMBRE_GRADIENTS[option.id]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={[styles.templatePreviewFooter, { backgroundColor: 'transparent' }]}
+                          />
+                        ) : (
+                          <View style={[styles.templatePreviewFooter, { backgroundColor: TEMPLATE_COLORS[option.id]?.backgroundColor || 'rgba(102, 126, 234, 0.9)' }]} />
+                        )}
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
 
@@ -3734,29 +3439,41 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
       </View>
 
       {/* Text Modal */}
-      <Modal visible={showTextModal} transparent animationType="slide">
+      <Modal
+        visible={showTextModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTextModal(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Add Text</Text>
             <TextInput
               style={styles.textInput}
               placeholder="Enter text..."
+              placeholderTextColor="#999999"
               value={newText}
-              onChangeText={setNewText}
+              onChangeText={(text) => setNewText(text.slice(0, 100))}
               multiline
+              maxLength={100}
             />
+            <View style={styles.characterCountContainer}>
+              <Text style={styles.characterCountText}>
+                {newText.length}/100
+              </Text>
+            </View>
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={styles.modalButton}
+                style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => setShowTextModal(false)}
               >
-                <Text style={styles.modalButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonPrimary]}
+                style={[styles.modalButton, styles.addButton]}
                 onPress={addTextLayer}
               >
-                <Text style={[styles.modalButtonText, styles.modalButtonTextPrimary]}>Add</Text>
+                <Text style={styles.addButtonText}>Add</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -3764,7 +3481,12 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
       </Modal>
 
       {/* Image Modal */}
-      <Modal visible={showImageModal} transparent animationType="slide">
+      <Modal
+        visible={showImageModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowImageModal(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Add Image</Text>
@@ -3783,17 +3505,17 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
             ) : null}
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={styles.modalButton}
+                style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => setShowImageModal(false)}
               >
-                <Text style={styles.modalButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonPrimary]}
+                style={[styles.modalButton, styles.addButton]}
                 onPress={addImageLayer}
                 disabled={!newImageUrl}
               >
-                <Text style={[styles.modalButtonText, styles.modalButtonTextPrimary]}>Add</Text>
+                <Text style={styles.addButtonText}>Add</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -3801,7 +3523,12 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
       </Modal>
 
       {/* Logo Modal */}
-      <Modal visible={showLogoModal} transparent animationType="slide">
+      <Modal
+        visible={showLogoModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowLogoModal(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Add Logo</Text>
@@ -3820,17 +3547,17 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
             ) : null}
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={styles.modalButton}
+                style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => setShowLogoModal(false)}
               >
-                <Text style={styles.modalButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonPrimary]}
+                style={[styles.modalButton, styles.addButton]}
                 onPress={addLogoLayer}
                 disabled={!newLogoUrl}
               >
-                <Text style={[styles.modalButtonText, styles.modalButtonTextPrimary]}>Add</Text>
+                <Text style={styles.addButtonText}>Add</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -4520,12 +4247,23 @@ const styles = StyleSheet.create({
   },
 
   textInput: {
-    borderWidth: 1,
-    borderColor: '#cccccc',
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 15,
-    minHeight: 100,
+    borderWidth: moderateScale(1.5),
+    borderColor: '#e9ecef',
+    borderRadius: moderateScale(8),
+    padding: moderateScale(10),
+    fontSize: moderateScale(13),
+    marginBottom: moderateScale(12),
+    backgroundColor: '#f8f9fa',
+    color: '#333333',
+  },
+  characterCountContainer: {
+    alignSelf: 'flex-end',
+    marginBottom: moderateScale(8),
+  },
+  characterCountText: {
+    fontSize: moderateScale(11),
+    color: '#666666',
+    fontWeight: '500',
   },
   profileList: {
     maxHeight: 400,
@@ -5226,23 +4964,32 @@ const styles = StyleSheet.create({
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: moderateScale(8),
   },
   modalButton: {
     flex: 1,
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: moderateScale(10),
+    borderRadius: moderateScale(8),
     alignItems: 'center',
-    marginHorizontal: 8,
+    marginHorizontal: moderateScale(4),
   },
-  modalButtonPrimary: {
+  cancelButton: {
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1.5,
+    borderColor: '#e9ecef',
+  },
+  addButton: {
     backgroundColor: '#667eea',
   },
-  modalButtonText: {
-    fontSize: 16,
+  cancelButtonText: {
+    color: '#666666',
+    fontSize: moderateScale(13),
     fontWeight: '600',
   },
-  modalButtonTextPrimary: {
+  addButtonText: {
     color: '#ffffff',
+    fontSize: moderateScale(13),
+    fontWeight: '600',
   },
   modalHeader: {
     flexDirection: 'row',
