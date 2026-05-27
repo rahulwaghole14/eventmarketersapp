@@ -954,7 +954,21 @@ const HomeScreen: React.FC = React.memo(() => {
     const checkForUpdates = async () => {
       try {
         hasCheckedForUpdate = true;
+
+        // Guard: native module may be null if not properly linked
+        if (!VersionCheck || typeof VersionCheck.getCurrentVersion !== 'function') {
+          console.warn('[UpdateCheck] VersionCheck native module is not available. Skipping update check.');
+          return;
+        }
+
         const currentVersion = VersionCheck.getCurrentVersion();
+
+        // Guard: getCurrentVersion() can return null if native side isn't ready
+        if (!currentVersion) {
+          console.warn('[UpdateCheck] getCurrentVersion() returned null. Native module may not be initialized yet.');
+          return;
+        }
+
         const latestVersion = await VersionCheck.getLatestVersion();
 
         console.log(`[UpdateCheck] Current Version: ${currentVersion}`);

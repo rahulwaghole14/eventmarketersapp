@@ -14,6 +14,8 @@ import {
   Image,
   FlatList,
   Animated,
+  LayoutAnimation,
+  InteractionManager,
   PermissionsAndroid,
   Platform,
   ActivityIndicator,
@@ -3340,8 +3342,13 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.fieldToggleButton, getEffectiveToggleValue('footerBackground') && styles.fieldToggleButtonActive]}
+                style={[
+                  styles.fieldToggleButton,
+                  getEffectiveToggleValue('footerBackground') && styles.fieldToggleButtonActive,
+                  !!selectedFrame && { opacity: 0.4 },
+                ]}
                 onPress={() => toggleFieldVisibility('footerBackground')}
+                disabled={!!selectedFrame}
               >
                 <Icon name="format-color-fill" size={getResponsiveIconSize(16)} color={getEffectiveToggleValue('footerBackground') ? "#ffffff" : "#667eea"} />
                 <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('footerBackground') && styles.fieldToggleButtonTextActive]}>
@@ -3466,11 +3473,23 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
                   isSelected={selectedFrame === frame.id}
                   onPress={() => {
                     if (selectedFrame === frame.id) {
+                      // Animate frame removal smoothly
+                      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                       handleRemoveFrameOnly();
                     } else {
+                      // Immediately update frame selection for visual feedback
                       setSelectedFrame(frame.id);
                       setVisibleFields(prev => ({ ...prev, footerBackground: false }));
-                      applyFrameLayout(frame.id);
+                      // Defer heavy layout computation until after the press interaction finishes
+                      InteractionManager.runAfterInteractions(() => {
+                        LayoutAnimation.configureNext({
+                          duration: 280,
+                          create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+                          update: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.scaleXY },
+                          delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+                        });
+                        applyFrameLayout(frame.id);
+                      });
                     }
                   }}
                   styles={styles}
