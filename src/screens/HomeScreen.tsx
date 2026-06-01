@@ -969,17 +969,17 @@ const HomeScreen: React.FC = React.memo(() => {
           return;
         }
 
-        const latestVersion = await VersionCheck.getLatestVersion();
+        const latestVersion = await VersionCheck.getLatestVersion().catch(() => '1.0.0');
 
         console.log(`[UpdateCheck] Current Version: ${currentVersion}`);
         console.log(`[UpdateCheck] Latest Play Store Version: ${latestVersion}`);
 
-        const updateNeeded = await VersionCheck.needUpdate();
+        const updateNeeded = await VersionCheck.needUpdate().catch(() => ({ isNeeded: false }));
 
         if (updateNeeded && updateNeeded.isNeeded) {
           console.log('[UpdateCheck] Update status: AVAILABLE');
-          const storeUrl = await VersionCheck.getStoreUrl();
-          setUpdateUrl(storeUrl);
+          const storeUrl = await VersionCheck.getStoreUrl().catch(() => 'https://play.google.com/store/apps/details?id=com.marketbrand');
+          setUpdateUrl(storeUrl || 'https://play.google.com/store/apps/details?id=com.marketbrand');
           setIsUpdateModalVisible(true);
         } else {
           console.log('[UpdateCheck] Update status: NOT NEEDED');
@@ -1119,17 +1119,38 @@ const HomeScreen: React.FC = React.memo(() => {
   }, [userProfile?.id, initializeSelectedProfile]);
 
   const handleUpdateApp = useCallback(() => {
+    const defaultPlayStoreUrl = 'https://play.google.com/store/apps/details?id=com.marketbrand';
+
     if (updateUrl) {
       Linking.openURL(updateUrl).catch(err => {
         console.error('[UpdateCheck] Error opening Play Store URL:', err);
+        Linking.openURL(defaultPlayStoreUrl).catch(() => {});
       });
     } else {
-      // Fallback to default Play Store if URL is missing
-      VersionCheck.getStoreUrl().then(url => {
-        Linking.openURL(url);
-      }).catch(err => {
-        console.error('[UpdateCheck] Error getting store URL:', err);
-      });
+      // Fallback to default Play Store if URL is missing, with safety checks to avoid native crash
+      try {
+        if (VersionCheck && typeof VersionCheck.getStoreUrl === 'function') {
+          VersionCheck.getStoreUrl()
+            .then(url => {
+              if (url) {
+                Linking.openURL(url).catch(() => {
+                  Linking.openURL(defaultPlayStoreUrl).catch(() => {});
+                });
+              } else {
+                Linking.openURL(defaultPlayStoreUrl).catch(() => {});
+              }
+            })
+            .catch(err => {
+              console.warn('[UpdateCheck] Error getting store URL from VersionCheck:', err);
+              Linking.openURL(defaultPlayStoreUrl).catch(() => {});
+            });
+        } else {
+          Linking.openURL(defaultPlayStoreUrl).catch(() => {});
+        }
+      } catch (err) {
+        console.warn('[UpdateCheck] Failed to call VersionCheck.getStoreUrl:', err);
+        Linking.openURL(defaultPlayStoreUrl).catch(() => {});
+      }
     }
   }, [updateUrl]);
 

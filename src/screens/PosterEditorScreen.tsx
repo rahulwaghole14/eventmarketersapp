@@ -1901,7 +1901,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         content: `📞 ${profile.phone}`,
         // Position set to X: 419.2, Y: 501.0 (for 560x560 canvas)
         // Base values: 539.3 for X, 436.0 for Y (calculated from target position)
-        position: { x: 500.3 * scaleX, y: 430.0 * scaleY },
+        position: { x: 500.3 * scaleX, y: 450.0 * scaleY },
         size: { width: (canvasWidth - 40) / 2, height: contactLineHeight },
         rotation: 0,
         zIndex: 10,
@@ -1983,7 +1983,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         id: generateId(),
         type: 'text',
         content: `📍 ${profile.address}`,
-        position: { x: Math.round(500 * scaleX), y: Math.round(450 * scaleY) },
+        position: { x: Math.round(500 * scaleX), y: Math.round(430 * scaleY) },
         size: { width: (canvasWidth - 40) / 2, height: contactLineHeight },
         rotation: 0,
         zIndex: 10,

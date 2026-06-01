@@ -1825,17 +1825,30 @@ const GreetingTemplatesScreen: React.FC = () => {
               >
                 General Categories
               </Text>
-              <TouchableOpacity
-                style={styles.headerIconButton}
-                onPress={toggleSearchBar}
-                activeOpacity={0.7}
-              >
-                <Icon
-                  name={isSearchVisible ? 'close' : 'search'}
-                  size={isSmallScreen ? moderateScale(20) : moderateScale(14)}
-                  color={theme.colors.text}
-                />
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <TouchableOpacity
+                  style={styles.headerIconButton}
+                  onPress={toggleSearchBar}
+                  activeOpacity={0.7}
+                >
+                  <Icon
+                    name={isSearchVisible ? 'close' : 'search'}
+                    size={isSmallScreen ? moderateScale(20) : moderateScale(14)}
+                    color={theme.colors.text}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.headerIconButton, { marginLeft: moderateScale(6) }]}
+                  onPress={() => navigation.goBack()}
+                  activeOpacity={0.7}
+                >
+                  <Icon
+                    name="close"
+                    size={isSmallScreen ? moderateScale(20) : moderateScale(14)}
+                    color={theme.colors.text}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
 
