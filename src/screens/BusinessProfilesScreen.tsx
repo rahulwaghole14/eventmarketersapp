@@ -230,6 +230,17 @@ const BusinessProfilesScreen: React.FC = () => {
 
       // All profiles loaded successfully - no special auto-sync needed
       if (apiProfiles.length > 0) {
+        // Clear activation pending state for any profiles that are now active in the backend
+        apiProfiles.forEach(profile => {
+          if (profile?.subscriptionStatus?.toUpperCase() === "ACTIVE") {
+            try {
+              clearActivationPending(profile.id);
+            } catch (err) {
+              console.warn('⚠️ Error clearing activation pending:', err);
+            }
+          }
+        });
+
         // Sort profiles by subscription status (ACTIVE first), then by creation date - OLDEST first within each group
         const sortedProfiles = apiProfiles.sort((a, b) => {
           const aActive = a.subscriptionStatus?.toUpperCase() === "ACTIVE";
@@ -271,7 +282,7 @@ const BusinessProfilesScreen: React.FC = () => {
       setLoading(false);
       setBackgroundRefreshing(false);
     }
-  }, [profiles.length]);
+  }, [profiles.length, clearActivationPending]);
 
   // 5-minute polling logic for business profile subscription status
   const startPolling = useCallback(() => {
@@ -745,8 +756,8 @@ const BusinessProfilesScreen: React.FC = () => {
       imageRefreshKey
     });
 
-    // Effective active state: backend says active AND not pending activation
-    const isEffectivelyActive = isActive && !isPendingActivation;
+    // Effective active state: backend says active OR pending activation (immediate frontend activation)
+    const isEffectivelyActive = isActive || isPendingActivation;
 
     const isLocked = !isEffectivelyActive;
 

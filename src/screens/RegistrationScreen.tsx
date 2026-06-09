@@ -48,7 +48,7 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
     visible: false,
     title: 'Error',
     message: '',
-    type: 'error',
+    type: 'error' as 'error' | 'success' | 'info' | 'warning',
     buttonText: 'OK',
     onPress: null as (() => void) | null,
   });
@@ -105,7 +105,7 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
         } catch (resendError: any) {
           const resendMessage = resendError.response?.data?.error || resendError.response?.data?.message || resendError.message || '';
           if (resendMessage.toLowerCase().includes('verified')) {
-            showCustomModal('Already Registered', 'This phone number is already registered and verified. Please sign in instead.', 'info', 'Go to Sign In', () => navigation.navigate('Login'));
+            showCustomModal('Already Registered', 'This phone number is already registered and verified. Please sign in instead.', 'warning', 'Go to Sign In', () => navigation.navigate('Login'));
           } else {
             showCustomModal('Registration Error', resendMessage || 'Failed to send OTP code. Please try again.', 'error');
           }
@@ -188,8 +188,8 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
     });
   };
 
-  const showCustomModal = (title: string, message: string, type: 'error' | 'success' | 'info' = 'error', buttonText: string = 'OK', onPress: (() => void) | null = null) => {
-    setModalConfig({ visible: true, title, message, type: type as 'error' | 'success' | 'info', buttonText, onPress });
+  const showCustomModal = (title: string, message: string, type: 'error' | 'success' | 'info' | 'warning' = 'error', buttonText: string = 'OK', onPress: (() => void) | null = null) => {
+    setModalConfig({ visible: true, title, message, type, buttonText, onPress });
     Animated.timing(modalAnimation, {
       toValue: 1,
       duration: 200,
@@ -455,8 +455,31 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
           <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={hideModal}>
             <TouchableOpacity activeOpacity={1} onPress={() => {}}>
               <Animated.View style={[styles.modalContainer, { backgroundColor: theme.colors.surface }]}>
-                <View style={[styles.modalIconContainer, { backgroundColor: modalConfig.type === 'error' ? 'rgba(229, 62, 62, 0.1)' : modalConfig.type === 'success' ? 'rgba(56, 161, 105, 0.1)' : 'rgba(49, 130, 206, 0.1)' }]}>
-                  <Icon name={modalConfig.type === 'error' ? "error-outline" : modalConfig.type === 'success' ? "check-circle-outline" : "info-outline"} size={40} color={modalConfig.type === 'error' ? theme.colors.error : modalConfig.type === 'success' ? '#38A169' : '#3182CE'} />
+                <View style={[
+                  styles.modalIconContainer, 
+                  { 
+                    backgroundColor: 
+                      modalConfig.type === 'error' ? 'rgba(229, 62, 62, 0.1)' : 
+                      modalConfig.type === 'success' ? 'rgba(56, 161, 105, 0.1)' : 
+                      modalConfig.type === 'warning' ? 'rgba(255, 152, 0, 0.15)' : 
+                      'rgba(49, 130, 206, 0.1)' 
+                  }
+                ]}>
+                  <Icon 
+                    name={
+                      modalConfig.type === 'error' ? "error-outline" : 
+                      modalConfig.type === 'success' ? "check-circle-outline" : 
+                      modalConfig.type === 'warning' ? "warning-amber" : 
+                      "info-outline"
+                    } 
+                    size={40} 
+                    color={
+                      modalConfig.type === 'error' ? theme.colors.error : 
+                      modalConfig.type === 'success' ? '#38A169' : 
+                      modalConfig.type === 'warning' ? '#FF9800' : 
+                      '#3182CE'
+                    } 
+                  />
                 </View>
                 <Text style={[styles.modalTitle, { color: theme.colors.text }]}>{modalConfig.title}</Text>
                 <View style={styles.modalContent}>

@@ -660,7 +660,7 @@ const DraggableLayer = React.memo(({
           const deltaX = evt.nativeEvent.pageX - dragStartRef.current.x;
           const deltaY = evt.nativeEvent.pageY - dragStartRef.current.y;
           const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-          
+
           if (distance < 8) {
             // It's a tap/click!
             if (layer.type === 'logo' && onLogoToggleShape) {
@@ -2180,7 +2180,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
           id: generateId(),
           type: 'text',
           content: `📞 ${phone}`,
-          position: { x: 500.3 * scaleX, y: 430.0 * scaleY },
+          position: { x: 500.3 * scaleX, y: 450.0 * scaleY },
           size: { width: (canvasWidth - 40) / 2, height: contactLineHeight },
           style: {
             fontSize: footerTextSize,
@@ -2248,7 +2248,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
           id: generateId(),
           type: 'text',
           content: `📍 ${address}`,
-          position: { x: Math.round(500 * scaleX), y: Math.round(450 * scaleY) },
+          position: { x: Math.round(500 * scaleX), y: Math.round(430 * scaleY) },
           size: { width: (canvasWidth - 40) / 2, height: contactLineHeight },
           style: {
             fontSize: footerTextSize,
@@ -2811,7 +2811,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
     setSelectedFrame(null);
     setIsAutoLayoutApplied({});
     setVisibleFields(prev => ({ ...prev, footerBackground: true }));
-    
+
     if (pendingTemplate) {
       applyTemplate(pendingTemplate, true);
     }

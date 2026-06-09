@@ -917,7 +917,7 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={(isSharing || isDownloading || isDownloadProcessing) ? ['#cccccc', '#999999'] : ['#667eea', '#764ba2']}
+              colors={isSharing ? ['#cccccc', '#999999'] : ['#667eea', '#764ba2']}
               style={styles.premiumButtonGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -942,7 +942,7 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={isCategoryTemplate ? ['#6c757d', '#5a6268'] : isLimitReached ? ['#dc3545', '#c82333'] : (isSharing || isDownloading || isDownloadProcessing) ? ['#cccccc', '#999999'] : ['#28a745', '#20c997']}
+              colors={isCategoryTemplate ? ['#6c757d', '#5a6268'] : isLimitReached ? ['#dc3545', '#c82333'] : (isDownloading || isDownloadProcessing) ? ['#cccccc', '#999999'] : ['#28a745', '#20c997']}
               style={styles.premiumButtonGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}

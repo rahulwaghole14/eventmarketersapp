@@ -396,35 +396,21 @@ class VideoCompositionService {
     try {
       console.log('📥 Downloading processed video for job:', jobId);
       
-      const response = await fetch(`${this.baseUrl}/api/jobs/${jobId}/download/`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to download video: ${response.status}`);
-      }
-
-      // Create local file path
+      const downloadUrl = `${this.baseUrl}/api/jobs/${jobId}/download/`;
       const fileName = `composed_${jobId}.mp4`;
       const localPath = `${RNFS.CachesDirectoryPath}/${fileName}`;
 
-      console.log('📁 Saving to:', localPath);
+      console.log('📁 Saving directly to:', localPath);
 
-      // Get the response body as a blob
-      const blob = await response.blob();
-      
-      // Convert blob to base64
-      const reader = new FileReader();
-      const base64Promise = new Promise<string>((resolve, reject) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-      
-      const base64Data = await base64Promise;
-      // Remove data URL prefix (data:video/mp4;base64,)
-      const base64Content = base64Data.split(',')[1];
-      
-      // Write base64 content to file
-      await RNFS.writeFile(localPath, base64Content, 'base64');
+      // Download directly to disk via RNFS.downloadFile to avoid loading entire video file into JS heap memory
+      const downloadResult = await RNFS.downloadFile({
+        fromUrl: downloadUrl,
+        toFile: localPath,
+      }).promise;
+
+      if (downloadResult.statusCode !== 200) {
+        throw new Error(`Failed to download video: status ${downloadResult.statusCode}`);
+      }
 
       // Verify file exists and has content
       const fileExists = await RNFS.exists(localPath);

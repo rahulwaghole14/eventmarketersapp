@@ -4299,12 +4299,15 @@ const HomeScreen: React.FC = React.memo(() => {
     if (!isActive && selectedBusinessProfile) {
       Alert.alert(
         "Subscription Required",
-        "This profile is currently locked. Please activate your subscription in the Business Profiles screen to use this template.",
+        "This profile is currently locked. Please activate your subscription to use this template.",
         [
           { text: "Cancel", style: "cancel" },
           { 
             text: "Activate Now", 
-            onPress: () => navigation.navigate('BusinessProfiles' as any) 
+            onPress: () => navigation.navigate('Subscription' as any, {
+              source: 'BUSINESS_PROFILE',
+              businessProfileId: selectedBusinessProfile.id
+            }) 
           }
         ]
       );
@@ -4749,12 +4752,15 @@ const HomeScreen: React.FC = React.memo(() => {
       if (!isActive && selectedBusinessProfile) {
         Alert.alert(
           "Subscription Required",
-          "This profile is currently locked. Please activate your subscription in the Business Profiles screen to use this feature.",
+          "This profile is currently locked. Please activate your subscription to use this feature.",
           [
             { text: "Cancel", style: "cancel" },
             { 
               text: "Activate Now", 
-              onPress: () => navigation.navigate('BusinessProfiles' as any) 
+              onPress: () => navigation.navigate('Subscription' as any, {
+                source: 'BUSINESS_PROFILE',
+                businessProfileId: selectedBusinessProfile.id
+              }) 
             }
           ]
         );

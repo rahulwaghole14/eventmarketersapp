@@ -1826,17 +1826,19 @@ const GreetingTemplatesScreen: React.FC = () => {
                 General Categories
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <TouchableOpacity
-                  style={styles.headerIconButton}
-                  onPress={toggleSearchBar}
-                  activeOpacity={0.7}
-                >
-                  <Icon
-                    name={isSearchVisible ? 'close' : 'search'}
-                    size={isSmallScreen ? moderateScale(20) : moderateScale(14)}
-                    color={theme.colors.text}
-                  />
-                </TouchableOpacity>
+                {!isSearchVisible && (
+                  <TouchableOpacity
+                    style={styles.headerIconButton}
+                    onPress={toggleSearchBar}
+                    activeOpacity={0.7}
+                  >
+                    <Icon
+                      name="search"
+                      size={isSmallScreen ? moderateScale(20) : moderateScale(14)}
+                      color={theme.colors.text}
+                    />
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
                   style={[styles.headerIconButton, { marginLeft: moderateScale(6) }]}
                   onPress={() => navigation.goBack()}
@@ -1903,6 +1905,18 @@ const GreetingTemplatesScreen: React.FC = () => {
                     />
                   </TouchableOpacity>
                 )}
+                <TouchableOpacity onPress={toggleSearchBar} activeOpacity={0.7}>
+                  <Icon
+                    name="close"
+                    size={moderateScale(16)}
+                    color={theme.colors.textSecondary}
+                    style={{
+                      marginLeft: moderateScale(4),
+                      marginRight: moderateScale(4),
+                      padding: moderateScale(2),
+                    }}
+                  />
+                </TouchableOpacity>
               </View>
 
               {/* Floating Recent Searches Dropdown */}

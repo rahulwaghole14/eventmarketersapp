@@ -84,11 +84,14 @@ const SubscriptionScreen: React.FC = () => {
   console.log('🔍 SUBSCRIPTION SCREEN - Screen title:', screenTitle);
   
   const { isSubscribed, subscriptionStatus: contextSubscriptionStatus, plans: contextPlans, refreshSubscription, refreshPlans, addTransaction, setIsSubscribed, isLoading, autopayState, enableAutopay, disableAutopay, refreshAutopayStatus, setPaymentInProgress } = useSubscription();
-  const { setActivationPending, clearActivationPending, isActivationPending: isProfileActivationPending } = useBusinessProfile();
+  const { setActivationPending, clearActivationPending, isActivationPending: isProfileActivationPending, setSelectedBusinessProfile } = useBusinessProfile();
   
   // Business profile subscription state
   const [businessSubscriptionStatus, setBusinessSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const [isBusinessSubscriptionLoading, setIsBusinessSubscriptionLoading] = useState(false);
+  
+  // Performance optimization: Flag to control post-payment flow
+  const [isReturningFromPayment, setIsReturningFromPayment] = useState(false);
   
   // FRONTEND-ONLY: Remove local activation pending state - use only context
   // const [isActivationPending, setIsActivationPending] = useState(false); // REMOVED
@@ -241,8 +244,6 @@ const SubscriptionScreen: React.FC = () => {
   const [showProcessingMessage, setShowProcessingMessage] = useState(false);
   const [disableSubscribeButton, setDisableSubscribeButton] = useState(false);
   
-  // Performance optimization: Flag to control post-payment flow
-  const [isReturningFromPayment, setIsReturningFromPayment] = useState(false);
 
   // Cleanup polling and event listeners on unmount
   useEffect(() => {
@@ -795,41 +796,12 @@ const SubscriptionScreen: React.FC = () => {
                 setActivationPending(businessProfileId, true);
                 console.log('🏢 Business profile activation pending for 24 hours:', businessProfileId);
                 
-                // Show appropriate message for business profile
-                Alert.alert(
-                  'Payment Successful',
-                  'Your business profile will be activated within 24 hours.',
-                  [{ text: 'OK', onPress: () => {} }] // Remove immediate navigation
-                );
-                
                 // Clear payment states
                 setIsTransactionPending(false);
                 updatePaymentInProgress(false);
                 
-                // CRITICAL FIX: Add delay to ensure context state propagates before navigation
-                setTimeout(() => {
-                  console.log('🔍 DEBUG: Navigation after delay, checking activation pending state...');
-                  const isStillPending = isProfileActivationPending(businessProfileId);
-                  console.log('🔍 DEBUG: Activation pending state before navigation:', isStillPending);
-                  console.log('[NAVIGATION FLOW]', {
-                    source: (route.params as any)?.source,
-                    action: 'POST_PAYMENT_REDIRECT',
-                    isBusinessProfileMode,
-                    businessProfileId
-                  });
-
-                  // Navigate based on source
-                  if ((route.params as any)?.source === 'BUSINESS_PROFILE') {
-                    console.log('✅ [NAVIGATION FLOW] Redirecting to BusinessProfilesScreen after payment success');
-                    navigation.reset({
-                      index: 0,
-                      routes: [{ name: 'BusinessProfiles' as any }],
-                    });
-                  } else {
-                    console.log('✅ [NAVIGATION FLOW] Staying on SubscriptionScreen for regular subscription');
-                    (navigation as any).navigate('SubscriptionScreen', { paymentSuccess: true });
-                  }
-                }, 300); // Increased delay for better reliability
+                // Show Success Modal directly
+                setIsSuccessModalVisible(true);
               } else {
                 console.log('🔍 DEBUG: Not in business profile mode or missing businessProfileId');
                 console.log('🔍 DEBUG: isBusinessProfileMode =', isBusinessProfileMode);
@@ -1024,37 +996,11 @@ const SubscriptionScreen: React.FC = () => {
             if (isBusinessProfileMode && businessProfileId) {
               setActivationPending(businessProfileId, true);
               
-              Alert.alert(
-                'Payment Successful',
-                'Your business profile will be activated within 24 hours.',
-                [{ text: 'OK', onPress: () => {} }]
-              );
-              
               setIsTransactionPending(false);
               updatePaymentInProgress(false);
               
-              // NON-BLOCKING: Navigate after delay
-              setTimeout(() => {
-                setIsReturningFromPayment(true); // Set flag to prevent duplicate API calls
-                console.log('[NAVIGATION FLOW]', {
-                  source: (route.params as any)?.source,
-                  action: 'POST_PAYMENT_REDIRECT',
-                  isBusinessProfileMode,
-                  businessProfileId
-                });
-
-                // Navigate based on source
-                if ((route.params as any)?.source === 'BUSINESS_PROFILE') {
-                  console.log('✅ [NAVIGATION FLOW] Redirecting to BusinessProfilesScreen after autopay success');
-                  navigation.reset({
-                    index: 0,
-                    routes: [{ name: 'BusinessProfiles' as any }],
-                  });
-                } else {
-                  console.log('✅ [NAVIGATION FLOW] Staying on SubscriptionScreen for autopay');
-                  (navigation as any).navigate('SubscriptionScreen', { paymentSuccess: true });
-                }
-              }, 300);
+              // Show Success Modal directly
+              setIsSuccessModalVisible(true);
             } else {
               // User subscription: Use optimized polling
               pollingCleanupRef.current = startSubscriptionPolling(
@@ -1191,6 +1137,12 @@ const SubscriptionScreen: React.FC = () => {
         // Open Razorpay with memoized options
         const result = await RazorpayCheckout.open(safeOptions);
         console.log('📦 Razorpay checkout completed - handler will process result:', result);
+
+        // Manually invoke success handler since react-native-razorpay ignores options.handler in React Native
+        if (result && result.razorpay_payment_id) {
+          console.log('⚠️ Autopay succeeded, invoking handler manually...');
+          await safeOptions.handler?.(result);
+        }
 
       } catch (error: any) {
         console.error('💥 Autopay payment error:', error);
@@ -1787,7 +1739,7 @@ const SubscriptionScreen: React.FC = () => {
               style={styles.modalOkButton}
               onPress={() => {
                 setIsProcessingModalVisible(false);
-                navigation.navigate('BusinessProfiles' as any);
+                (navigation as any).navigate('BusinessProfiles' as any);
               }}
             >
               <Text style={styles.modalOkButtonText}>OK</Text>
@@ -1816,11 +1768,20 @@ const SubscriptionScreen: React.FC = () => {
             
             <TouchableOpacity
               style={[styles.modalOkButton, { backgroundColor: '#28a745', minWidth: dynamicModerateScale(120) }]}
-              onPress={() => {
+              onPress={async () => {
                 setIsSuccessModalVisible(false);
-                // If coming from business profile selection, go back there
-                if (isBusinessProfileMode) {
-                  navigation.navigate('BusinessProfiles' as any);
+                // Redirect to BusinessProfiles screen instead of Home screen
+                if (isBusinessProfileMode && businessProfileId) {
+                  try {
+                    const currentUser = authService.getCurrentUser();
+                    if (currentUser?.id) {
+                      console.log('🗑️ Clearing business profiles cache to load fresh status...');
+                      businessProfileService.clearCache(currentUser.id);
+                    }
+                  } catch (cacheError) {
+                    console.error('❌ Error clearing business profiles cache:', cacheError);
+                  }
+                  (navigation as any).navigate('BusinessProfiles');
                 } else {
                   navigation.goBack();
                 }

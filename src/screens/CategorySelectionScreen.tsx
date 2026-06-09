@@ -32,42 +32,50 @@ const CategorySelectionScreen: React.FC = ({ navigation }: any) => {
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const [isLoadingSubcategories, setIsLoadingSubcategories] = useState(false);
 
+  const fetchCategories = async () => {
+    try {
+      setIsLoadingCategories(true);
+      console.log('📡 [CATEGORY SELECTION] Fetching business categories...');
+      const response = await businessCategoriesService.getBusinessCategories();
+
+      if (response.success && response.categories && response.categories.length > 0) {
+        const uniqueParentCategories = new Set<string>();
+        response.categories.forEach((category: any) => {
+          if (category.parentCategoryName && category.parentCategoryName.trim() !== '') {
+            uniqueParentCategories.add(category.parentCategoryName.trim());
+          }
+        });
+
+        const businessCategories = Array.from(uniqueParentCategories).map((parentName, index) => ({
+          id: `parent-${index}`,
+          name: parentName,
+          description: `${parentName} business category`,
+          icon: '📄',
+          parentCategoryName: undefined
+        }));
+
+        setCategories(businessCategories);
+      } else {
+        setCategories([]);
+      }
+    } catch (error: any) {
+      console.error('❌ [CATEGORY SELECTION] Error fetching categories:', error);
+      setCategories([]);
+      Alert.alert(
+        'Connection Error',
+        'Failed to load business categories. Please check your network connection and try again.',
+        [
+          { text: 'Retry', onPress: () => fetchCategories() },
+          { text: 'Cancel', style: 'cancel' }
+        ]
+      );
+    } finally {
+      setIsLoadingCategories(false);
+    }
+  };
+
   // Load Business Categories on Mount
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        setIsLoadingCategories(true);
-        console.log('📡 [CATEGORY SELECTION] Fetching business categories...');
-        const response = await businessCategoriesService.getBusinessCategories();
-
-        if (response.success && response.categories && response.categories.length > 0) {
-          const uniqueParentCategories = new Set<string>();
-          response.categories.forEach((category: any) => {
-            if (category.parentCategoryName && category.parentCategoryName.trim() !== '') {
-              uniqueParentCategories.add(category.parentCategoryName.trim());
-            }
-          });
-
-          const businessCategories = Array.from(uniqueParentCategories).map((parentName, index) => ({
-            id: `parent-${index}`,
-            name: parentName,
-            description: `${parentName} business category`,
-            icon: '📄',
-            parentCategoryName: undefined
-          }));
-
-          setCategories(businessCategories);
-        } else {
-          setCategories([]);
-        }
-      } catch (error: any) {
-        console.error('❌ [CATEGORY SELECTION] Error fetching categories:', error);
-        setCategories([]);
-      } finally {
-        setIsLoadingCategories(false);
-      }
-    };
-
     fetchCategories();
   }, []);
 
@@ -91,6 +99,14 @@ const CategorySelectionScreen: React.FC = ({ navigation }: any) => {
     } catch (error: any) {
       console.error('❌ [CATEGORY SELECTION] Error fetching subcategories:', error);
       setSubcategories([]);
+      Alert.alert(
+        'Connection Error',
+        'Failed to load subcategories. Please check your network connection and try again.',
+        [
+          { text: 'Retry', onPress: () => fetchSubcategories(selectedBusinessCategory) },
+          { text: 'Cancel', style: 'cancel' }
+        ]
+      );
     } finally {
       setIsLoadingSubcategories(false);
     }

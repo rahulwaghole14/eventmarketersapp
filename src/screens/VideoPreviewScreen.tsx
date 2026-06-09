@@ -911,12 +911,9 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
               style={styles.saveButtonGradient}
             >
               {isDownloading ? (
-                <View style={styles.downloadingContainer}>
-                  <ActivityIndicator size="small" color="#ffffff" />
-                  <Text style={styles.downloadingText}>
-                    {downloadProgress > 0 ? `Downloading ${downloadProgress}%` : 'Saving...'}
-                  </Text>
-                </View>
+                <Text style={styles.saveButtonText}>
+                  {downloadProgress > 0 ? `Downloading ${downloadProgress}%` : 'Saving...'}
+                </Text>
               ) : (
                 <>
                   <Icon name="download" size={getIconSize(24)} color="#ffffff" />

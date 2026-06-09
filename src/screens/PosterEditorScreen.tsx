@@ -604,7 +604,10 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   // Handle upgrade navigation
   const handleUpgrade = () => {
     setShowPremiumAlertModal(false);
-    navigation.navigate('BusinessProfilesScreen' as any);
+    navigation.navigate('Subscription' as any, {
+      source: 'BUSINESS_PROFILE',
+      businessProfileId: activeBusinessProfile?.id
+    });
   };
 
   // Handle frame removal modal actions
@@ -3344,7 +3347,13 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                 `Your business profile subscription is ${activeBusinessProfile.subscriptionStatus}. Please activate your subscription to access this feature.`,
                 [
                   { text: "Cancel", style: "cancel" },
-                  { text: "Upgrade", onPress: () => navigation.navigate('BusinessProfiles' as any) }
+                  { 
+                    text: "Upgrade", 
+                    onPress: () => navigation.navigate('Subscription' as any, {
+                      source: 'BUSINESS_PROFILE',
+                      businessProfileId: activeBusinessProfile?.id
+                    }) 
+                  }
                 ]
               );
               return;
@@ -4528,7 +4537,10 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         onUpgrade={async () => {
           setShowPremiumTemplateModal(false);
           await refreshSubscription();
-          navigation.navigate('BusinessProfiles' as any);
+          navigation.navigate('Subscription' as any, {
+            source: 'BUSINESS_PROFILE',
+            businessProfileId: activeBusinessProfile?.id
+          });
         }}
         selectedTemplate={null}
       />
