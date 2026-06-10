@@ -174,11 +174,11 @@ class HomeApiService {
   clearCache(cacheKey?: string): void {
     if (cacheKey) {
       cacheService.clear(cacheKey);
-      console.log(`=É∫¶ [CACHE] Cleared ${cacheKey} cache`);
+      console.log(`=∆í¬∫¬¶ [CACHE] Cleared ${cacheKey} cache`);
     } else {
       // Clear all home screen related cache
       cacheService.clearPattern('home_');
-      console.log('=É∫¶ [CACHE] Cleared all home screen cache');
+      console.log('=∆í¬∫¬¶ [CACHE] Cleared all home screen cache');
     }
   }
 
@@ -193,13 +193,13 @@ class HomeApiService {
     // Filter out emojis - they are not valid image URLs
     // Emoji regex covers most common emoji ranges
     if (/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{1F300}-\u{1F9FF}]/u.test(url)) {
-      console.warn('G‹·n+≈ [HOME API] Filtering out emoji as image URL:', url);
+      console.warn('G√ú√°n+√Ö [HOME API] Filtering out emoji as image URL:', url);
       return undefined; // Return undefined so fallback image is used
     }
     
     // Filter out placeholder paths - these don't actually exist on the server
     if (url.includes('/api/placeholder/') || url.includes('placeholder')) {
-      console.warn('G‹·n+≈ [HOME API] Filtering out placeholder URL:', url);
+      console.warn('G√ú√°n+√Ö [HOME API] Filtering out placeholder URL:', url);
       return undefined; // Return undefined so fallback image is used
     }
     
@@ -265,7 +265,7 @@ class HomeApiService {
   private convertUpcomingEventsUrls(events: UpcomingEvent[]): UpcomingEvent[] {
     // Safety check: ensure events is an array
     if (!events || !Array.isArray(events)) {
-      console.warn('G‹·n+≈ [HOME API] convertUpcomingEventsUrls received invalid data:', events);
+      console.warn('G√ú√°n+√Ö [HOME API] convertUpcomingEventsUrls received invalid data:', events);
       return [];
     }
     
@@ -445,19 +445,19 @@ class HomeApiService {
           // Filter out items without valid imageUrl
           const hasValidImage = item.imageUrl && item.imageUrl.trim() !== '';
           if (!hasValidImage) {
-            console.warn('G‹·n+≈ [HOME API] Filtering out featured item without valid imageUrl:', item.id);
+            console.warn('G√ú√°n+√Ö [HOME API] Filtering out featured item without valid imageUrl:', item.id);
           }
           return hasValidImage;
         });
         
-        console.log('G£‡ [FEATURED CONTENT API] Response Details:');
+        console.log('G¬£√† [FEATURED CONTENT API] Response Details:');
         console.log('   - Success:', response.data.success);
         console.log('   - Message:', response.data.message);
         console.log('   - Total Items:', convertedData.length);
         
         // Log first featured item as example
         if (convertedData.length > 0) {
-          console.log('=ÉÙ+ [FIRST FEATURED ITEM EXAMPLE]:');
+          console.log('=∆í√¥+ [FIRST FEATURED ITEM EXAMPLE]:');
           console.log('   Raw Data:', JSON.stringify(convertedData[0], null, 2));
           console.log('   - ID:', convertedData[0].id);
           console.log('   - Title:', convertedData[0].title);
@@ -469,7 +469,7 @@ class HomeApiService {
           console.log('   - Priority:', convertedData[0].priority);
         }
         
-        console.log(`G£‡ [HOME API] Fetched ${convertedData.length} featured items`);
+        console.log(`G¬£√† [HOME API] Fetched ${convertedData.length} featured items`);
         
         return {
           success: true,
@@ -480,7 +480,7 @@ class HomeApiService {
       5 * 60 * 1000, // 5 minutes TTL
       true // Allow stale data
     ).catch(error => {
-      console.error('G•Ó [HOME API] Featured content error:', error);
+      console.error('G¬•√Æ [HOME API] Featured content error:', error);
       // Return empty response when network fails
       return {
         success: false,
@@ -507,6 +507,7 @@ class HomeApiService {
   async getUpcomingEvents(params?: {
     limit?: number;
     category?: string;
+    businessCategoryId?: string;
     location?: string;
     dateFrom?: string;
     dateTo?: string;
@@ -520,7 +521,7 @@ class HomeApiService {
     return cacheService.getOrFetch(
       cacheKey,
       async () => {
-        console.log('=ÉÙÌ [HOME API] Fetching upcoming events...');
+        console.log('=∆í√¥√≠ [HOME API] Fetching upcoming events...');
         
         const queryParams = new URLSearchParams();
         
@@ -542,9 +543,9 @@ class HomeApiService {
           // Ensure data is an array before converting
           if (Array.isArray(response.data.data)) {
             response.data.data = this.convertUpcomingEventsUrls(response.data.data);
-            logger.log(`G£‡ [HOME API] Fetched ${response.data.data.length} events`);
+            logger.log(`G¬£√† [HOME API] Fetched ${response.data.data.length} events`);
           } else {
-            logger.warn('G‹·n+≈ [HOME API] Expected array for upcoming events data, got:', typeof response.data.data);
+            logger.warn('G√ú√°n+√Ö [HOME API] Expected array for upcoming events data, got:', typeof response.data.data);
             response.data.data = [];
           }
         }
@@ -554,7 +555,7 @@ class HomeApiService {
       2 * 60 * 1000, // 2 minutes TTL (time-sensitive)
       true // Allow stale data
     ).catch(error => {
-      logger.error('G•Ó [HOME API] Upcoming events error:', error);
+      logger.error('G¬•√Æ [HOME API] Upcoming events error:', error);
       // Return empty response when network fails
       return {
         success: false,
@@ -581,6 +582,7 @@ class HomeApiService {
   async getProfessionalTemplates(params?: {
     limit?: number;
     category?: string;
+    businessCategoryId?: string;
     subcategory?: string;
     isPremium?: boolean;
     sortBy?: 'popular' | 'recent' | 'likes' | 'downloads';
@@ -595,7 +597,7 @@ class HomeApiService {
     return cacheService.getOrFetch(
       cacheKey,
       async () => {
-        logger.log('=ÉÙÌ [HOME API] Fetching professional templates...');
+        logger.log('=∆í√¥√≠ [HOME API] Fetching professional templates...');
         
         const queryParams = new URLSearchParams();
         
@@ -623,7 +625,7 @@ class HomeApiService {
             thumbnail: template.thumbnailUrl || template.thumbnail, // Use thumbnailUrl if available, fallback to thumbnail
           }));
           response.data.data = this.convertProfessionalTemplatesUrls(mappedData);
-          logger.log(`G£‡ [HOME API] Fetched ${response.data.data.length} templates`);
+          logger.log(`G¬£√† [HOME API] Fetched ${response.data.data.length} templates`);
         }
         
         return response.data;
@@ -631,7 +633,7 @@ class HomeApiService {
       5 * 60 * 1000, // 5 minutes TTL
       true // Allow stale data
     ).catch(error => {
-      logger.error('G•Ó [HOME API] Professional templates error:', error);
+      logger.error('G¬•√Æ [HOME API] Professional templates error:', error);
       // Return empty response when network fails
       return {
         success: false,
@@ -659,6 +661,7 @@ class HomeApiService {
   async getVideoContent(params?: {
     limit?: number;
     category?: string;
+    businessCategoryId?: string;
     language?: string;
     isPremium?: boolean;
     sortBy?: 'popular' | 'recent' | 'likes' | 'views' | 'downloads';
@@ -673,7 +676,7 @@ class HomeApiService {
     return cacheService.getOrFetch(
       cacheKey,
       async () => {
-        console.log('=ÉÙÌ [HOME API] Fetching video content...');
+        console.log('=∆í√¥√≠ [HOME API] Fetching video content...');
         
         const queryParams = new URLSearchParams();
         
@@ -698,7 +701,7 @@ class HomeApiService {
         if (response.data.success && Array.isArray(response.data.data)) {
           // Convert relative URLs to absolute URLs
           response.data.data = this.convertVideoContentUrls(response.data.data);
-          console.log(`G£‡ [HOME API] Fetched ${response.data.data.length} videos`);
+          console.log(`G¬£√† [HOME API] Fetched ${response.data.data.length} videos`);
           return response.data;
         } else {
           // Backend returned unsuccessful response or no data
@@ -721,7 +724,7 @@ class HomeApiService {
       5 * 60 * 1000, // 5 minutes TTL
       true // Allow stale data
     ).catch(error => {
-      console.error('G•Ó [HOME API] Video content error:', error);
+      console.error('G¬•√Æ [HOME API] Video content error:', error);
       // Return empty response when network fails
       return {
         success: false,
@@ -776,7 +779,7 @@ class HomeApiService {
     data: ProfessionalTemplate | VideoContent | UpcomingEvent;
     message: string;
   }> {
-    console.log('G‹·n+≈ getContentDetails - API endpoint removed');
+    console.log('G√ú√°n+√Ö getContentDetails - API endpoint removed');
     throw new Error('Content details endpoint has been removed. Use list endpoints instead.');
   }
 

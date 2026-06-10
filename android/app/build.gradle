@@ -97,8 +97,8 @@ android {
         applicationId "com.marketbrand"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 42
-        versionName "42"
+        versionCode 43
+        versionName "43"
         
         ndk {
             abiFilters "armeabi-v7a", "arm64-v8a"

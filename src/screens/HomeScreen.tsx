@@ -674,7 +674,7 @@ const convertBusinessPosterToTemplate = (poster: any, categoryName: string): Tem
 // Optimized Cloudinary URL helper function (same as HorizontalFestivalCalendar)
 const getOptimizedCloudinaryUrl = (url: string, width: number = 200): string => {
   if (!url || !url.includes('res.cloudinary.com')) return url;
-  
+
   // For Cloudinary URLs, add optimized transformation
   if (url.includes('/upload/')) {
     try {
@@ -682,9 +682,9 @@ const getOptimizedCloudinaryUrl = (url: string, width: number = 200): string => 
       if (!remainder) {
         return url;
       }
-      
+
       const parts = remainder.split('/');
-      
+
       // Find the version number (starts with 'v' followed by digits)
       let versionIndex = -1;
       for (let i = 0; i < parts.length; i++) {
@@ -693,22 +693,22 @@ const getOptimizedCloudinaryUrl = (url: string, width: number = 200): string => 
           break;
         }
       }
-      
+
       if (versionIndex >= 0) {
         // Extract everything from version onwards
         const versionAndPath = parts.slice(versionIndex).join('/');
-        
+
         // Use optimized transformation for thumbnails
         const transformation = `f_auto,q_auto:eco,c_fill,w_${width},dpr_auto`;
         const optimizedUrl = `${prefix}/upload/${transformation}/${versionAndPath}`;
-        
+
         return optimizedUrl;
       }
     } catch (error) {
       // Fall through to return original URL
     }
   }
-  
+
   return url;
 };
 
@@ -730,10 +730,10 @@ const RecentSearchList: React.FC<RecentSearchListProps> = React.memo(({
 }) => {
   // Removed debug logging to prevent console spam
   // Component only re-renders when props actually change
-  
+
   if (recentSearches.length === 0) {
     return (
-      <TouchableWithoutFeedback onPress={() => {}}>
+      <TouchableWithoutFeedback onPress={() => { }}>
         <View style={[styles.recentSearchesContainer, { backgroundColor: theme.colors.cardBackground }]}>
           <View style={styles.recentSearchesHeader}>
             <Text style={[styles.recentSearchesTitle, { color: theme.colors.text }]}>
@@ -749,7 +749,7 @@ const RecentSearchList: React.FC<RecentSearchListProps> = React.memo(({
   }
 
   return (
-    <TouchableWithoutFeedback onPress={() => {}}>
+    <TouchableWithoutFeedback onPress={() => { }}>
       <View style={[styles.recentSearchesContainer, { backgroundColor: theme.colors.cardBackground }]}>
         <View style={styles.recentSearchesHeader}>
           <Text style={[styles.recentSearchesTitle, { color: theme.colors.text }]}>
@@ -757,8 +757,8 @@ const RecentSearchList: React.FC<RecentSearchListProps> = React.memo(({
           </Text>
 
         </View>
-        <ScrollView 
-          style={{ maxHeight: moderateScale(250) }} 
+        <ScrollView
+          style={{ maxHeight: moderateScale(250) }}
           showsVerticalScrollIndicator={false}
           nestedScrollEnabled={true}
           keyboardShouldPersistTaps="handled"
@@ -769,15 +769,15 @@ const RecentSearchList: React.FC<RecentSearchListProps> = React.memo(({
                 <TouchableOpacity
                   style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
                   onPress={() => {
-                    {__DEV__ && console.log('👆 RecentSearchItem pressed:', search)}
+                    { __DEV__ && console.log('👆 RecentSearchItem pressed:', search) }
                     onSelectSearch(search)
                   }}
                   activeOpacity={0.7}
                 >
-                  <Icon 
-                    name="history" 
-                    size={moderateScale(16)} 
-                    color={theme.colors.textSecondary} 
+                  <Icon
+                    name="history"
+                    size={moderateScale(16)}
+                    color={theme.colors.textSecondary}
                     style={styles.recentSearchIcon}
                   />
                   <Text style={[styles.recentSearchText, { color: theme.colors.text, flex: 1 }]}>
@@ -787,16 +787,16 @@ const RecentSearchList: React.FC<RecentSearchListProps> = React.memo(({
                 {onRemoveItem && (
                   <TouchableOpacity
                     onPress={() => {
-                      {__DEV__ && console.log('🗑️ Remove recent search:', search)}
+                      { __DEV__ && console.log('🗑️ Remove recent search:', search) }
                       onRemoveItem(search)
                     }}
                     activeOpacity={0.7}
                     style={styles.recentSearchRemoveButton}
                   >
-                    <MaterialCommunityIcons 
-                      name="close" 
-                      size={moderateScale(16)} 
-                      color={theme.colors.textSecondary} 
+                    <MaterialCommunityIcons
+                      name="close"
+                      size={moderateScale(16)}
+                      color={theme.colors.textSecondary}
                     />
                   </TouchableOpacity>
                 )}
@@ -827,7 +827,7 @@ const HomeScreen: React.FC = React.memo(() => {
   const navigation = useNavigation<StackNavigationProp<MainStackParamList>>();
   const isFocused = useIsFocused();
 
-  
+
   // Get current user info
   const userProfileSectionRef = useRef<React.ElementRef<typeof TouchableOpacity>>(null);
   const generalModalSearchInputRef = useRef<React.ElementRef<typeof TextInput>>(null);
@@ -835,14 +835,14 @@ const HomeScreen: React.FC = React.memo(() => {
   const [userProfile, setUserProfile] = useState(() => authService.getCurrentUser());
   const [userBusinessProfiles, setUserBusinessProfiles] = useState<BusinessProfile[]>([]);
   const [businessProfilesLoadingState, setBusinessProfilesLoadingState] = useState(false);
-  const { 
-    selectedBusinessProfile, 
+  const {
+    selectedBusinessProfile,
     setSelectedBusinessProfile,
     initializeSelectedProfile,
     selectedBusinessCategory,
     selectedBusinessCategoryId,
     setSelectedBusinessCategory,
-    isLoading: isProfileLoading 
+    isLoading: isProfileLoading
   } = useBusinessProfile();
   const isActive = useMemo(() => {
     return isAccessGranted(
@@ -863,7 +863,7 @@ const HomeScreen: React.FC = React.memo(() => {
   const [isSearchBarVisible, setIsSearchBarVisible] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchCategoryResult[]>([]);
-  
+
   // Recent searches state
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [isSearchInputFocused, setIsSearchInputFocused] = useState(false);
@@ -901,6 +901,7 @@ const HomeScreen: React.FC = React.memo(() => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isUpdateModalVisible, setIsUpdateModalVisible] = useState(false);
   const [updateUrl, setUpdateUrl] = useState('');
+  const [isForceUpdate, setIsForceUpdate] = useState(false);
 
   const normalizeCategoryData = useCallback((data: any, categoryType: 'business' | 'general'): HierarchicalSearchResult => {
     return {
@@ -945,41 +946,63 @@ const HomeScreen: React.FC = React.memo(() => {
   }, []);
 
   // --- End Relocated Block ---
-  
+
   // App Update Check Logic
   useEffect(() => {
     // Only run the check once per app session
     if (hasCheckedForUpdate) return;
-    
+
     const checkForUpdates = async () => {
       try {
         hasCheckedForUpdate = true;
 
-        // Guard: native module may be null if not properly linked
-        if (!VersionCheck || typeof VersionCheck.getCurrentVersion !== 'function') {
-          console.warn('[UpdateCheck] VersionCheck native module is not available. Skipping update check.');
-          return;
-        }
+        // Try to get the current version safely, with fallback to package.json
+        const getAppCurrentVersion = () => {
+          try {
+            if (VersionCheck && typeof VersionCheck.getCurrentVersion === 'function') {
+              const version = VersionCheck.getCurrentVersion();
+              if (version) return version;
+            }
+          } catch (e) {
+            console.warn('[UpdateCheck] Native getCurrentVersion failed, falling back to package.json version:', e);
+          }
+          return require('../../package.json').version || '1.0.0';
+        };
 
-        const currentVersion = VersionCheck.getCurrentVersion();
-
-        // Guard: getCurrentVersion() can return null if native side isn't ready
-        if (!currentVersion) {
-          console.warn('[UpdateCheck] getCurrentVersion() returned null. Native module may not be initialized yet.');
-          return;
-        }
-
-        const latestVersion = await VersionCheck.getLatestVersion().catch(() => '1.0.0');
-
+        const currentVersion = getAppCurrentVersion();
         console.log(`[UpdateCheck] Current Version: ${currentVersion}`);
-        console.log(`[UpdateCheck] Latest Play Store Version: ${latestVersion}`);
 
-        const updateNeeded = await VersionCheck.needUpdate().catch(() => ({ isNeeded: false }));
+        // Fetch application config from our backend (reliably, avoiding Play Store scraping)
+        const configResponse = await fetch(`${BASE_URL}/api/app-config`)
+          .then(res => res.json())
+          .catch(err => {
+            console.warn('[UpdateCheck] Failed to fetch app config from backend:', err);
+            return null;
+          });
+
+        const platformKey = Platform.OS === 'ios' ? 'ios' : 'android';
+        const platformConfig = configResponse?.[platformKey];
+
+        if (!platformConfig) {
+          console.warn('[UpdateCheck] No platform configuration received. Skipping update check.');
+          return;
+        }
+
+        const latestVersion = platformConfig.latestVersion || '42';
+        const storeUrl = platformConfig.storeUrl || 'https://play.google.com/store/apps/details?id=com.marketbrand';
+        const isForce = !!platformConfig.forceUpdate;
+
+        console.log(`[UpdateCheck] Platform: ${Platform.OS}, Latest Version: ${latestVersion}, Store URL: ${storeUrl}, Force Update: ${isForce}`);
+
+        const updateNeeded = await VersionCheck.needUpdate({
+          currentVersion,
+          latestVersion,
+        }).catch(() => ({ isNeeded: false }));
 
         if (updateNeeded && updateNeeded.isNeeded) {
           console.log('[UpdateCheck] Update status: AVAILABLE');
-          const storeUrl = await VersionCheck.getStoreUrl().catch(() => 'https://play.google.com/store/apps/details?id=com.marketbrand');
-          setUpdateUrl(storeUrl || 'https://play.google.com/store/apps/details?id=com.marketbrand');
+          setUpdateUrl(storeUrl);
+          setIsForceUpdate(isForce);
           setIsUpdateModalVisible(true);
         } else {
           console.log('[UpdateCheck] Update status: NOT NEEDED');
@@ -1011,10 +1034,10 @@ const HomeScreen: React.FC = React.memo(() => {
   // Setup business profile update listener with proper dependencies
   useEffect(() => {
     let isMounted = true;
-    
+
     const handleBusinessProfileUpdate = (event: any) => {
       if (!isMounted) return;
-      
+
       // Refresh business profiles if this is for current user
       const currentUserId = userProfile?.id || authService.getCurrentUser()?.id;
       if (event.userId === currentUserId) {
@@ -1025,7 +1048,7 @@ const HomeScreen: React.FC = React.memo(() => {
     // Listen for navigation dispatch events (fallback)
     const handleNavigationDispatch = (event: any) => {
       if (!isMounted) return;
-      
+
       if (event.type === 'SET_BUSINESS_PROFILES_REFRESH') {
         refreshBusinessProfiles();
       }
@@ -1034,10 +1057,10 @@ const HomeScreen: React.FC = React.memo(() => {
     try {
       // Use React Native's DeviceEventEmitter for cross-screen communication
       const { DeviceEventEmitter } = require('react-native');
-      
+
       const businessProfileSubscription = DeviceEventEmitter.addListener('businessProfileUpdated', handleBusinessProfileUpdate);
       const navigationSubscription = DeviceEventEmitter.addListener('SET_BUSINESS_PROFILES_REFRESH', handleNavigationDispatch);
-      
+
       return () => {
         isMounted = false;
         businessProfileSubscription?.remove?.();
@@ -1085,7 +1108,7 @@ const HomeScreen: React.FC = React.memo(() => {
   useFocusEffect(
     useCallback(() => {
       // This runs when screen comes into focus - no action needed
-      
+
       return () => {
         // This runs when screen loses focus - close searchbar
         if (isSearchBarVisible) {
@@ -1124,7 +1147,7 @@ const HomeScreen: React.FC = React.memo(() => {
     if (updateUrl) {
       Linking.openURL(updateUrl).catch(err => {
         console.error('[UpdateCheck] Error opening Play Store URL:', err);
-        Linking.openURL(defaultPlayStoreUrl).catch(() => {});
+        Linking.openURL(defaultPlayStoreUrl).catch(() => { });
       });
     } else {
       // Fallback to default Play Store if URL is missing, with safety checks to avoid native crash
@@ -1134,22 +1157,22 @@ const HomeScreen: React.FC = React.memo(() => {
             .then(url => {
               if (url) {
                 Linking.openURL(url).catch(() => {
-                  Linking.openURL(defaultPlayStoreUrl).catch(() => {});
+                  Linking.openURL(defaultPlayStoreUrl).catch(() => { });
                 });
               } else {
-                Linking.openURL(defaultPlayStoreUrl).catch(() => {});
+                Linking.openURL(defaultPlayStoreUrl).catch(() => { });
               }
             })
             .catch(err => {
               console.warn('[UpdateCheck] Error getting store URL from VersionCheck:', err);
-              Linking.openURL(defaultPlayStoreUrl).catch(() => {});
+              Linking.openURL(defaultPlayStoreUrl).catch(() => { });
             });
         } else {
-          Linking.openURL(defaultPlayStoreUrl).catch(() => {});
+          Linking.openURL(defaultPlayStoreUrl).catch(() => { });
         }
       } catch (err) {
         console.warn('[UpdateCheck] Failed to call VersionCheck.getStoreUrl:', err);
-        Linking.openURL(defaultPlayStoreUrl).catch(() => {});
+        Linking.openURL(defaultPlayStoreUrl).catch(() => { });
       }
     }
   }, [updateUrl]);
@@ -1236,17 +1259,17 @@ const HomeScreen: React.FC = React.memo(() => {
   // Track modal state changes to detect re-animation triggers
   const previousModalVisibleRef = useRef(isBusinessCategoriesModalVisible);
   const [disableModalAnimation, setDisableModalAnimation] = useState(false);
-  
+
   useEffect(() => {
     const previousVisible = previousModalVisibleRef.current;
     const currentVisible = isBusinessCategoriesModalVisible;
-    
+
     if (previousVisible === false && currentVisible === true) {
       setDisableModalAnimation(false); // Enable animation for new open
     } else if (previousVisible === true && currentVisible === false) {
       setDisableModalAnimation(false); // Reset for next open
     }
-    
+
     previousModalVisibleRef.current = currentVisible;
   }, [isBusinessCategoriesModalVisible, isFocused]);
 
@@ -1260,17 +1283,17 @@ const HomeScreen: React.FC = React.memo(() => {
   // Track General Categories modal state changes to detect re-animation triggers
   const previousGeneralModalVisibleRef = useRef(isGeneralCategoriesModalVisible);
   const [disableGeneralCategoriesModalAnimation, setDisableGeneralCategoriesModalAnimation] = useState(false);
-  
+
   useEffect(() => {
     const previousVisible = previousGeneralModalVisibleRef.current;
     const currentVisible = isGeneralCategoriesModalVisible;
-    
+
     if (previousVisible === false && currentVisible === true) {
       setDisableGeneralCategoriesModalAnimation(false); // Enable animation for new open
     } else if (previousVisible === true && currentVisible === false) {
       setDisableGeneralCategoriesModalAnimation(false); // Reset for next open
     }
-    
+
     previousGeneralModalVisibleRef.current = currentVisible;
   }, [isGeneralCategoriesModalVisible, isFocused]);
 
@@ -1303,13 +1326,13 @@ const HomeScreen: React.FC = React.memo(() => {
   useEffect(() => {
     const previousVisible = previousBusinessEthicsModalVisibleRef.current;
     const currentVisible = isBusinessEthicsModalVisible;
-    
+
     if (previousVisible === false && currentVisible === true) {
       setDisableBusinessEthicsModalAnimation(false);
     } else if (previousVisible === true && currentVisible === false) {
       setDisableBusinessEthicsModalAnimation(false);
     }
-    
+
     previousBusinessEthicsModalVisibleRef.current = currentVisible;
   }, [isBusinessEthicsModalVisible, isFocused]);
 
@@ -1323,13 +1346,13 @@ const HomeScreen: React.FC = React.memo(() => {
   useEffect(() => {
     const previousVisible = previousSuccessMindsetModalVisibleRef.current;
     const currentVisible = isSuccessMindsetModalVisible;
-    
+
     if (previousVisible === false && currentVisible === true) {
       setDisableSuccessMindsetModalAnimation(false);
     } else if (previousVisible === true && currentVisible === false) {
       setDisableSuccessMindsetModalAnimation(false);
     }
-    
+
     previousSuccessMindsetModalVisibleRef.current = currentVisible;
   }, [isSuccessMindsetModalVisible, isFocused]);
 
@@ -1343,13 +1366,13 @@ const HomeScreen: React.FC = React.memo(() => {
   useEffect(() => {
     const previousVisible = previousSocialMediaGrowthModalVisibleRef.current;
     const currentVisible = isSocialMediaGrowthModalVisible;
-    
+
     if (previousVisible === false && currentVisible === true) {
       setDisableSocialMediaGrowthModalAnimation(false);
     } else if (previousVisible === true && currentVisible === false) {
       setDisableSocialMediaGrowthModalAnimation(false);
     }
-    
+
     previousSocialMediaGrowthModalVisibleRef.current = currentVisible;
   }, [isSocialMediaGrowthModalVisible, isFocused]);
 
@@ -1363,13 +1386,13 @@ const HomeScreen: React.FC = React.memo(() => {
   useEffect(() => {
     const previousVisible = previousMoneyAndFinanceModalVisibleRef.current;
     const currentVisible = isMoneyAndFinanceModalVisible;
-    
+
     if (previousVisible === false && currentVisible === true) {
       setDisableMoneyAndFinanceModalAnimation(false);
     } else if (previousVisible === true && currentVisible === false) {
       setDisableMoneyAndFinanceModalAnimation(false);
     }
-    
+
     previousMoneyAndFinanceModalVisibleRef.current = currentVisible;
   }, [isMoneyAndFinanceModalVisible, isFocused]);
 
@@ -1383,13 +1406,13 @@ const HomeScreen: React.FC = React.memo(() => {
   useEffect(() => {
     const previousVisible = previousBusinessLegendQuoteModalVisibleRef.current;
     const currentVisible = isBusinessLegendQuoteModalVisible;
-    
+
     if (previousVisible === false && currentVisible === true) {
       setDisableBusinessLegendQuoteModalAnimation(false);
     } else if (previousVisible === true && currentVisible === false) {
       setDisableBusinessLegendQuoteModalAnimation(false);
     }
-    
+
     previousBusinessLegendQuoteModalVisibleRef.current = currentVisible;
   }, [isBusinessLegendQuoteModalVisible, isFocused]);
 
@@ -1403,13 +1426,13 @@ const HomeScreen: React.FC = React.memo(() => {
   useEffect(() => {
     const previousVisible = previousBusinessMarketingTipsModalVisibleRef.current;
     const currentVisible = isBusinessMarketingTipsModalVisible;
-    
+
     if (previousVisible === false && currentVisible === true) {
       setDisableBusinessMarketingTipsModalAnimation(false);
     } else if (previousVisible === true && currentVisible === false) {
       setDisableBusinessMarketingTipsModalAnimation(false);
     }
-    
+
     previousBusinessMarketingTipsModalVisibleRef.current = currentVisible;
   }, [isBusinessMarketingTipsModalVisible, isFocused]);
 
@@ -1423,13 +1446,13 @@ const HomeScreen: React.FC = React.memo(() => {
   useEffect(() => {
     const previousVisible = previousBusinessQuotesModalVisibleRef.current;
     const currentVisible = isBusinessQuotesModalVisible;
-    
+
     if (previousVisible === false && currentVisible === true) {
       setDisableBusinessQuotesModalAnimation(false);
     } else if (previousVisible === true && currentVisible === false) {
       setDisableBusinessQuotesModalAnimation(false);
     }
-    
+
     previousBusinessQuotesModalVisibleRef.current = currentVisible;
   }, [isBusinessQuotesModalVisible, isFocused]);
 
@@ -1445,7 +1468,7 @@ const HomeScreen: React.FC = React.memo(() => {
       if (prevVisible) {
         // Blur the input field first
         businessModalSearchInputRef.current?.blur();
-        
+
         // If search bar is active, close search first (don't close modal)
         setIsBusinessModalSearchBarVisible(false);
         setBusinessModalSearchQuery('');
@@ -1567,9 +1590,9 @@ const HomeScreen: React.FC = React.memo(() => {
   // New category filtering function - matches both name and parentCategoryName with prefix matching only
   const filterCategories = useCallback((categories: any[], searchQuery: string) => {
     if (!searchQuery || searchQuery.trim() === '') return [];
-    
+
     const query = searchQuery.toLowerCase().trim();
-    
+
     return categories.filter(category =>
       category?.name?.toLowerCase().startsWith(query) ||
       category?.parentCategoryName?.toLowerCase().startsWith(query)
@@ -1648,7 +1671,7 @@ const HomeScreen: React.FC = React.memo(() => {
             const isBusinessCategoryFromSearch = category.type === 'business';
             // Check if this is a general category from search
             const isGeneralCategoryFromSearch = category.type === 'general';
-            
+
             navigation.navigate('PosterPlayer', {
               selectedTemplateId: poster.id,  // ✅ PRIMARY DATA - ID as source of truth
               selectedPoster: poster,          // ✅ OPTIONAL - UI only
@@ -1669,9 +1692,9 @@ const HomeScreen: React.FC = React.memo(() => {
         {Object.entries(groupedResults).map(([parentName, categories]) => (
           <View key={parentName} style={{ marginBottom: 24 }}>
             {/* Parent Category Header */}
-            <Text style={{ 
-              fontSize: 20, 
-              fontWeight: 'bold', 
+            <Text style={{
+              fontSize: 20,
+              fontWeight: 'bold',
               color: theme.colors.text,
               marginTop: 20,
               marginBottom: 16,
@@ -1685,24 +1708,24 @@ const HomeScreen: React.FC = React.memo(() => {
             {categories.map(category => (
               <View key={category.id} style={{ marginBottom: 20 }}>
                 {/* Child Category Header */}
-                <View style={{ 
-                  flexDirection: 'row', 
-                  alignItems: 'center', 
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
                   justifyContent: 'space-between',
                   paddingHorizontal: 16,
                   marginBottom: 12
                 }}>
-                  <Text style={{ 
-                    fontSize: 16, 
-                    fontWeight: '600', 
+                  <Text style={{
+                    fontSize: 16,
+                    fontWeight: '600',
                     color: theme.colors.text,
                     marginTop: 10,
                     textTransform: 'capitalize'
                   }}>
                     {category.name}
                   </Text>
-                  <Text style={{ 
-                    fontSize: 12, 
+                  <Text style={{
+                    fontSize: 12,
                     color: theme.colors.textSecondary,
                     textTransform: 'uppercase'
                   }}>
@@ -1726,8 +1749,8 @@ const HomeScreen: React.FC = React.memo(() => {
                   />
                 ) : (
                   <View style={{ paddingHorizontal: 16, paddingVertical: 8 }}>
-                    <Text style={{ 
-                      color: theme.colors.textSecondary, 
+                    <Text style={{
+                      color: theme.colors.textSecondary,
                       fontSize: 12,
                       fontStyle: 'italic'
                     }}>
@@ -1743,7 +1766,7 @@ const HomeScreen: React.FC = React.memo(() => {
     );
   }, [isSearching, searchQuery, groupedResults, theme, navigation, getThumbnailUrl]);
 
-  
+
 
 
   const generalCategoryModalColumns = modalColumns;
@@ -1844,7 +1867,7 @@ const HomeScreen: React.FC = React.memo(() => {
   const [isFeaturedContentModalVisible, setIsFeaturedContentModalVisible] = useState(false);
   const [isGeneralCategoriesModalVisible, setIsGeneralCategoriesModalVisible] = useState(false);
 
-    // General Category Modal Data states
+  // General Category Modal Data states
   const [modalGeneralCategories, setModalGeneralCategories] = useState<Array<{ id: string; name: string; icon: string; color?: string; imageUrl?: string; parentCategoryName?: string }>>([]);
   const [isModalCategoriesLoading, setIsModalCategoriesLoading] = useState(false);
   const [modalCategoriesError, setModalCategoriesError] = useState<string | null>(null);
@@ -1857,7 +1880,7 @@ const HomeScreen: React.FC = React.memo(() => {
   const [isGeneralModalSearchBarVisible, setIsGeneralModalSearchBarVisible] = useState(false);
   const [isGeneralCategoriesModalClosing, setIsGeneralCategoriesModalClosing] = useState(false);
 
-  
+
   // Business Category Modal Search states
   const [businessModalSearchQuery, setBusinessModalSearchQuery] = useState('');
   const [isBusinessModalSearching, setIsBusinessModalSearching] = useState(false);
@@ -2211,16 +2234,13 @@ const HomeScreen: React.FC = React.memo(() => {
     };
 
     // Load cached data immediately (non-blocking)
-    loadCachedData();
+loadCachedData();
 
     // Now fetch fresh data in background
     return performanceMonitor.measureAsync('loadApiData', async () => {
       try {
-        if (__DEV__) {
-        }
-
-        // Track success count for error handling
-        let totalMainRequests = 2;
+        const hasCategoryFilter = !!selectedBusinessCategory || !!selectedBusinessCategoryId;
+        let totalMainRequests = hasCategoryFilter ? 2 : 1;
         const networkErrors: string[] = [];
 
         // Step 1: Load first 1 item from each main section for INSTANT loading (minimal data)
@@ -2306,58 +2326,74 @@ const HomeScreen: React.FC = React.memo(() => {
             });
             return { type: 'featured', response: null, success: false };
           }),
+        ];
 
+        if (hasCategoryFilter) {
+          immediateApiPromises.push(
             requestDeduplication.deduplicate(
-              RequestDeduplication.generateKey('videoContent', { limit: 1, category: selectedBusinessCategory || undefined, businessCategoryId: selectedBusinessCategoryId || undefined }),
+              RequestDeduplication.generateKey('videoContent', {
+                limit: 1,
+                category: selectedBusinessCategory || undefined,
+                businessCategoryId: selectedBusinessCategory ? undefined : (selectedBusinessCategoryId || undefined)
+              }),
               () => {
-                const params = { limit: 1, category: selectedBusinessCategory || undefined, businessCategoryId: selectedBusinessCategoryId || undefined };
+                const params = {
+                  limit: 1,
+                  category: selectedBusinessCategory || undefined,
+                  businessCategoryId: selectedBusinessCategory ? undefined : (selectedBusinessCategoryId || undefined)
+                };
                 if (__DEV__) {
-                  console.log('🎬 [VIDEO CONTENT] Fetching from:', BASE_URL);
-                  console.log('🎬 [VIDEO CONTENT] Params:', JSON.stringify(params));
+                  console.log('dYZ [VIDEO CONTENT] Fetching from:', BASE_URL);
+                  console.log('dYZ [VIDEO CONTENT] Params:', JSON.stringify(params));
                 }
                 return homeApi.getVideoContent(params);
               }
             ).then(response => {
-            // Update videos immediately with first 1 item for instant loading
-            if (response.success) {
-              React.startTransition(() => {
-                setVideoContent(response.data);
-              });
-              if (__DEV__) {
-                console.log('🎬 [VIDEO CONTENT] Loaded:', response.data?.length || 0, 'items for category:', selectedBusinessCategory);
-                if (response.data?.length === 0) {
-                  console.log('❓ [VIDEO CONTENT] No items found. Check if backend category name matches:', selectedBusinessCategory);
+              // Update videos immediately with first 1 item for instant loading
+              if (response.success) {
+                React.startTransition(() => {
+                  setVideoContent(response.data);
+                });
+                if (__DEV__) {
+                  console.log('dYZ [VIDEO CONTENT] Loaded:', response.data?.length || 0, 'items for category:', selectedBusinessCategory);
+                  if (response.data?.length === 0) {
+                    console.log('?" [VIDEO CONTENT] No items found. Check if backend category name matches:', selectedBusinessCategory);
+                  }
                 }
+              } else {
+                if (__DEV__) {
+                  console.warn('[VIDEO CONTENT] API returned unsuccessful response:', response);
+                }
+                React.startTransition(() => {
+                  setVideoContent([]);
+                });
               }
-            } else {
+              return { type: 'videos', response, success: response.success };
+            }).catch(err => {
               if (__DEV__) {
-                console.warn('[VIDEO CONTENT] API returned unsuccessful response:', response);
+                console.error('[VIDEO CONTENT] Error loading:', err?.message || err);
+                console.error('[VIDEO CONTENT] Error details:', {
+                  message: err?.message,
+                  code: err?.code,
+                  response: err?.response?.data,
+                  status: err?.response?.status,
+                  url: err?.config?.url,
+                });
+              }
+              if (err?.message === 'NETWORK_ERROR' || err?.message === 'TIMEOUT') {
+                networkErrors.push('videos');
               }
               React.startTransition(() => {
                 setVideoContent([]);
               });
-            }
-            return { type: 'videos', response, success: response.success };
-          }).catch(err => {
-            if (__DEV__) {
-              console.error('[VIDEO CONTENT] Error loading:', err?.message || err);
-              console.error('[VIDEO CONTENT] Error details:', {
-                message: err?.message,
-                code: err?.code,
-                response: err?.response?.data,
-                status: err?.response?.status,
-                url: err?.config?.url,
-              });
-            }
-            if (err?.message === 'NETWORK_ERROR' || err?.message === 'TIMEOUT') {
-              networkErrors.push('videos');
-            }
-            React.startTransition(() => {
-              setVideoContent([]);
-            });
-            return { type: 'videos', response: null, success: false };
-          }),
-        ];
+              return { type: 'videos', response: null, success: false };
+            })
+          );
+        } else {
+          React.startTransition(() => {
+            setVideoContent([]);
+          });
+        }
 
         // Don't wait - let promises resolve in background and update UI as they complete
         // This allows UI to render immediately
@@ -2427,14 +2463,24 @@ const HomeScreen: React.FC = React.memo(() => {
               });
             }
 
-            const fullVideosResponse = await requestDeduplication.deduplicate(
-              RequestDeduplication.generateKey('videoContent', { limit: 20, category: selectedBusinessCategory || undefined, businessCategoryId: selectedBusinessCategoryId || undefined }),
-              () => homeApi.getVideoContent({ limit: 20, category: selectedBusinessCategory || undefined, businessCategoryId: selectedBusinessCategoryId || undefined })
-            );
-            if (fullVideosResponse.success && fullVideosResponse.data.length > 1) {
-              React.startTransition(() => {
-                setVideoContent(fullVideosResponse.data);
-              });
+            if (hasCategoryFilter) {
+              const fullVideosResponse = await requestDeduplication.deduplicate(
+                RequestDeduplication.generateKey('videoContent', {
+                  limit: 20,
+                  category: selectedBusinessCategory || undefined,
+                  businessCategoryId: selectedBusinessCategory ? undefined : (selectedBusinessCategoryId || undefined)
+                }),
+                () => homeApi.getVideoContent({
+                  limit: 20,
+                  category: selectedBusinessCategory || undefined,
+                  businessCategoryId: selectedBusinessCategory ? undefined : (selectedBusinessCategoryId || undefined)
+                })
+              );
+              if (fullVideosResponse.success && fullVideosResponse.data.length > 1) {
+                React.startTransition(() => {
+                  setVideoContent(fullVideosResponse.data);
+                });
+              }
             }
           } catch (error) {
             if (__DEV__) {
@@ -3029,19 +3075,19 @@ const HomeScreen: React.FC = React.memo(() => {
 
     const prefetchFrequentCategories = async () => {
       const frequentCategories = ['birthday', 'wedding', 'anniversary', 'festival'];
-      
+
       for (const categoryName of frequentCategories) {
         try {
           // Check if already cached
-          const existingCategory = allGreetingCategories.find(cat => 
+          const existingCategory = allGreetingCategories.find(cat =>
             cat.name.toLowerCase() === categoryName.toLowerCase()
           );
-          
+
           if (existingCategory && !greetingCategoryPreviews[existingCategory.id]) {
             const templates = await greetingTemplatesService.searchTemplates(categoryName);
             if (templates && templates.length > 0) {
               const validTemplates = templates.filter(template => template.thumbnail);
-              
+
               // Update cache
               React.startTransition(() => {
                 setGreetingCategoryPreviews(prev => ({
@@ -3061,7 +3107,7 @@ const HomeScreen: React.FC = React.memo(() => {
 
     // Start prefetching after a short delay to not block initial render
     const timeoutId = setTimeout(prefetchFrequentCategories, 2000);
-    
+
     return () => clearTimeout(timeoutId);
   }, [allGreetingCategories, greetingCategoryPreviews]);
 
@@ -3414,15 +3460,15 @@ const HomeScreen: React.FC = React.memo(() => {
     businessQuotesTemplatesRaw,
   ]);
 
-  
+
   // Lightweight hierarchy resolution for parent category search
   const getChildCategoriesForParent = useCallback((parentCategoryName: string, categories: any[]) => {
-    return categories.filter(category => 
+    return categories.filter(category =>
       category.parentCategoryName?.toLowerCase() === parentCategoryName.toLowerCase()
     );
   }, []);
 
-  
+
   /**
    * Helper function to detect if API response contains hierarchical data
    */
@@ -3444,12 +3490,12 @@ const HomeScreen: React.FC = React.memo(() => {
   const convertHierarchicalToSearchResults = useCallback((hierarchicalData: HierarchicalSearchResult, skipParentCategory: boolean = false): HierarchicalSearchItem[] => {
     const items: HierarchicalSearchItem[] = [];
     const addedParentCategories = new Set<string>();
-    
+
     // Add parent category header (deduplicated) - skip for general categories
     if (!skipParentCategory && !addedParentCategories.has(hierarchicalData.parentCategory)) {
       items.push({
         type: 'parentCategory',
-        data: { 
+        data: {
           name: hierarchicalData.parentCategory,
           // Find parent category data for image
           ...(hierarchicalData.categories[0] && {
@@ -3462,7 +3508,7 @@ const HomeScreen: React.FC = React.memo(() => {
       });
       addedParentCategories.add(hierarchicalData.parentCategory);
     }
-    
+
     // Add child categories with their templates
     hierarchicalData.categories.forEach(childCategory => {
       items.push({
@@ -3478,7 +3524,7 @@ const HomeScreen: React.FC = React.memo(() => {
         }
       });
     });
-    
+
     return items;
   }, []);
 
@@ -3494,7 +3540,7 @@ const HomeScreen: React.FC = React.memo(() => {
 
   // Clean search implementation - single pipeline
   useEffect(() => {
-    {__DEV__ && console.log('🔍 Search useEffect triggered, query:', searchQuery, 'isSearching:', isSearching)}
+    { __DEV__ && console.log('🔍 Search useEffect triggered, query:', searchQuery, 'isSearching:', isSearching) }
     // Reset immediately if search is empty
     if (searchQuery.trim() === '') {
       setSearchResults([]);
@@ -3511,7 +3557,7 @@ const HomeScreen: React.FC = React.memo(() => {
 
     // Debounce search execution
     const timeoutId = setTimeout(async () => {
-      {__DEV__ && console.log('🔍 Executing search for:', searchQuery)}
+      { __DEV__ && console.log('🔍 Executing search for:', searchQuery) }
       if (searchQuery.trim() === '') return;
 
       // Generate new request ID
@@ -3585,7 +3631,7 @@ const HomeScreen: React.FC = React.memo(() => {
               const businessLimit = 6; // Business categories show 6 items
               const response = await businessCategoryPostersApi.getPostersByCategory(category.name, businessLimit);
               const posters = response.success && response.data?.posters ? response.data.posters.slice(0, businessLimit) : [];
-              
+
               return {
                 id: category.id,
                 name: category.name,
@@ -3605,7 +3651,7 @@ const HomeScreen: React.FC = React.memo(() => {
               const generalLimit = 10; // General categories show 10 items
               const templates = await greetingTemplatesService.searchTemplates(category.name);
               const limitedTemplates = (templates || []).slice(0, generalLimit); // Limited to 10 results per category
-              
+
               return {
                 id: category.id,
                 name: category.name,
@@ -3641,7 +3687,7 @@ const HomeScreen: React.FC = React.memo(() => {
         }
 
         setSearchResults(results);
-        
+
         // Save recent search when results are successfully fetched
         if (results.length > 0) {
           saveRecentSearch(searchQuery);
@@ -3712,7 +3758,7 @@ const HomeScreen: React.FC = React.memo(() => {
         const commonDataSections = ['businessEthics', 'successMindset', 'socialMediaGrowth', 'businessLegendQuote', 'businessMarketingTips'];
         return commonDataSections.includes(section);
       });
-      
+
       if (problemSections.length > 0 && greetingState.businessCategoriesLoading === false) {
         console.warn('⚠️ Greeting sections with expected data missing:', problemSections);
         console.warn('⚠️ State details:', greetingState);
@@ -3721,10 +3767,10 @@ const HomeScreen: React.FC = React.memo(() => {
       }
     }
   }, [
-    isSearching, 
-    searchQuery, 
-    businessEthicsTemplates.length, 
-    successMindsetTemplates.length, 
+    isSearching,
+    searchQuery,
+    businessEthicsTemplates.length,
+    successMindsetTemplates.length,
     socialMediaGrowthTemplates.length,
     moneyAndFinanceTemplates.length,
     businessLegendQuoteTemplates.length,
@@ -3755,7 +3801,7 @@ const HomeScreen: React.FC = React.memo(() => {
       if (businessModalSearchQuery.trim() === '') return;
 
       setIsBusinessModalSearching(true);
-      
+
       try {
         // Filter business categories that match the search query
         const query = businessModalSearchQuery.toLowerCase().trim();
@@ -3765,7 +3811,7 @@ const HomeScreen: React.FC = React.memo(() => {
         );
 
         setBusinessModalSearchResults(filteredCategories);
-        
+
         // Save recent search when results are successfully fetched
         if (filteredCategories.length > 0) {
           saveBusinessModalRecentSearch(businessModalSearchQuery);
@@ -3804,7 +3850,7 @@ const HomeScreen: React.FC = React.memo(() => {
       if (generalModalSearchQuery.trim() === '') return;
 
       setIsGeneralModalSearching(true);
-      
+
       try {
         // Filter general categories that match the search query (using modal data)
         const query = generalModalSearchQuery.toLowerCase().trim();
@@ -3813,7 +3859,7 @@ const HomeScreen: React.FC = React.memo(() => {
         );
 
         setGeneralModalSearchResults(filteredCategories);
-        
+
         // Save recent search when results are successfully fetched
         if (filteredCategories.length > 0) {
           saveGeneralModalRecentSearch(generalModalSearchQuery);
@@ -3836,7 +3882,7 @@ const HomeScreen: React.FC = React.memo(() => {
     if (generalModalSearchResults.length === 0) return [];
 
     const groups: Record<string, any[]> = {};
-    
+
     generalModalSearchResults.forEach(category => {
       // Use 'General' for categories without parentCategoryName (null, undefined, or empty string)
       const parentName = (category.parentCategoryName && category.parentCategoryName.trim()) || 'General';
@@ -3845,7 +3891,7 @@ const HomeScreen: React.FC = React.memo(() => {
       }
       groups[parentName].push(category);
     });
-    
+
     // Convert to SectionList format with rows for proper grid layout
     const sections = Object.keys(groups)
       .sort((a, b) => {
@@ -3868,7 +3914,7 @@ const HomeScreen: React.FC = React.memo(() => {
         };
       })
       .filter(section => section.data.length > 0); // Filter out empty sections
-    
+
     return sections;
   }, [generalModalSearchResults, generalCategoryModalColumns]);
 
@@ -3909,16 +3955,16 @@ const HomeScreen: React.FC = React.memo(() => {
   // Recent searches AsyncStorage functions
   const loadRecentSearches = useCallback(async () => {
     try {
-      {__DEV__ && console.log('🔍 Loading recent searches from AsyncStorage...')}
+      { __DEV__ && console.log('🔍 Loading recent searches from AsyncStorage...') }
       const stored = await AsyncStorage.getItem('HOMESCREEN_RECENT_SEARCHES');
-      {__DEV__ && console.log('🔍 AsyncStorage result:', stored)}
+      { __DEV__ && console.log('🔍 AsyncStorage result:', stored) }
       if (stored) {
         const searches = JSON.parse(stored);
         const validSearches = Array.isArray(searches) ? searches : [];
-        {__DEV__ && console.log('🔍 Setting recent searches:', validSearches)}
+        { __DEV__ && console.log('🔍 Setting recent searches:', validSearches) }
         setRecentSearches(validSearches);
       } else {
-        {__DEV__ && console.log('🔍 No recent searches found in AsyncStorage')}
+        { __DEV__ && console.log('🔍 No recent searches found in AsyncStorage') }
         setRecentSearches([]);
       }
     } catch (error) {
@@ -3929,17 +3975,17 @@ const HomeScreen: React.FC = React.memo(() => {
 
   const saveRecentSearch = useCallback(async (query: string) => {
     if (!query || query.trim().length < 3) return;
-    
+
     const trimmedQuery = query.trim();
-    
+
     try {
       setRecentSearches(prev => {
         const filtered = prev.filter(search => search !== trimmedQuery);
         const updated = [trimmedQuery, ...filtered].slice(0, 5);
-        
+
         AsyncStorage.setItem('HOMESCREEN_RECENT_SEARCHES', JSON.stringify(updated))
           .catch(error => console.warn('Failed to save recent searches:', error));
-        
+
         return updated;
       });
     } catch (error) {
@@ -3958,14 +4004,14 @@ const HomeScreen: React.FC = React.memo(() => {
 
   const removeRecentSearch = useCallback(async (searchToRemove: string) => {
     if (!searchToRemove) return;
-    
+
     try {
       setRecentSearches(prev => {
         const updated = prev.filter(search => search !== searchToRemove);
-        
+
         AsyncStorage.setItem('HOMESCREEN_RECENT_SEARCHES', JSON.stringify(updated))
           .catch(error => console.warn('Failed to save recent searches after removal:', error));
-        
+
         return updated;
       });
     } catch (error) {
@@ -3975,10 +4021,10 @@ const HomeScreen: React.FC = React.memo(() => {
 
   // Optimized callbacks for RecentSearchList to prevent re-renders
   const handleRecentSearchSelect = useCallback((item: string) => {
-    {__DEV__ && console.log('🔍 Recent search selected:', item)}
+    { __DEV__ && console.log('🔍 Recent search selected:', item) }
     setSearchQuery(item);
     setIsSearchInputFocused(false);
-    
+
     // Explicitly trigger search logic
     if (item.trim().length > 0) {
       setIsSearching(true);
@@ -4014,17 +4060,17 @@ const HomeScreen: React.FC = React.memo(() => {
 
   const saveBusinessModalRecentSearch = useCallback(async (query: string) => {
     if (!query || query.trim().length < 3) return;
-    
+
     const trimmedQuery = query.trim();
-    
+
     try {
       setBusinessModalRecentSearches(prev => {
         const filtered = prev.filter(search => search !== trimmedQuery);
         const updated = [trimmedQuery, ...filtered].slice(0, 5);
-        
+
         AsyncStorage.setItem('BUSINESS_MODAL_RECENT_SEARCHES', JSON.stringify(updated))
           .catch(error => console.warn('Failed to save business modal recent searches:', error));
-        
+
         return updated;
       });
     } catch (error) {
@@ -4034,14 +4080,14 @@ const HomeScreen: React.FC = React.memo(() => {
 
   const removeBusinessModalRecentSearch = useCallback(async (searchToRemove: string) => {
     if (!searchToRemove) return;
-    
+
     try {
       setBusinessModalRecentSearches(prev => {
         const updated = prev.filter(search => search !== searchToRemove);
-        
+
         AsyncStorage.setItem('BUSINESS_MODAL_RECENT_SEARCHES', JSON.stringify(updated))
           .catch(error => console.warn('Failed to save business modal recent searches after removal:', error));
-        
+
         return updated;
       });
     } catch (error) {
@@ -4077,17 +4123,17 @@ const HomeScreen: React.FC = React.memo(() => {
 
   const saveGeneralModalRecentSearch = useCallback(async (query: string) => {
     if (!query || query.trim().length < 3) return;
-    
+
     const trimmedQuery = query.trim();
-    
+
     try {
       setGeneralModalRecentSearches(prev => {
         const filtered = prev.filter(search => search !== trimmedQuery);
         const updated = [trimmedQuery, ...filtered].slice(0, 5);
-        
+
         AsyncStorage.setItem('GENERAL_MODAL_RECENT_SEARCHES', JSON.stringify(updated))
           .catch(error => console.warn('Failed to save general modal recent searches:', error));
-        
+
         return updated;
       });
     } catch (error) {
@@ -4097,14 +4143,14 @@ const HomeScreen: React.FC = React.memo(() => {
 
   const removeGeneralModalRecentSearch = useCallback(async (searchToRemove: string) => {
     if (!searchToRemove) return;
-    
+
     try {
       setGeneralModalRecentSearches(prev => {
         const updated = prev.filter(search => search !== searchToRemove);
-        
+
         AsyncStorage.setItem('GENERAL_MODAL_RECENT_SEARCHES', JSON.stringify(updated))
           .catch(error => console.warn('Failed to save general modal recent searches after removal:', error));
-        
+
         return updated;
       });
     } catch (error) {
@@ -4154,7 +4200,7 @@ const HomeScreen: React.FC = React.memo(() => {
       if (isGeneralCategoriesModalVisible && isGeneralModalSearchBarVisible) {
         // Blur the input field first
         generalModalSearchInputRef.current?.blur();
-        
+
         // Close modal search bar and reset search state
         setIsGeneralModalSearchBarVisible(false);
         setGeneralModalSearchQuery('');
@@ -4163,7 +4209,7 @@ const HomeScreen: React.FC = React.memo(() => {
         setIsGeneralModalSearchInputFocused(false);
         return true; // Prevent default back action (don't close modal)
       }
-      
+
       return false; // Allow default back action (close modal)
     };
 
@@ -4180,7 +4226,7 @@ const HomeScreen: React.FC = React.memo(() => {
         console.log('[DEBUG] BackHandler intercepting to close search bar');
         // Blur the input field first
         businessModalSearchInputRef.current?.blur();
-        
+
         // Close modal search bar and reset search state
         setIsBusinessModalSearchBarVisible(false);
         setBusinessModalSearchQuery('');
@@ -4189,7 +4235,7 @@ const HomeScreen: React.FC = React.memo(() => {
         setIsBusinessModalSearchInputFocused(false);
         return true; // Prevent default back action (don't close modal)
       }
-      
+
       console.log('[DEBUG] BackHandler allowing default behavior');
       return false; // Allow default back action (close modal)
     };
@@ -4210,7 +4256,7 @@ const HomeScreen: React.FC = React.memo(() => {
     }
   }, [isSearchBarVisible]);
 
-  
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
 
@@ -4302,12 +4348,12 @@ const HomeScreen: React.FC = React.memo(() => {
         "This profile is currently locked. Please activate your subscription to use this template.",
         [
           { text: "Cancel", style: "cancel" },
-          { 
-            text: "Activate Now", 
+          {
+            text: "Activate Now",
             onPress: () => navigation.navigate('Subscription' as any, {
               source: 'BUSINESS_PROFILE',
               businessProfileId: selectedBusinessProfile.id
-            }) 
+            })
           }
         ]
       );
@@ -4426,7 +4472,7 @@ const HomeScreen: React.FC = React.memo(() => {
 
   const handleBusinessProfileSelect = useCallback(async (profileId: string) => {
     const profile = userBusinessProfiles.find(p => p.id === profileId) || null;
-    
+
     console.log('🔄 [HOMESCREEN] handleBusinessProfileSelect called:', {
       profileId,
       profileName: profile?.name,
@@ -4597,7 +4643,7 @@ const HomeScreen: React.FC = React.memo(() => {
     setBusinessModalSearchResults([]);
     setIsBusinessModalSearchInputFocused(false);
     setIsBusinessModalSearchBarVisible(false);
-    
+
     setIsBusinessCategoriesModalVisible(true);
   }, []);
 
@@ -4648,7 +4694,7 @@ const HomeScreen: React.FC = React.memo(() => {
   const fetchAllGeneralCategoriesForModal = useCallback(async () => {
     setIsModalCategoriesLoading(true);
     setModalCategoriesError(null);
-    
+
     try {
       const categories = await greetingTemplatesService.getCategories();
       if (categories && categories.length > 0) {
@@ -4692,7 +4738,7 @@ const HomeScreen: React.FC = React.memo(() => {
       if (prevVisible) {
         // Blur the input field first
         generalModalSearchInputRef.current?.blur();
-        
+
         // If search bar is active, close search first (don't close modal)
         setGeneralModalSearchQuery('');
         setIsGeneralModalSearching(false);
@@ -4755,12 +4801,12 @@ const HomeScreen: React.FC = React.memo(() => {
           "This profile is currently locked. Please activate your subscription to use this feature.",
           [
             { text: "Cancel", style: "cancel" },
-            { 
-              text: "Activate Now", 
+            {
+              text: "Activate Now",
               onPress: () => navigation.navigate('Subscription' as any, {
                 source: 'BUSINESS_PROFILE',
                 businessProfileId: selectedBusinessProfile.id
-              }) 
+              })
             }
           ]
         );
@@ -4834,7 +4880,7 @@ const HomeScreen: React.FC = React.memo(() => {
 
 
 
-  
+
   // Render function for hierarchical search results
   const renderHierarchicalItem = useCallback(({ item }: { item: HierarchicalSearchItem }) => {
     switch (item.type) {
@@ -4846,7 +4892,7 @@ const HomeScreen: React.FC = React.memo(() => {
             </Text>
           </View>
         );
-      
+
       case 'childCategory':
         return (
           <View style={styles.childCategoryContainer}>
@@ -4878,7 +4924,7 @@ const HomeScreen: React.FC = React.memo(() => {
             />
           </View>
         );
-      
+
       default:
         return null;
     }
@@ -4960,7 +5006,7 @@ const HomeScreen: React.FC = React.memo(() => {
       categoryTemplates={socialMediaGrowthCategoryTemplates}
       searchQuery="social media growth"
       navigation={navigation}
-      getThumbnailUrl={getThumbnailUrl} 
+      getThumbnailUrl={getThumbnailUrl}
     />
   ), [navigation, theme, cardWidth, socialMediaGrowthCategoryTemplates, getThumbnailUrl]);
 
@@ -5542,9 +5588,9 @@ const HomeScreen: React.FC = React.memo(() => {
     if (modalGeneralCategories.length === 0) {
       return [];
     }
-    
+
     const groups: Record<string, any[]> = {};
-    
+
     modalGeneralCategories.forEach(category => {
       // Use 'General' for categories without parentCategoryName (null, undefined, or empty string)
       const parentName = (category.parentCategoryName && category.parentCategoryName.trim()) || 'General';
@@ -5553,7 +5599,7 @@ const HomeScreen: React.FC = React.memo(() => {
       }
       groups[parentName].push(category);
     });
-    
+
     // Convert to SectionList format with rows for proper grid layout
     const sections = Object.keys(groups)
       .sort((a, b) => {
@@ -5576,7 +5622,7 @@ const HomeScreen: React.FC = React.memo(() => {
         };
       })
       .filter(section => section.data.length > 0); // Filter out empty sections
-    
+
     return sections;
   }, [modalGeneralCategories, generalCategoryModalColumns]);
 
@@ -5856,9 +5902,9 @@ const HomeScreen: React.FC = React.memo(() => {
     // Navigate immediately with valid ID, then load data in background
     // ❌ REMOVE: loading placeholder
     // ✅ NEW: Always use valid ID
-    
+
     const categoryId = `business_category_${category.id}`;
-    
+
     console.log('📋 No cached templates found, using valid category ID');
     navigation.navigate('PosterPlayer', {
       selectedTemplateId: categoryId,  // ✅ VALID ID - never 'loading'
@@ -6417,7 +6463,7 @@ const HomeScreen: React.FC = React.memo(() => {
     } else {
       // FIXED: Create fallback poster object (like Business Categories) to prevent crashes
       const categoryId = `greeting_category_${category.id}`;
-      
+
       navigation.navigate('PosterPlayer', {
         selectedTemplateId: categoryId,  // VALID ID - never null
         selectedPoster: {                // VALID fallback poster object
@@ -6438,7 +6484,7 @@ const HomeScreen: React.FC = React.memo(() => {
       greetingTemplatesService.searchTemplates(category.name).then(templates => {
         if (templates && templates.length > 0) {
           const validTemplates = templates.filter(template => template.thumbnail);
-          
+
           // Update preview cache for future use
           setGreetingCategoryPreviews(prev => ({
             ...prev,
@@ -6658,342 +6704,342 @@ const HomeScreen: React.FC = React.memo(() => {
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            {/* User Profile Info */}
-            <View
-              style={styles.userProfileSection}
-            >
-              <TouchableOpacity
-                style={styles.userAvatarContainer}
-                onPress={toggleBusinessProfileDropdown}
-                ref={userProfileSectionRef}
-                activeOpacity={0.7}
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerTop}>
+              {/* User Profile Info */}
+              <View
+                style={styles.userProfileSection}
               >
-                <View style={[styles.userAvatar, { backgroundColor: theme.colors.primary }]}>
-                  {userAvatarUri ? (
-                    <OptimizedImage
-                      uri={getAvatarUrl(userAvatarUri, selectedBusinessProfile)}
-                      style={styles.userAvatarImage}
-                      resizeMode="cover"
-                      cacheKey={`user_avatar_${selectedBusinessProfile?.id || 'personal'}_${selectedBusinessProfile?.updatedAt || userAvatarUri?.slice(-20) || 'default'}`}
-                      key={`avatar_${selectedBusinessProfile?.id || 'personal'}_${selectedBusinessProfile?.updatedAt || userAvatarUri?.slice(-20) || 'default'}`}
-                    />
-                  ) : (
-                    <Text style={styles.userAvatarText}>{userInitials}</Text>
+                <TouchableOpacity
+                  style={styles.userAvatarContainer}
+                  onPress={toggleBusinessProfileDropdown}
+                  ref={userProfileSectionRef}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.userAvatar, { backgroundColor: theme.colors.primary }]}>
+                    {userAvatarUri ? (
+                      <OptimizedImage
+                        uri={getAvatarUrl(userAvatarUri, selectedBusinessProfile)}
+                        style={styles.userAvatarImage}
+                        resizeMode="cover"
+                        cacheKey={`user_avatar_${selectedBusinessProfile?.id || 'personal'}_${selectedBusinessProfile?.updatedAt || userAvatarUri?.slice(-20) || 'default'}`}
+                        key={`avatar_${selectedBusinessProfile?.id || 'personal'}_${selectedBusinessProfile?.updatedAt || userAvatarUri?.slice(-20) || 'default'}`}
+                      />
+                    ) : (
+                      <Text style={styles.userAvatarText}>{userInitials}</Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+                <View style={styles.userInfoContainer}>
+                  <Text style={[styles.userName, { color: theme.colors.text }]} numberOfLines={1}>
+                    {userName}
+                  </Text>
+                  <Text style={[styles.headerSubtitle, { color: theme.colors.textSecondary }]}>
+                    Post, Promote, Grow
+                  </Text>
+                  {apiError && (
+                    <View style={styles.apiStatusIndicator}>
+                      <Icon name="wifi-off" size={statusIconSize} color="#ff9800" />
+                      <Text style={styles.apiStatusText}>Offline Mode</Text>
+                    </View>
                   )}
                 </View>
-              </TouchableOpacity>
-              <View style={styles.userInfoContainer}>
-                <Text style={[styles.userName, { color: theme.colors.text }]} numberOfLines={1}>
-                  {userName}
-                </Text>
-                <Text style={[styles.headerSubtitle, { color: theme.colors.textSecondary }]}>
-                  Post, Promote, Grow
-                </Text>
-                {apiError && (
-                  <View style={styles.apiStatusIndicator}>
-                    <Icon name="wifi-off" size={statusIconSize} color="#ff9800" />
-                    <Text style={styles.apiStatusText}>Offline Mode</Text>
-                  </View>
-                )}
+              </View>
+
+              {/* Header Actions */}
+              <View style={styles.headerActions}>
+
+                {/* Search Button */}
+                <TouchableOpacity
+                  style={[styles.headerActionButton, { backgroundColor: theme.colors.cardBackground }]}
+                  onPress={toggleSearchBar}
+                  activeOpacity={0.7}
+                >
+                  <Icon
+                    name={isSearchBarVisible ? "close" : "search"}
+                    size={moderateScale(20)}
+                    color={theme.colors.text}
+                  />
+                </TouchableOpacity>
+
+                {/* Customer Support Button */}
+                <TouchableOpacity
+                  style={[styles.headerActionButton, { backgroundColor: theme.colors.cardBackground }]}
+                  onPress={openCustomerSupportModal}
+                  activeOpacity={0.7}
+                >
+                  <Icon name="support-agent" size={moderateScale(20)} color={theme.colors.text} />
+                </TouchableOpacity>
               </View>
             </View>
-
-            {/* Header Actions */}
-            <View style={styles.headerActions}>
-              
-              {/* Search Button */}
-              <TouchableOpacity
-                style={[styles.headerActionButton, { backgroundColor: theme.colors.cardBackground }]}
-                onPress={toggleSearchBar}
-                activeOpacity={0.7}
-              >
-                <Icon
-                  name={isSearchBarVisible ? "close" : "search"}
-                  size={moderateScale(20)}
-                  color={theme.colors.text}
-                />
-              </TouchableOpacity>
-
-              {/* Customer Support Button */}
-              <TouchableOpacity
-                style={[styles.headerActionButton, { backgroundColor: theme.colors.cardBackground }]}
-                onPress={openCustomerSupportModal}
-                activeOpacity={0.7}
-              >
-                <Icon name="support-agent" size={moderateScale(20)} color={theme.colors.text} />
-              </TouchableOpacity>
-            </View>
           </View>
-        </View>
 
-        {renderBusinessProfileDropdown()}
+          {renderBusinessProfileDropdown()}
 
-        {/* Search Bar */}
-        {isSearchBarVisible && (
-          <View style={{ position: 'relative', zIndex: 1000, elevation: 10 }}>
-            <View style={styles.searchContainer}>
-              <View style={[styles.searchBar, { backgroundColor: theme.colors.cardBackground }]}>
-                <Icon name="search" size={searchIconSize} color={theme.colors.textSecondary} style={styles.searchIcon} />
-                <TextInput
-                  style={[styles.searchInput, { color: theme.colors.text }]}
-                  placeholder="Search"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  autoFocus={true}
-                  returnKeyType="search"
-                  blurOnSubmit={true}
-                  onFocus={() => {
-                    {__DEV__ && console.log('🔍 Search input focused')}
-                    setIsSearchInputFocused(true);
-                  }}
-                  onBlur={() => {
-                    {__DEV__ && console.log('🔍 Search input blurred')}
-                    setTimeout(() => setIsSearchInputFocused(false), 200);
-                  }}
-                />
-                {searchQuery.length > 0 && (
-                  <TouchableOpacity
-                    onPress={() => {
-                      setSearchQuery('');
-                      setIsSearching(false);
-                      setSearchResults([]);
+          {/* Search Bar */}
+          {isSearchBarVisible && (
+            <View style={{ position: 'relative', zIndex: 1000, elevation: 10 }}>
+              <View style={styles.searchContainer}>
+                <View style={[styles.searchBar, { backgroundColor: theme.colors.cardBackground }]}>
+                  <Icon name="search" size={searchIconSize} color={theme.colors.textSecondary} style={styles.searchIcon} />
+                  <TextInput
+                    style={[styles.searchInput, { color: theme.colors.text }]}
+                    placeholder="Search"
+                    placeholderTextColor={theme.colors.textSecondary}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    autoFocus={true}
+                    returnKeyType="search"
+                    blurOnSubmit={true}
+                    onFocus={() => {
+                      { __DEV__ && console.log('🔍 Search input focused') }
+                      setIsSearchInputFocused(true);
                     }}
-                    style={styles.clearIcon}
-                  >
-                    <Icon name="close" size={searchIconSize} color={theme.colors.textSecondary} />
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-            
-            {/* Floating Recent Searches Dropdown */}
-            {searchQuery.trim() === '' && (
-              <View style={styles.dropdown}>
-                <RecentSearchList
-                  recentSearches={recentSearches}
-                  onSelectSearch={handleRecentSearchSelect}
-                  onClearAll={handleRecentSearchClear}
-                  onRemoveItem={handleRecentSearchRemove}
-                  theme={theme}
-                />
-              </View>
-            )}
-          </View>
-        )}
-
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.content}
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: 80 + insets.bottom }]}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          removeClippedSubviews={true}
-          nestedScrollEnabled={true}
-          scrollEventThrottle={16}
-          bounces={true}
-        >
-          {/* Category Buttons */}
-          {!isSearching && searchQuery.trim() === '' && (
-            <View style={styles.categoryButtonsContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.categoryButton,
-                  styles.categoryButtonBusiness,
-                  selectedCategory === 'business' && styles.categoryButtonActive,
-                ]}
-                onPress={handleBusinessButtonPress}
-                activeOpacity={0.85}
-              >
-                <LinearGradient
-                  colors={selectedCategory === 'business'
-                    ? ['#667eea', '#764ba2']
-                    : ['rgba(102, 126, 234, 0.1)', 'rgba(118, 75, 162, 0.05)']
-                  }
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.categoryButtonGradient}
-                >
-                  <View style={styles.categoryButtonContent}>
-                    <Icon
-                      name="business"
-                      size={moderateScale(14)}
-                      color={selectedCategory === 'business' ? '#ffffff' : '#667eea'}
-                      style={styles.categoryButtonIcon}
-                    />
-                    <Animated.Text 
-                      style={[
-                        styles.categoryButtonText,
-                        styles.categoryButtonTextBusiness,
-                        {
-                          color: selectedCategory === 'business' ? '#ffffff' : '#667eea',
-                          opacity: businessCategoryFadeAnim,
-                          flexShrink: 1,
-                          minWidth: 0,
-                        }
-                      ]}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
+                    onBlur={() => {
+                      { __DEV__ && console.log('🔍 Search input blurred') }
+                      setTimeout(() => setIsSearchInputFocused(false), 200);
+                    }}
+                  />
+                  {searchQuery.length > 0 && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        setSearchQuery('');
+                        setIsSearching(false);
+                        setSearchResults([]);
+                      }}
+                      style={styles.clearIcon}
                     >
-                      {businessCategoryButtonLabel}
-                    </Animated.Text>
-                  </View>
-                </LinearGradient>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.categoryButton,
-                  styles.categoryButtonRotating,
-                  selectedCategory === 'general' && styles.categoryButtonActive,
-                ]}
-                onPress={() => navigation.navigate('GreetingTemplates')}
-                activeOpacity={0.85}
-              >
-                <LinearGradient
-                  colors={['#f093fb', '#f5576c']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.categoryButtonGradient}
-                >
-                  <View style={styles.categoryButtonContent}>
-                    <Icon
-                      name="auto-awesome"
-                      size={moderateScale(14)}
-                      color="#ffffff"
-                      style={styles.categoryButtonIcon}
-                    />
-                    <Animated.Text
-                      style={[
-                        styles.categoryButtonText,
-                        styles.categoryButtonRotatingText,
-                        {
-                          color: '#ffffff',
-                          opacity: categoryFadeAnim,
-                          flexShrink: 1,
-                          minWidth: 0,
-                        }
-                      ]}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                    >
-                      {greetingCategoryButtonLabel}
-                    </Animated.Text>
-                  </View>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {!isSearching && searchQuery.trim() === '' && featuredContent.length > 0 && (
-            <View style={styles.featuredCarouselWrapper}>
-              <View style={styles.featuredCarouselContainer}>
-                <FlatList
-                  ref={featuredCarouselRef}
-                  data={featuredContent}
-                  renderItem={renderFeaturedCarouselItem}
-                  keyExtractor={keyExtractorIdString}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  pagingEnabled={false}
-                  snapToInterval={featuredCarouselSnapInterval}
-                  snapToAlignment="start"
-                  decelerationRate="fast"
-                  getItemLayout={getFeaturedCarouselItemLayout}
-                  ItemSeparatorComponent={renderItemSeparator}
-                  onScrollToIndexFailed={handleFeaturedCarouselScrollFailure}
-                  onScrollBeginDrag={handleFeaturedCarouselScrollBeginDrag}
-                  onScrollEndDrag={handleFeaturedCarouselScrollEndDrag}
-                  onMomentumScrollEnd={handleFeaturedCarouselMomentumScrollEnd}
-                  onViewableItemsChanged={handleViewableItemsChanged}
-                  viewabilityConfig={viewabilityConfig}
-                  contentContainerStyle={{ paddingHorizontal: SIDE_PADDING }}
-                />
-                <View style={styles.featuredCarouselIndicators}>
-                  {featuredContent.map((_, index) => (
-                    <View
-                      key={index}
-                      style={[
-                        styles.featuredCarouselDot,
-                        index === featuredCarouselIndex && styles.featuredCarouselDotActive,
-                      ]}
-                    />
-                  ))}
+                      <Icon name="close" size={searchIconSize} color={theme.colors.textSecondary} />
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
+
+              {/* Floating Recent Searches Dropdown */}
+              {searchQuery.trim() === '' && (
+                <View style={styles.dropdown}>
+                  <RecentSearchList
+                    recentSearches={recentSearches}
+                    onSelectSearch={handleRecentSearchSelect}
+                    onClearAll={handleRecentSearchClear}
+                    onRemoveItem={handleRecentSearchRemove}
+                    theme={theme}
+                  />
+                </View>
+              )}
             </View>
           )}
 
-          {/* Festivals Calendar Section */}
-          {!isSearching && searchQuery.trim() === '' && (
-            <HorizontalFestivalCalendar 
-              key={calendarRefreshKey} 
-              isFocused={isFocused} 
-              onDateSelect={handleCalendarDateSelect}
-            />
-          )}
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.content}
+            contentContainerStyle={[styles.scrollContent, { paddingBottom: 80 + insets.bottom }]}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            removeClippedSubviews={true}
+            nestedScrollEnabled={true}
+            scrollEventThrottle={16}
+            bounces={true}
+          >
+            {/* Category Buttons */}
+            {!isSearching && searchQuery.trim() === '' && (
+              <View style={styles.categoryButtonsContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.categoryButton,
+                    styles.categoryButtonBusiness,
+                    selectedCategory === 'business' && styles.categoryButtonActive,
+                  ]}
+                  onPress={handleBusinessButtonPress}
+                  activeOpacity={0.85}
+                >
+                  <LinearGradient
+                    colors={selectedCategory === 'business'
+                      ? ['#667eea', '#764ba2']
+                      : ['rgba(102, 126, 234, 0.1)', 'rgba(118, 75, 162, 0.05)']
+                    }
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.categoryButtonGradient}
+                  >
+                    <View style={styles.categoryButtonContent}>
+                      <Icon
+                        name="business"
+                        size={moderateScale(14)}
+                        color={selectedCategory === 'business' ? '#ffffff' : '#667eea'}
+                        style={styles.categoryButtonIcon}
+                      />
+                      <Animated.Text
+                        style={[
+                          styles.categoryButtonText,
+                          styles.categoryButtonTextBusiness,
+                          {
+                            color: selectedCategory === 'business' ? '#ffffff' : '#667eea',
+                            opacity: businessCategoryFadeAnim,
+                            flexShrink: 1,
+                            minWidth: 0,
+                          }
+                        ]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {businessCategoryButtonLabel}
+                      </Animated.Text>
+                    </View>
+                  </LinearGradient>
+                </TouchableOpacity>
 
-          {/* Business Categories Section */}
-          {!isSearching && searchQuery.trim() === '' && businessCategories.length > 0 && (
-            <BusinessCategoriesSection
-              businessCategories={businessCategories}
-              businessCategoryPreviews={memoizedBusinessCategoryPreviews}
-              isHighlighted={isBusinessCategoriesHighlighted}
-              cardWidth={cardWidth}
-              theme={theme}
-              getItemLayout={getItemLayout}
-              onCategoryPress={handleBusinessCategoryPress}
-              onViewAllPress={handleViewAllBusinessCategories}
-              renderBrowseAllButton={renderBrowseAllButton}
-              sectionRef={businessCategoriesSectionRef}
-              onLayout={handleBusinessCategoriesLayout}
-            />
-          )}
+                <TouchableOpacity
+                  style={[
+                    styles.categoryButton,
+                    styles.categoryButtonRotating,
+                    selectedCategory === 'general' && styles.categoryButtonActive,
+                  ]}
+                  onPress={() => navigation.navigate('GreetingTemplates')}
+                  activeOpacity={0.85}
+                >
+                  <LinearGradient
+                    colors={['#f093fb', '#f5576c']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.categoryButtonGradient}
+                  >
+                    <View style={styles.categoryButtonContent}>
+                      <Icon
+                        name="auto-awesome"
+                        size={moderateScale(14)}
+                        color="#ffffff"
+                        style={styles.categoryButtonIcon}
+                      />
+                      <Animated.Text
+                        style={[
+                          styles.categoryButtonText,
+                          styles.categoryButtonRotatingText,
+                          {
+                            color: '#ffffff',
+                            opacity: categoryFadeAnim,
+                            flexShrink: 1,
+                            minWidth: 0,
+                          }
+                        ]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {greetingCategoryButtonLabel}
+                      </Animated.Text>
+                    </View>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            )}
 
-          {/* General Categories Section */}
-          {/* Show section immediately with placeholders - images load progressively */}
-          {!isSearching && searchQuery.trim() === '' && greetingCategoriesList.length > 0 && (
-            <GeneralCategoriesSection
-              greetingCategoriesList={filteredGreetingCategoriesList}
-              greetingCategoryImages={memoizedGreetingCategoryImages}
-              cardWidth={cardWidth}
-              theme={theme}
-              getItemLayout={getItemLayout}
-              onCategoryPress={(category) => {
-                const categoryImage = memoizedGreetingCategoryImages[category.id] || null;
-                handleGreetingCategoryPress(category, categoryImage);
-              }}
-              onViewAllPress={handleViewAllGeneralCategories}
-              renderBrowseAllButton={renderBrowseAllButton}
-              onLoadMore={() => {
-                // Load more categories when user scrolls near the end
-                if (displayedCategoriesCount < allGreetingCategories.length) {
-                  const nextCount = Math.min(displayedCategoriesCount + 5, allGreetingCategories.length);
-                  setDisplayedCategoriesCount(nextCount);
+            {!isSearching && searchQuery.trim() === '' && featuredContent.length > 0 && (
+              <View style={styles.featuredCarouselWrapper}>
+                <View style={styles.featuredCarouselContainer}>
+                  <FlatList
+                    ref={featuredCarouselRef}
+                    data={featuredContent}
+                    renderItem={renderFeaturedCarouselItem}
+                    keyExtractor={keyExtractorIdString}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    pagingEnabled={false}
+                    snapToInterval={featuredCarouselSnapInterval}
+                    snapToAlignment="start"
+                    decelerationRate="fast"
+                    getItemLayout={getFeaturedCarouselItemLayout}
+                    ItemSeparatorComponent={renderItemSeparator}
+                    onScrollToIndexFailed={handleFeaturedCarouselScrollFailure}
+                    onScrollBeginDrag={handleFeaturedCarouselScrollBeginDrag}
+                    onScrollEndDrag={handleFeaturedCarouselScrollEndDrag}
+                    onMomentumScrollEnd={handleFeaturedCarouselMomentumScrollEnd}
+                    onViewableItemsChanged={handleViewableItemsChanged}
+                    viewabilityConfig={viewabilityConfig}
+                    contentContainerStyle={{ paddingHorizontal: SIDE_PADDING }}
+                  />
+                  <View style={styles.featuredCarouselIndicators}>
+                    {featuredContent.map((_, index) => (
+                      <View
+                        key={index}
+                        style={[
+                          styles.featuredCarouselDot,
+                          index === featuredCarouselIndex && styles.featuredCarouselDotActive,
+                        ]}
+                      />
+                    ))}
+                  </View>
+                </View>
+              </View>
+            )}
 
-                  // Load preview images for newly displayed categories (batched for non-initial)
-                  const newCategories = allGreetingCategories.slice(displayedCategoriesCount, nextCount);
-                  if (newCategories.length > 0) {
-                    fetchGreetingCategoryPreviewImages(newCategories, false); // false = not initial load
+            {/* Festivals Calendar Section */}
+            {!isSearching && searchQuery.trim() === '' && (
+              <HorizontalFestivalCalendar
+                key={calendarRefreshKey}
+                isFocused={isFocused}
+                onDateSelect={handleCalendarDateSelect}
+              />
+            )}
+
+            {/* Business Categories Section */}
+            {!isSearching && searchQuery.trim() === '' && businessCategories.length > 0 && (
+              <BusinessCategoriesSection
+                businessCategories={businessCategories}
+                businessCategoryPreviews={memoizedBusinessCategoryPreviews}
+                isHighlighted={isBusinessCategoriesHighlighted}
+                cardWidth={cardWidth}
+                theme={theme}
+                getItemLayout={getItemLayout}
+                onCategoryPress={handleBusinessCategoryPress}
+                onViewAllPress={handleViewAllBusinessCategories}
+                renderBrowseAllButton={renderBrowseAllButton}
+                sectionRef={businessCategoriesSectionRef}
+                onLayout={handleBusinessCategoriesLayout}
+              />
+            )}
+
+            {/* General Categories Section */}
+            {/* Show section immediately with placeholders - images load progressively */}
+            {!isSearching && searchQuery.trim() === '' && greetingCategoriesList.length > 0 && (
+              <GeneralCategoriesSection
+                greetingCategoriesList={filteredGreetingCategoriesList}
+                greetingCategoryImages={memoizedGreetingCategoryImages}
+                cardWidth={cardWidth}
+                theme={theme}
+                getItemLayout={getItemLayout}
+                onCategoryPress={(category) => {
+                  const categoryImage = memoizedGreetingCategoryImages[category.id] || null;
+                  handleGreetingCategoryPress(category, categoryImage);
+                }}
+                onViewAllPress={handleViewAllGeneralCategories}
+                renderBrowseAllButton={renderBrowseAllButton}
+                onLoadMore={() => {
+                  // Load more categories when user scrolls near the end
+                  if (displayedCategoriesCount < allGreetingCategories.length) {
+                    const nextCount = Math.min(displayedCategoriesCount + 5, allGreetingCategories.length);
+                    setDisplayedCategoriesCount(nextCount);
+
+                    // Load preview images for newly displayed categories (batched for non-initial)
+                    const newCategories = allGreetingCategories.slice(displayedCategoriesCount, nextCount);
+                    if (newCategories.length > 0) {
+                      fetchGreetingCategoryPreviewImages(newCategories, false); // false = not initial load
+                    }
                   }
-                }
-              }}
-              hasMore={displayedCategoriesCount < allGreetingCategories.length}
-            />
-          )}
+                }}
+                hasMore={displayedCategoriesCount < allGreetingCategories.length}
+              />
+            )}
 
-          {/* Festival Calendar - Commented out for now */}
-          {/* <View style={styles.calendarSection}>
+            {/* Festival Calendar - Commented out for now */}
+            {/* <View style={styles.calendarSection}>
             <SimpleFestivalCalendar />
           </View> */}
 
-          {/* Tabs - All tabs commented out */}
-          {/* <View style={styles.tabsContainer}>
+            {/* Tabs - All tabs commented out */}
+            {/* <View style={styles.tabsContainer}>
             <TouchableOpacity
               style={[
                 styles.tab,
@@ -7039,253 +7085,253 @@ const HomeScreen: React.FC = React.memo(() => {
           </View> */}
 
 
-          
-          
-          {/* Unified Search Results - Shown only when searching */}
-          {renderSearchResults()}
-          
-          {/* Video Section - Hidden when searching */}
-          {!isSearching && searchQuery.trim() === '' && videoContent.length > 0 && (
-            <View style={styles.videoSection}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { paddingHorizontal: 0, color: theme.colors.text, fontWeight: 'bold' }]}>
-                  Video Content
-                </Text>
-                {renderBrowseAllButton(handleViewAllVideos)}
+
+
+            {/* Unified Search Results - Shown only when searching */}
+            {renderSearchResults()}
+
+            {/* Video Section - Hidden when searching */}
+            {!isSearching && searchQuery.trim() === '' && videoContent.length > 0 && (
+              <View style={styles.videoSection}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { paddingHorizontal: 0, color: theme.colors.text, fontWeight: 'bold' }]}>
+                    Video Content
+                  </Text>
+                  {renderBrowseAllButton(handleViewAllVideos)}
+                </View>
+                <FlatList
+                  key={`video-content-${videoContent.length}`}
+                  data={videoContent}
+                  renderItem={renderVideoTemplate}
+                  keyExtractor={keyExtractor}
+                  horizontal={true}
+                  showsHorizontalScrollIndicator={false}
+                  nestedScrollEnabled={true}
+                  removeClippedSubviews={true}
+                  maxToRenderPerBatch={3}
+                  windowSize={2}
+                  initialNumToRender={3}
+                  updateCellsBatchingPeriod={150}
+                  getItemLayout={getItemLayout}
+                  contentContainerStyle={styles.horizontalList}
+                  // Performance: disable autoscroll to content size
+                  maintainVisibleContentPosition={null}
+                />
               </View>
-              <FlatList
-                key={`video-content-${videoContent.length}`}
-                data={videoContent}
-                renderItem={renderVideoTemplate}
-                keyExtractor={keyExtractor}
-                horizontal={true}
-                showsHorizontalScrollIndicator={false}
-                nestedScrollEnabled={true}
-                removeClippedSubviews={true}
-                maxToRenderPerBatch={3}
-                windowSize={2}
-                initialNumToRender={3}
-                updateCellsBatchingPeriod={150}
-                getItemLayout={getItemLayout}
-                contentContainerStyle={styles.horizontalList}
-                // Performance: disable autoscroll to content size
-                maintainVisibleContentPosition={null}
-              />
-            </View>
-          )}
+            )}
 
 
-          {/* Business Ethics Section - Hidden when searching */}
-          {!isSearching && searchQuery.trim() === '' && businessEthicsTemplates.length > 0 && (
-            <View style={styles.templatesSection}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { paddingHorizontal: 0, color: theme.colors.text, fontWeight: 'bold' }]}>
-                  Business Ethics
-                </Text>
-                {renderBrowseAllButton(handleViewAllBusinessEthics)}
+            {/* Business Ethics Section - Hidden when searching */}
+            {!isSearching && searchQuery.trim() === '' && businessEthicsTemplates.length > 0 && (
+              <View style={styles.templatesSection}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { paddingHorizontal: 0, color: theme.colors.text, fontWeight: 'bold' }]}>
+                    Business Ethics
+                  </Text>
+                  {renderBrowseAllButton(handleViewAllBusinessEthics)}
+                </View>
+                <FlatList
+                  data={businessEthicsTemplates}
+                  renderItem={renderBusinessEthicsCard}
+                  keyExtractor={keyExtractor}
+                  horizontal={true}
+                  showsHorizontalScrollIndicator={false}
+                  nestedScrollEnabled={true}
+                  contentContainerStyle={styles.horizontalList}
+                  removeClippedSubviews={true}
+                  maxToRenderPerBatch={3}
+                  windowSize={2}
+                  initialNumToRender={3}
+                  updateCellsBatchingPeriod={150}
+                  getItemLayout={getItemLayout}
+                  onEndReached={loadMoreBusinessEthics}
+                  onEndReachedThreshold={0.5}
+                  ListFooterComponent={businessEthicsLoading ? <ActivityIndicator size="small" color={theme.colors.primary} /> : null}
+                />
               </View>
-              <FlatList
-                data={businessEthicsTemplates}
-                renderItem={renderBusinessEthicsCard}
-                keyExtractor={keyExtractor}
-                horizontal={true}
-                showsHorizontalScrollIndicator={false}
-                nestedScrollEnabled={true}
-                contentContainerStyle={styles.horizontalList}
-                removeClippedSubviews={true}
-                maxToRenderPerBatch={3}
-                windowSize={2}
-                initialNumToRender={3}
-                updateCellsBatchingPeriod={150}
-                getItemLayout={getItemLayout}
-                onEndReached={loadMoreBusinessEthics}
-                onEndReachedThreshold={0.5}
-                ListFooterComponent={businessEthicsLoading ? <ActivityIndicator size="small" color={theme.colors.primary} /> : null}
-              />
-            </View>
-          )}
+            )}
 
-          {/* Success Mindset Section - Hidden when searching */}
-          {!isSearching && searchQuery.trim() === '' && successMindsetTemplates.length > 0 && (
-            <View style={styles.templatesSection}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { paddingHorizontal: 0, color: theme.colors.text, fontWeight: 'bold' }]}>
-                  Success Mindset
-                </Text>
-                {renderBrowseAllButton(handleViewAllSuccessMindset)}
+            {/* Success Mindset Section - Hidden when searching */}
+            {!isSearching && searchQuery.trim() === '' && successMindsetTemplates.length > 0 && (
+              <View style={styles.templatesSection}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { paddingHorizontal: 0, color: theme.colors.text, fontWeight: 'bold' }]}>
+                    Success Mindset
+                  </Text>
+                  {renderBrowseAllButton(handleViewAllSuccessMindset)}
+                </View>
+                <FlatList
+                  data={successMindsetTemplates}
+                  renderItem={renderSuccessMindsetCard}
+                  keyExtractor={keyExtractor}
+                  horizontal={true}
+                  showsHorizontalScrollIndicator={false}
+                  nestedScrollEnabled={true}
+                  contentContainerStyle={styles.horizontalList}
+                  removeClippedSubviews={true}
+                  maxToRenderPerBatch={3}
+                  windowSize={2}
+                  initialNumToRender={3}
+                  updateCellsBatchingPeriod={150}
+                  getItemLayout={getItemLayout}
+                  onEndReached={loadMoreSuccessMindset}
+                  onEndReachedThreshold={0.5}
+                  ListFooterComponent={successMindsetLoading ? <ActivityIndicator size="small" color={theme.colors.primary} /> : null}
+                />
               </View>
-              <FlatList
-                data={successMindsetTemplates}
-                renderItem={renderSuccessMindsetCard}
-                keyExtractor={keyExtractor}
-                horizontal={true}
-                showsHorizontalScrollIndicator={false}
-                nestedScrollEnabled={true}
-                contentContainerStyle={styles.horizontalList}
-                removeClippedSubviews={true}
-                maxToRenderPerBatch={3}
-                windowSize={2}
-                initialNumToRender={3}
-                updateCellsBatchingPeriod={150}
-                getItemLayout={getItemLayout}
-                onEndReached={loadMoreSuccessMindset}
-                onEndReachedThreshold={0.5}
-                ListFooterComponent={successMindsetLoading ? <ActivityIndicator size="small" color={theme.colors.primary} /> : null}
-              />
-            </View>
-          )}
+            )}
 
-          {/* Social Media Growth Section - Hidden when searching */}
-          {!isSearching && searchQuery.trim() === '' && socialMediaGrowthTemplates.length > 0 && (
-            <View style={styles.templatesSection}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { paddingHorizontal: 0, color: theme.colors.text, fontWeight: 'bold' }]}>
-                  Social Media Growth
-                </Text>
-                {renderBrowseAllButton(handleViewAllSocialMediaGrowth)}
+            {/* Social Media Growth Section - Hidden when searching */}
+            {!isSearching && searchQuery.trim() === '' && socialMediaGrowthTemplates.length > 0 && (
+              <View style={styles.templatesSection}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { paddingHorizontal: 0, color: theme.colors.text, fontWeight: 'bold' }]}>
+                    Social Media Growth
+                  </Text>
+                  {renderBrowseAllButton(handleViewAllSocialMediaGrowth)}
+                </View>
+                <FlatList
+                  data={socialMediaGrowthTemplates}
+                  renderItem={renderSocialMediaGrowthCard}
+                  keyExtractor={keyExtractor}
+                  horizontal={true}
+                  showsHorizontalScrollIndicator={false}
+                  nestedScrollEnabled={true}
+                  contentContainerStyle={styles.horizontalList}
+                  removeClippedSubviews={true}
+                  maxToRenderPerBatch={3}
+                  windowSize={2}
+                  initialNumToRender={3}
+                  updateCellsBatchingPeriod={150}
+                  getItemLayout={getItemLayout}
+                  onEndReached={loadMoreSocialMediaGrowth}
+                  onEndReachedThreshold={0.5}
+                  ListFooterComponent={socialMediaGrowthLoading ? <ActivityIndicator size="small" color={theme.colors.primary} /> : null}
+                />
               </View>
-              <FlatList
-                data={socialMediaGrowthTemplates}
-                renderItem={renderSocialMediaGrowthCard}
-                keyExtractor={keyExtractor}
-                horizontal={true}
-                showsHorizontalScrollIndicator={false}
-                nestedScrollEnabled={true}
-                contentContainerStyle={styles.horizontalList}
-                removeClippedSubviews={true}
-                maxToRenderPerBatch={3}
-                windowSize={2}
-                initialNumToRender={3}
-                updateCellsBatchingPeriod={150}
-                getItemLayout={getItemLayout}
-                onEndReached={loadMoreSocialMediaGrowth}
-                onEndReachedThreshold={0.5}
-                ListFooterComponent={socialMediaGrowthLoading ? <ActivityIndicator size="small" color={theme.colors.primary} /> : null}
-              />
-            </View>
-          )}
+            )}
 
-          {/* Money and Finance Section - Hidden when searching */}
-          {!isSearching && searchQuery.trim() === '' && moneyAndFinanceTemplates.length > 0 && (
-            <View style={styles.templatesSection}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { paddingHorizontal: 0, color: theme.colors.text, fontWeight: 'bold' }]}>
-                  Money and Finance
-                </Text>
-                {renderBrowseAllButton(handleViewAllMoneyAndFinance)}
+            {/* Money and Finance Section - Hidden when searching */}
+            {!isSearching && searchQuery.trim() === '' && moneyAndFinanceTemplates.length > 0 && (
+              <View style={styles.templatesSection}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { paddingHorizontal: 0, color: theme.colors.text, fontWeight: 'bold' }]}>
+                    Money and Finance
+                  </Text>
+                  {renderBrowseAllButton(handleViewAllMoneyAndFinance)}
+                </View>
+                <FlatList
+                  data={moneyAndFinanceTemplates}
+                  renderItem={renderMoneyAndFinanceCard}
+                  keyExtractor={keyExtractor}
+                  horizontal={true}
+                  showsHorizontalScrollIndicator={false}
+                  nestedScrollEnabled={true}
+                  contentContainerStyle={styles.horizontalList}
+                  removeClippedSubviews={true}
+                  maxToRenderPerBatch={3}
+                  windowSize={2}
+                  initialNumToRender={3}
+                  updateCellsBatchingPeriod={150}
+                  getItemLayout={getItemLayout}
+                  onEndReached={loadMoreMoneyAndFinance}
+                  onEndReachedThreshold={0.5}
+                  ListFooterComponent={moneyAndFinanceLoading ? <ActivityIndicator size="small" color={theme.colors.primary} /> : null}
+                />
               </View>
-              <FlatList
-                data={moneyAndFinanceTemplates}
-                renderItem={renderMoneyAndFinanceCard}
-                keyExtractor={keyExtractor}
-                horizontal={true}
-                showsHorizontalScrollIndicator={false}
-                nestedScrollEnabled={true}
-                contentContainerStyle={styles.horizontalList}
-                removeClippedSubviews={true}
-                maxToRenderPerBatch={3}
-                windowSize={2}
-                initialNumToRender={3}
-                updateCellsBatchingPeriod={150}
-                getItemLayout={getItemLayout}
-                onEndReached={loadMoreMoneyAndFinance}
-                onEndReachedThreshold={0.5}
-                ListFooterComponent={moneyAndFinanceLoading ? <ActivityIndicator size="small" color={theme.colors.primary} /> : null}
-              />
-            </View>
-          )}
+            )}
 
-          {/* Business Legend Quote Section - Hidden when searching */}
-          {!isSearching && searchQuery.trim() === '' && businessLegendQuoteTemplates.length > 0 && (
-            <View style={styles.templatesSection}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { paddingHorizontal: 0, color: theme.colors.text, fontWeight: 'bold' }]}>
-                  Business Legend Quote
-                </Text>
-                {renderBrowseAllButton(handleViewAllBusinessLegendQuote)}
+            {/* Business Legend Quote Section - Hidden when searching */}
+            {!isSearching && searchQuery.trim() === '' && businessLegendQuoteTemplates.length > 0 && (
+              <View style={styles.templatesSection}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { paddingHorizontal: 0, color: theme.colors.text, fontWeight: 'bold' }]}>
+                    Business Legend Quote
+                  </Text>
+                  {renderBrowseAllButton(handleViewAllBusinessLegendQuote)}
+                </View>
+                <FlatList
+                  data={businessLegendQuoteTemplates}
+                  renderItem={renderBusinessLegendQuoteCard}
+                  keyExtractor={keyExtractor}
+                  horizontal={true}
+                  showsHorizontalScrollIndicator={false}
+                  nestedScrollEnabled={true}
+                  contentContainerStyle={styles.horizontalList}
+                  removeClippedSubviews={true}
+                  maxToRenderPerBatch={3}
+                  windowSize={2}
+                  initialNumToRender={3}
+                  updateCellsBatchingPeriod={150}
+                  getItemLayout={getItemLayout}
+                  onEndReached={loadMoreBusinessLegendQuote}
+                  onEndReachedThreshold={0.5}
+                  ListFooterComponent={businessLegendQuoteLoading ? <ActivityIndicator size="small" color={theme.colors.primary} /> : null}
+                />
               </View>
-              <FlatList
-                data={businessLegendQuoteTemplates}
-                renderItem={renderBusinessLegendQuoteCard}
-                keyExtractor={keyExtractor}
-                horizontal={true}
-                showsHorizontalScrollIndicator={false}
-                nestedScrollEnabled={true}
-                contentContainerStyle={styles.horizontalList}
-                removeClippedSubviews={true}
-                maxToRenderPerBatch={3}
-                windowSize={2}
-                initialNumToRender={3}
-                updateCellsBatchingPeriod={150}
-                getItemLayout={getItemLayout}
-                onEndReached={loadMoreBusinessLegendQuote}
-                onEndReachedThreshold={0.5}
-                ListFooterComponent={businessLegendQuoteLoading ? <ActivityIndicator size="small" color={theme.colors.primary} /> : null}
-              />
-            </View>
-          )}
+            )}
 
-          {/* Business Marketing Tips Section - Hidden when searching */}
-          {!isSearching && searchQuery.trim() === '' && businessMarketingTipsTemplates.length > 0 && (
-            <View style={styles.templatesSection}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { paddingHorizontal: 0, color: theme.colors.text, fontWeight: 'bold' }]}>
-                  Business Marketing Tips
-                </Text>
-                {renderBrowseAllButton(handleViewAllBusinessMarketingTips)}
+            {/* Business Marketing Tips Section - Hidden when searching */}
+            {!isSearching && searchQuery.trim() === '' && businessMarketingTipsTemplates.length > 0 && (
+              <View style={styles.templatesSection}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { paddingHorizontal: 0, color: theme.colors.text, fontWeight: 'bold' }]}>
+                    Business Marketing Tips
+                  </Text>
+                  {renderBrowseAllButton(handleViewAllBusinessMarketingTips)}
+                </View>
+                <FlatList
+                  data={businessMarketingTipsTemplates}
+                  renderItem={renderBusinessMarketingTipsCard}
+                  keyExtractor={keyExtractor}
+                  horizontal={true}
+                  showsHorizontalScrollIndicator={false}
+                  nestedScrollEnabled={true}
+                  contentContainerStyle={styles.horizontalList}
+                  removeClippedSubviews={true}
+                  maxToRenderPerBatch={3}
+                  windowSize={2}
+                  initialNumToRender={3}
+                  updateCellsBatchingPeriod={150}
+                  getItemLayout={getItemLayout}
+                  onEndReached={loadMoreBusinessMarketingTips}
+                  onEndReachedThreshold={0.5}
+                  ListFooterComponent={businessMarketingTipsLoading ? <ActivityIndicator size="small" color={theme.colors.primary} /> : null}
+                />
               </View>
-              <FlatList
-                data={businessMarketingTipsTemplates}
-                renderItem={renderBusinessMarketingTipsCard}
-                keyExtractor={keyExtractor}
-                horizontal={true}
-                showsHorizontalScrollIndicator={false}
-                nestedScrollEnabled={true}
-                contentContainerStyle={styles.horizontalList}
-                removeClippedSubviews={true}
-                maxToRenderPerBatch={3}
-                windowSize={2}
-                initialNumToRender={3}
-                updateCellsBatchingPeriod={150}
-                getItemLayout={getItemLayout}
-                onEndReached={loadMoreBusinessMarketingTips}
-                onEndReachedThreshold={0.5}
-                ListFooterComponent={businessMarketingTipsLoading ? <ActivityIndicator size="small" color={theme.colors.primary} /> : null}
-              />
-            </View>
-          )}
+            )}
 
-          {/* Business Quotes Section - Hidden when searching */}
-          {!isSearching && searchQuery.trim() === '' && businessQuotesTemplates.length > 0 && (
-            <View style={styles.templatesSection}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { paddingHorizontal: 0, color: theme.colors.text, fontWeight: 'bold' }]}>
-                  Business Quotes
-                </Text>
-                {renderBrowseAllButton(handleViewAllBusinessQuotes)}
+            {/* Business Quotes Section - Hidden when searching */}
+            {!isSearching && searchQuery.trim() === '' && businessQuotesTemplates.length > 0 && (
+              <View style={styles.templatesSection}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { paddingHorizontal: 0, color: theme.colors.text, fontWeight: 'bold' }]}>
+                    Business Quotes
+                  </Text>
+                  {renderBrowseAllButton(handleViewAllBusinessQuotes)}
+                </View>
+                <FlatList
+                  data={businessQuotesTemplates}
+                  renderItem={renderBusinessQuotesCard}
+                  keyExtractor={keyExtractor}
+                  horizontal={true}
+                  showsHorizontalScrollIndicator={false}
+                  nestedScrollEnabled={true}
+                  contentContainerStyle={styles.horizontalList}
+                  removeClippedSubviews={true}
+                  maxToRenderPerBatch={3}
+                  windowSize={2}
+                  initialNumToRender={3}
+                  updateCellsBatchingPeriod={150}
+                  getItemLayout={getItemLayout}
+                  onEndReached={loadMoreBusinessQuotes}
+                  onEndReachedThreshold={0.5}
+                  ListFooterComponent={businessQuotesLoading ? <ActivityIndicator size="small" color={theme.colors.primary} /> : null}
+                />
               </View>
-              <FlatList
-                data={businessQuotesTemplates}
-                renderItem={renderBusinessQuotesCard}
-                keyExtractor={keyExtractor}
-                horizontal={true}
-                showsHorizontalScrollIndicator={false}
-                nestedScrollEnabled={true}
-                contentContainerStyle={styles.horizontalList}
-                removeClippedSubviews={true}
-                maxToRenderPerBatch={3}
-                windowSize={2}
-                initialNumToRender={3}
-                updateCellsBatchingPeriod={150}
-                getItemLayout={getItemLayout}
-                onEndReached={loadMoreBusinessQuotes}
-                onEndReachedThreshold={0.5}
-                ListFooterComponent={businessQuotesLoading ? <ActivityIndicator size="small" color={theme.colors.primary} /> : null}
-              />
-            </View>
-          )}
+            )}
 
-        </ScrollView>
+          </ScrollView>
         </LinearGradient>
       </TouchableWithoutFeedback>
 
@@ -7367,155 +7413,155 @@ const HomeScreen: React.FC = React.memo(() => {
             styles.fullScreenGreetingModalContent,
             { backgroundColor: theme.colors.surface }
           ]}>
-          <LinearGradient
-            colors={theme.colors.gradient}
-            style={styles.upcomingEventsModalGradient}
-          >
-            <View style={styles.upcomingEventsModalHeader}>
-              <View style={styles.upcomingEventsModalTitleContainer}>
-                <Text style={[styles.upcomingEventsModalTitle, { color: theme.colors.text }]}>Business Categories</Text>
-              </View>
-              <View style={styles.upcomingEventsModalHeaderButtons}>
-                <TouchableOpacity
-                  style={[styles.upcomingEventsHeaderActionButton, { backgroundColor: theme.colors.cardBackground }]}
-                  onPress={() => setIsBusinessModalSearchBarVisible(true)}
-                  activeOpacity={0.7}
-                >
-                  <Icon
-                    name="search"
-                    size={moderateScale(20)} // Increased from 18
-                    color={theme.colors.text}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.upcomingEventsCloseButton}
-                  onPress={handleBusinessCategoriesModalClose}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.upcomingEventsCloseButtonText, { color: theme.colors.text }]}>×</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </LinearGradient>
-          
-          {/* Business Category Modal Search Bar */}
-          {isBusinessModalSearchBarVisible && (
-            <View style={{ position: 'relative', zIndex: 1000, elevation: 10, backgroundColor: theme.colors.background }}>
-              <View style={styles.searchContainer}>
-                <View style={[styles.searchBar, { backgroundColor: theme.colors.cardBackground }]}>
-                  <Icon name="search" size={searchIconSize} color={theme.colors.textSecondary} style={styles.searchIcon} />
-                  <TextInput
-                    ref={businessModalSearchInputRef}
-                    style={[styles.searchInput, { color: theme.colors.text }]}
-                    placeholder="Search business categories..."
-                    placeholderTextColor={theme.colors.textSecondary}
-                    value={businessModalSearchQuery}
-                    onChangeText={setBusinessModalSearchQuery}
-                    returnKeyType="search"
-                    blurOnSubmit={true}
-                    autoFocus={true}
-                    onFocus={() => {
-                      setIsBusinessModalSearchInputFocused(true);
-                    }}
-                    onBlur={() => {
-                      setTimeout(() => setIsBusinessModalSearchInputFocused(false), 200);
-                    }}
-                  />
+            <LinearGradient
+              colors={theme.colors.gradient}
+              style={styles.upcomingEventsModalGradient}
+            >
+              <View style={styles.upcomingEventsModalHeader}>
+                <View style={styles.upcomingEventsModalTitleContainer}>
+                  <Text style={[styles.upcomingEventsModalTitle, { color: theme.colors.text }]}>Business Categories</Text>
+                </View>
+                <View style={styles.upcomingEventsModalHeaderButtons}>
                   <TouchableOpacity
-                    onPress={() => {
-                      businessModalSearchInputRef.current?.blur();
-                      setIsBusinessModalSearchBarVisible(false);
-                      setBusinessModalSearchQuery('');
-                      setIsBusinessModalSearching(false);
-                      setBusinessModalSearchResults([]);
-                      setIsBusinessModalSearchInputFocused(false);
-                    }}
-                    style={styles.clearIcon}
+                    style={[styles.upcomingEventsHeaderActionButton, { backgroundColor: theme.colors.cardBackground }]}
+                    onPress={() => setIsBusinessModalSearchBarVisible(true)}
+                    activeOpacity={0.7}
                   >
-                    <Icon name="close" size={searchIconSize} color={theme.colors.textSecondary} />
+                    <Icon
+                      name="search"
+                      size={moderateScale(20)} // Increased from 18
+                      color={theme.colors.text}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.upcomingEventsCloseButton}
+                    onPress={handleBusinessCategoriesModalClose}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.upcomingEventsCloseButtonText, { color: theme.colors.text }]}>×</Text>
                   </TouchableOpacity>
                 </View>
               </View>
-              
-              {/* Floating Recent Searches Dropdown */}
-              {businessModalSearchQuery.trim() === '' && isBusinessModalSearchInputFocused && (
-                <View style={styles.dropdown}>
-                  <RecentSearchList
-                    recentSearches={businessModalRecentSearches}
-                    onSelectSearch={(search) => {
-                      setBusinessModalSearchQuery(search);
-                      setIsBusinessModalSearchInputFocused(false);
-                    }}
-                    onClearAll={() => {
-                      setBusinessModalRecentSearches([]);
-                      AsyncStorage.removeItem('BUSINESS_MODAL_RECENT_SEARCHES')
-                        .catch(error => console.warn('Failed to clear business modal recent searches:', error));
-                    }}
-                    onRemoveItem={(search) => {
-                      removeBusinessModalRecentSearch(search);
-                    }}
-                    theme={theme}
-                  />
-                </View>
-              )}
-            </View>
-          )}
-          
-          {!isBusinessCategoriesModalClosing && (
-            <View style={[styles.upcomingEventsModalBody, { backgroundColor: theme.colors.background }]}>
-              {!isBusinessModalSearchBarVisible || businessModalSearchQuery.trim() === '' ? (
-                // Show full business categories when not searching
-                <SectionList
-                  key={`business-categories-modal-${businessCategories.length}`}
-                  sections={groupedBusinessCategories}
-                  keyExtractor={(item, index) => `row-${index}-${item.map(c => c.id).join('-')}`}
-                  renderItem={renderBusinessCategoryModalItem}
-                  renderSectionHeader={renderBusinessCategorySectionHeader}
-                  contentContainerStyle={styles.upcomingEventsModalScroll}
-                  showsVerticalScrollIndicator={false}
-                  removeClippedSubviews={true}
-                  maxToRenderPerBatch={10}
-                  windowSize={5}
-                  initialNumToRender={10}
-                  updateCellsBatchingPeriod={50}
-                  stickySectionHeadersEnabled={false}
-                />
-              ) : (
-                // Show search results when searching
-                <View style={styles.upcomingEventsModalScroll}>
-                  {isBusinessModalSearching ? (
-                    <View style={{ padding: 20, alignItems: 'center' }}>
-                      <Text style={{ color: theme.colors.textSecondary, fontSize: 14 }}>
-                        Searching...
-                      </Text>
-                    </View>
-                  ) : businessModalSearchResults.length === 0 ? (
-                    <View style={{ padding: 20, alignItems: 'center' }}>
-                      <Text style={{ color: theme.colors.textSecondary, fontSize: 14 }}>
-                        No results found for "{businessModalSearchQuery}"
-                      </Text>
-                    </View>
-                  ) : (
-                    <SectionList
-                      key={`business-modal-search-${businessModalSearchResults.length}`}
-                      sections={groupedBusinessModalSearchResults}
-                      keyExtractor={(item, index) => `search-row-${index}-${item.map(c => c.id).join('-')}`}
-                      renderItem={renderBusinessCategoryModalItem}
-                      renderSectionHeader={renderBusinessCategorySectionHeader}
-                      contentContainerStyle={styles.upcomingEventsModalScroll}
-                      showsVerticalScrollIndicator={false}
-                      removeClippedSubviews={true}
-                      maxToRenderPerBatch={10}
-                      windowSize={5}
-                      initialNumToRender={10}
-                      updateCellsBatchingPeriod={50}
-                      stickySectionHeadersEnabled={false}
+            </LinearGradient>
+
+            {/* Business Category Modal Search Bar */}
+            {isBusinessModalSearchBarVisible && (
+              <View style={{ position: 'relative', zIndex: 1000, elevation: 10, backgroundColor: theme.colors.background }}>
+                <View style={styles.searchContainer}>
+                  <View style={[styles.searchBar, { backgroundColor: theme.colors.cardBackground }]}>
+                    <Icon name="search" size={searchIconSize} color={theme.colors.textSecondary} style={styles.searchIcon} />
+                    <TextInput
+                      ref={businessModalSearchInputRef}
+                      style={[styles.searchInput, { color: theme.colors.text }]}
+                      placeholder="Search business categories..."
+                      placeholderTextColor={theme.colors.textSecondary}
+                      value={businessModalSearchQuery}
+                      onChangeText={setBusinessModalSearchQuery}
+                      returnKeyType="search"
+                      blurOnSubmit={true}
+                      autoFocus={true}
+                      onFocus={() => {
+                        setIsBusinessModalSearchInputFocused(true);
+                      }}
+                      onBlur={() => {
+                        setTimeout(() => setIsBusinessModalSearchInputFocused(false), 200);
+                      }}
                     />
-                  )}
+                    <TouchableOpacity
+                      onPress={() => {
+                        businessModalSearchInputRef.current?.blur();
+                        setIsBusinessModalSearchBarVisible(false);
+                        setBusinessModalSearchQuery('');
+                        setIsBusinessModalSearching(false);
+                        setBusinessModalSearchResults([]);
+                        setIsBusinessModalSearchInputFocused(false);
+                      }}
+                      style={styles.clearIcon}
+                    >
+                      <Icon name="close" size={searchIconSize} color={theme.colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              )}
-            </View>
-          )}
+
+                {/* Floating Recent Searches Dropdown */}
+                {businessModalSearchQuery.trim() === '' && isBusinessModalSearchInputFocused && (
+                  <View style={styles.dropdown}>
+                    <RecentSearchList
+                      recentSearches={businessModalRecentSearches}
+                      onSelectSearch={(search) => {
+                        setBusinessModalSearchQuery(search);
+                        setIsBusinessModalSearchInputFocused(false);
+                      }}
+                      onClearAll={() => {
+                        setBusinessModalRecentSearches([]);
+                        AsyncStorage.removeItem('BUSINESS_MODAL_RECENT_SEARCHES')
+                          .catch(error => console.warn('Failed to clear business modal recent searches:', error));
+                      }}
+                      onRemoveItem={(search) => {
+                        removeBusinessModalRecentSearch(search);
+                      }}
+                      theme={theme}
+                    />
+                  </View>
+                )}
+              </View>
+            )}
+
+            {!isBusinessCategoriesModalClosing && (
+              <View style={[styles.upcomingEventsModalBody, { backgroundColor: theme.colors.background }]}>
+                {!isBusinessModalSearchBarVisible || businessModalSearchQuery.trim() === '' ? (
+                  // Show full business categories when not searching
+                  <SectionList
+                    key={`business-categories-modal-${businessCategories.length}`}
+                    sections={groupedBusinessCategories}
+                    keyExtractor={(item, index) => `row-${index}-${item.map(c => c.id).join('-')}`}
+                    renderItem={renderBusinessCategoryModalItem}
+                    renderSectionHeader={renderBusinessCategorySectionHeader}
+                    contentContainerStyle={styles.upcomingEventsModalScroll}
+                    showsVerticalScrollIndicator={false}
+                    removeClippedSubviews={true}
+                    maxToRenderPerBatch={10}
+                    windowSize={5}
+                    initialNumToRender={10}
+                    updateCellsBatchingPeriod={50}
+                    stickySectionHeadersEnabled={false}
+                  />
+                ) : (
+                  // Show search results when searching
+                  <View style={styles.upcomingEventsModalScroll}>
+                    {isBusinessModalSearching ? (
+                      <View style={{ padding: 20, alignItems: 'center' }}>
+                        <Text style={{ color: theme.colors.textSecondary, fontSize: 14 }}>
+                          Searching...
+                        </Text>
+                      </View>
+                    ) : businessModalSearchResults.length === 0 ? (
+                      <View style={{ padding: 20, alignItems: 'center' }}>
+                        <Text style={{ color: theme.colors.textSecondary, fontSize: 14 }}>
+                          No results found for "{businessModalSearchQuery}"
+                        </Text>
+                      </View>
+                    ) : (
+                      <SectionList
+                        key={`business-modal-search-${businessModalSearchResults.length}`}
+                        sections={groupedBusinessModalSearchResults}
+                        keyExtractor={(item, index) => `search-row-${index}-${item.map(c => c.id).join('-')}`}
+                        renderItem={renderBusinessCategoryModalItem}
+                        renderSectionHeader={renderBusinessCategorySectionHeader}
+                        contentContainerStyle={styles.upcomingEventsModalScroll}
+                        showsVerticalScrollIndicator={false}
+                        removeClippedSubviews={true}
+                        maxToRenderPerBatch={10}
+                        windowSize={5}
+                        initialNumToRender={10}
+                        updateCellsBatchingPeriod={50}
+                        stickySectionHeadersEnabled={false}
+                      />
+                    )}
+                  </View>
+                )}
+              </View>
+            )}
           </SafeAreaView>
         </TouchableWithoutFeedback>
       </Modal>
@@ -7546,188 +7592,188 @@ const HomeScreen: React.FC = React.memo(() => {
             styles.fullScreenGreetingModalContent,
             { backgroundColor: theme.colors.surface }
           ]}>
-          <LinearGradient
-            colors={theme.colors.gradient}
-            style={styles.upcomingEventsModalGradient}
-          >
-            <View style={styles.upcomingEventsModalHeader}>
-              <View style={styles.upcomingEventsModalTitleContainer}>
-                <Text style={[styles.upcomingEventsModalTitle, { color: theme.colors.text }]}>General Categories</Text>
-              </View>
-              <View style={styles.upcomingEventsModalHeaderButtons}>
-                <TouchableOpacity
-                  style={[styles.upcomingEventsHeaderActionButton, { backgroundColor: theme.colors.cardBackground }]}
-                  onPress={() => setIsGeneralModalSearchBarVisible(true)}
-                  activeOpacity={0.7}
-                >
-                  <Icon
-                    name="search"
-                    size={moderateScale(20)} // Increased from 18
-                    color={theme.colors.text}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.upcomingEventsCloseButton}
-                  onPress={handleGeneralCategoriesModalClose}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.upcomingEventsCloseButtonText, { color: theme.colors.text }]}>×</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </LinearGradient>
-          
-          {/* General Category Modal Search Bar */}
-          {isGeneralModalSearchBarVisible && (
-            <View style={{ position: 'relative', zIndex: 1000, elevation: 10, backgroundColor: theme.colors.background }}>
-              <View style={styles.searchContainer}>
-                <View style={[styles.searchBar, { backgroundColor: theme.colors.cardBackground }]}>
-                  <Icon name="search" size={searchIconSize} color={theme.colors.textSecondary} style={styles.searchIcon} />
-                  <TextInput
-                    ref={generalModalSearchInputRef}
-                    style={[styles.searchInput, { color: theme.colors.text }]}
-                    placeholder="Search general categories..."
-                    placeholderTextColor={theme.colors.textSecondary}
-                    value={generalModalSearchQuery}
-                    onChangeText={setGeneralModalSearchQuery}
-                    returnKeyType="search"
-                    blurOnSubmit={true}
-                    autoFocus={true}
-                    onFocus={() => {
-                      setIsGeneralModalSearchInputFocused(true);
-                    }}
-                    onBlur={() => {
-                      setTimeout(() => setIsGeneralModalSearchInputFocused(false), 200);
-                    }}
-                  />
+            <LinearGradient
+              colors={theme.colors.gradient}
+              style={styles.upcomingEventsModalGradient}
+            >
+              <View style={styles.upcomingEventsModalHeader}>
+                <View style={styles.upcomingEventsModalTitleContainer}>
+                  <Text style={[styles.upcomingEventsModalTitle, { color: theme.colors.text }]}>General Categories</Text>
+                </View>
+                <View style={styles.upcomingEventsModalHeaderButtons}>
                   <TouchableOpacity
-                    onPress={() => {
-                      generalModalSearchInputRef.current?.blur();
-                      setIsGeneralModalSearchBarVisible(false);
-                      setGeneralModalSearchQuery('');
-                      setIsGeneralModalSearching(false);
-                      setGeneralModalSearchResults([]);
-                      setIsGeneralModalSearchInputFocused(false);
-                    }}
-                    style={styles.clearIcon}
+                    style={[styles.upcomingEventsHeaderActionButton, { backgroundColor: theme.colors.cardBackground }]}
+                    onPress={() => setIsGeneralModalSearchBarVisible(true)}
+                    activeOpacity={0.7}
                   >
-                    <Icon name="close" size={searchIconSize} color={theme.colors.textSecondary} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-              
-              {/* Floating Recent Searches Dropdown */}
-              {generalModalSearchQuery.trim() === '' && isGeneralModalSearchInputFocused && (
-                <View style={styles.dropdown}>
-                  <RecentSearchList
-                    recentSearches={generalModalRecentSearches}
-                    onSelectSearch={(search) => {
-                      setGeneralModalSearchQuery(search);
-                      setIsGeneralModalSearchInputFocused(false);
-                    }}
-                    onClearAll={() => {
-                      setGeneralModalRecentSearches([]);
-                      AsyncStorage.removeItem('GENERAL_MODAL_RECENT_SEARCHES')
-                        .catch(error => console.warn('Failed to clear general modal recent searches:', error));
-                    }}
-                    onRemoveItem={(search) => {
-                      removeGeneralModalRecentSearch(search);
-                    }}
-                    theme={theme}
-                  />
-                </View>
-              )}
-            </View>
-          )}
-          
-          {!isGeneralCategoriesModalClosing && (
-            <View style={[styles.upcomingEventsModalBody, { backgroundColor: theme.colors.background }]}>
-              {isModalCategoriesLoading ? (
-                // Show loading state while fetching categories
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-                  <ActivityIndicator size="large" color={theme.colors.primary} />
-                  <Text style={{ color: theme.colors.textSecondary, fontSize: 16, marginTop: 16 }}>
-                    Loading categories...
-                  </Text>
-                </View>
-              ) : modalCategoriesError ? (
-                // Show error state with retry option
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-                  <Text style={{ color: theme.colors.text, fontSize: 16, textAlign: 'center', marginBottom: 16 }}>
-                    {modalCategoriesError}
-                  </Text>
-                  <TouchableOpacity
-                    style={[styles.upcomingEventsHeaderActionButton, { 
-                      backgroundColor: theme.colors.primary, 
-                      paddingHorizontal: 20, 
-                      paddingVertical: 10, 
-                      borderRadius: 8 
-                    }]}
-                    onPress={fetchAllGeneralCategoriesForModal}
-                  >
-                    <Text style={{ color: '#ffffff', fontSize: 14, fontWeight: '600' }}>
-                      Retry
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <>
-                  {!isGeneralModalSearchBarVisible || generalModalSearchQuery.trim() === '' ? (
-                    // Show full general categories when not searching
-                    <SectionList
-                      key={`general-categories-modal-${modalGeneralCategories.length}`}
-                      sections={groupedGeneralCategories}
-                      keyExtractor={(item, index) => `row-${index}-${item.map(c => c.id).join('-')}`}
-                      renderItem={renderGeneralCategoryModalItem}
-                      renderSectionHeader={renderGeneralCategorySectionHeader}
-                      contentContainerStyle={styles.upcomingEventsModalScroll}
-                      showsVerticalScrollIndicator={false}
-                      removeClippedSubviews={true}
-                      maxToRenderPerBatch={10}
-                      windowSize={5}
-                      initialNumToRender={10}
-                      updateCellsBatchingPeriod={50}
-                      stickySectionHeadersEnabled={false}
+                    <Icon
+                      name="search"
+                      size={moderateScale(20)} // Increased from 18
+                      color={theme.colors.text}
                     />
-                  ) : (
-                    // Show search results when searching
-                    <View style={styles.upcomingEventsModalScroll}>
-                      {isGeneralModalSearching ? (
-                        <View style={{ padding: 20, alignItems: 'center' }}>
-                          <Text style={{ color: theme.colors.textSecondary, fontSize: 14 }}>
-                            Searching...
-                          </Text>
-                        </View>
-                      ) : generalModalSearchResults.length === 0 ? (
-                        <View style={{ padding: 20, alignItems: 'center' }}>
-                          <Text style={{ color: theme.colors.textSecondary, fontSize: 14 }}>
-                            No results found for "{generalModalSearchQuery}"
-                          </Text>
-                        </View>
-                      ) : (
-                        <SectionList
-                          key={`general-modal-search-${generalModalSearchResults.length}`}
-                          sections={groupedGeneralModalSearchResults}
-                          keyExtractor={(item, index) => `search-row-${index}-${item.map(c => c.id).join('-')}`}
-                          renderItem={renderGeneralCategoryModalItem}
-                          renderSectionHeader={renderGeneralCategorySectionHeader}
-                          contentContainerStyle={styles.upcomingEventsModalScroll}
-                          showsVerticalScrollIndicator={false}
-                          removeClippedSubviews={true}
-                          maxToRenderPerBatch={10}
-                          windowSize={5}
-                          initialNumToRender={10}
-                          updateCellsBatchingPeriod={50}
-                          stickySectionHeadersEnabled={false}
-                        />
-                      )}
-                    </View>
-                  )}
-                </>
-              )}
-            </View>
-          )}
-        </SafeAreaView>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.upcomingEventsCloseButton}
+                    onPress={handleGeneralCategoriesModalClose}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.upcomingEventsCloseButtonText, { color: theme.colors.text }]}>×</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </LinearGradient>
+
+            {/* General Category Modal Search Bar */}
+            {isGeneralModalSearchBarVisible && (
+              <View style={{ position: 'relative', zIndex: 1000, elevation: 10, backgroundColor: theme.colors.background }}>
+                <View style={styles.searchContainer}>
+                  <View style={[styles.searchBar, { backgroundColor: theme.colors.cardBackground }]}>
+                    <Icon name="search" size={searchIconSize} color={theme.colors.textSecondary} style={styles.searchIcon} />
+                    <TextInput
+                      ref={generalModalSearchInputRef}
+                      style={[styles.searchInput, { color: theme.colors.text }]}
+                      placeholder="Search general categories..."
+                      placeholderTextColor={theme.colors.textSecondary}
+                      value={generalModalSearchQuery}
+                      onChangeText={setGeneralModalSearchQuery}
+                      returnKeyType="search"
+                      blurOnSubmit={true}
+                      autoFocus={true}
+                      onFocus={() => {
+                        setIsGeneralModalSearchInputFocused(true);
+                      }}
+                      onBlur={() => {
+                        setTimeout(() => setIsGeneralModalSearchInputFocused(false), 200);
+                      }}
+                    />
+                    <TouchableOpacity
+                      onPress={() => {
+                        generalModalSearchInputRef.current?.blur();
+                        setIsGeneralModalSearchBarVisible(false);
+                        setGeneralModalSearchQuery('');
+                        setIsGeneralModalSearching(false);
+                        setGeneralModalSearchResults([]);
+                        setIsGeneralModalSearchInputFocused(false);
+                      }}
+                      style={styles.clearIcon}
+                    >
+                      <Icon name="close" size={searchIconSize} color={theme.colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Floating Recent Searches Dropdown */}
+                {generalModalSearchQuery.trim() === '' && isGeneralModalSearchInputFocused && (
+                  <View style={styles.dropdown}>
+                    <RecentSearchList
+                      recentSearches={generalModalRecentSearches}
+                      onSelectSearch={(search) => {
+                        setGeneralModalSearchQuery(search);
+                        setIsGeneralModalSearchInputFocused(false);
+                      }}
+                      onClearAll={() => {
+                        setGeneralModalRecentSearches([]);
+                        AsyncStorage.removeItem('GENERAL_MODAL_RECENT_SEARCHES')
+                          .catch(error => console.warn('Failed to clear general modal recent searches:', error));
+                      }}
+                      onRemoveItem={(search) => {
+                        removeGeneralModalRecentSearch(search);
+                      }}
+                      theme={theme}
+                    />
+                  </View>
+                )}
+              </View>
+            )}
+
+            {!isGeneralCategoriesModalClosing && (
+              <View style={[styles.upcomingEventsModalBody, { backgroundColor: theme.colors.background }]}>
+                {isModalCategoriesLoading ? (
+                  // Show loading state while fetching categories
+                  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+                    <ActivityIndicator size="large" color={theme.colors.primary} />
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 16, marginTop: 16 }}>
+                      Loading categories...
+                    </Text>
+                  </View>
+                ) : modalCategoriesError ? (
+                  // Show error state with retry option
+                  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+                    <Text style={{ color: theme.colors.text, fontSize: 16, textAlign: 'center', marginBottom: 16 }}>
+                      {modalCategoriesError}
+                    </Text>
+                    <TouchableOpacity
+                      style={[styles.upcomingEventsHeaderActionButton, {
+                        backgroundColor: theme.colors.primary,
+                        paddingHorizontal: 20,
+                        paddingVertical: 10,
+                        borderRadius: 8
+                      }]}
+                      onPress={fetchAllGeneralCategoriesForModal}
+                    >
+                      <Text style={{ color: '#ffffff', fontSize: 14, fontWeight: '600' }}>
+                        Retry
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <>
+                    {!isGeneralModalSearchBarVisible || generalModalSearchQuery.trim() === '' ? (
+                      // Show full general categories when not searching
+                      <SectionList
+                        key={`general-categories-modal-${modalGeneralCategories.length}`}
+                        sections={groupedGeneralCategories}
+                        keyExtractor={(item, index) => `row-${index}-${item.map(c => c.id).join('-')}`}
+                        renderItem={renderGeneralCategoryModalItem}
+                        renderSectionHeader={renderGeneralCategorySectionHeader}
+                        contentContainerStyle={styles.upcomingEventsModalScroll}
+                        showsVerticalScrollIndicator={false}
+                        removeClippedSubviews={true}
+                        maxToRenderPerBatch={10}
+                        windowSize={5}
+                        initialNumToRender={10}
+                        updateCellsBatchingPeriod={50}
+                        stickySectionHeadersEnabled={false}
+                      />
+                    ) : (
+                      // Show search results when searching
+                      <View style={styles.upcomingEventsModalScroll}>
+                        {isGeneralModalSearching ? (
+                          <View style={{ padding: 20, alignItems: 'center' }}>
+                            <Text style={{ color: theme.colors.textSecondary, fontSize: 14 }}>
+                              Searching...
+                            </Text>
+                          </View>
+                        ) : generalModalSearchResults.length === 0 ? (
+                          <View style={{ padding: 20, alignItems: 'center' }}>
+                            <Text style={{ color: theme.colors.textSecondary, fontSize: 14 }}>
+                              No results found for "{generalModalSearchQuery}"
+                            </Text>
+                          </View>
+                        ) : (
+                          <SectionList
+                            key={`general-modal-search-${generalModalSearchResults.length}`}
+                            sections={groupedGeneralModalSearchResults}
+                            keyExtractor={(item, index) => `search-row-${index}-${item.map(c => c.id).join('-')}`}
+                            renderItem={renderGeneralCategoryModalItem}
+                            renderSectionHeader={renderGeneralCategorySectionHeader}
+                            contentContainerStyle={styles.upcomingEventsModalScroll}
+                            showsVerticalScrollIndicator={false}
+                            removeClippedSubviews={true}
+                            maxToRenderPerBatch={10}
+                            windowSize={5}
+                            initialNumToRender={10}
+                            updateCellsBatchingPeriod={50}
+                            stickySectionHeadersEnabled={false}
+                          />
+                        )}
+                      </View>
+                    )}
+                  </>
+                )}
+              </View>
+            )}
+          </SafeAreaView>
         </TouchableWithoutFeedback>
       </Modal>
 
@@ -8314,7 +8360,7 @@ const HomeScreen: React.FC = React.memo(() => {
         isVisible={isUpdateModalVisible}
         onUpdate={handleUpdateApp}
         onLater={() => setIsUpdateModalVisible(false)}
-        forceUpdate={false} // Set to true if you want to force update
+        forceUpdate={isForceUpdate}
       />
 
     </SafeAreaView>
