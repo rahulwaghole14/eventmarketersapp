@@ -26,79 +26,79 @@ const CACHE_CONFIG: Array<{
   ttl: number;
   enabled: boolean;
 }> = [
-  // Business Categories - rarely change, cache longer
-  {
-    pattern: '/api/mobile/business-categories/business',
-    key: 'business_categories',
-    ttl: 10 * 60 * 1000, // 10 minutes
-    enabled: true,
-  },
-  {
-    pattern: '/api/v1/categories',
-    key: 'business_categories_v1',
-    ttl: 10 * 60 * 1000, // 10 minutes
-    enabled: true,
-  },
-  // Greeting Categories
-  {
-    pattern: '/api/mobile/greetings/categories',
-    key: 'greeting_categories',
-    ttl: 5 * 60 * 1000, // 5 minutes
-    enabled: true,
-  },
-  // Home Screen Content
-  {
-    pattern: '/api/mobile/home/featured',
-    key: 'home_featured',
-    ttl: 5 * 60 * 1000, // 5 minutes
-    enabled: true,
-  },
-  {
-    pattern: '/api/mobile/home/events',
-    key: 'home_events',
-    ttl: 2 * 60 * 1000, // 2 minutes (time-sensitive)
-    enabled: true,
-  },
-  {
-    pattern: '/api/mobile/home/templates',
-    key: 'home_templates',
-    ttl: 5 * 60 * 1000, // 5 minutes
-    enabled: true,
-  },
-  {
-    pattern: '/api/mobile/home/videos',
-    key: 'home_videos',
-    ttl: 5 * 60 * 1000, // 5 minutes
-    enabled: true,
-  },
-  // Subscription Plans - change infrequently
-  {
-    pattern: '/api/mobile/subscription/plans',
-    key: 'subscription_plans',
-    ttl: 15 * 60 * 1000, // 15 minutes
-    enabled: true,
-  },
-  // Calendar Posters
-  {
-    pattern: '/api/mobile/calendar/posters',
-    key: 'calendar_posters',
-    ttl: 5 * 60 * 1000, // 5 minutes
-    enabled: true,
-  },
-  // Templates
-  {
-    pattern: '/api/mobile/templates',
-    key: 'templates',
-    ttl: 5 * 60 * 1000, // 5 minutes
-    enabled: true,
-  },
-  {
-    pattern: '/api/mobile/greetings/templates',
-    key: 'greeting_templates',
-    ttl: 5 * 60 * 1000, // 5 minutes
-    enabled: true,
-  },
-];
+    // Business Categories - rarely change, cache longer
+    {
+      pattern: '/api/mobile/business-categories/business',
+      key: 'business_categories',
+      ttl: 10 * 60 * 1000, // 10 minutes
+      enabled: true,
+    },
+    {
+      pattern: '/api/v1/categories',
+      key: 'business_categories_v1',
+      ttl: 10 * 60 * 1000, // 10 minutes
+      enabled: true,
+    },
+    // Greeting Categories
+    {
+      pattern: '/api/mobile/greetings/categories',
+      key: 'greeting_categories',
+      ttl: 5 * 60 * 1000, // 5 minutes
+      enabled: true,
+    },
+    // Home Screen Content
+    {
+      pattern: '/api/mobile/home/featured',
+      key: 'home_featured',
+      ttl: 5 * 60 * 1000, // 5 minutes
+      enabled: true,
+    },
+    {
+      pattern: '/api/mobile/home/events',
+      key: 'home_events',
+      ttl: 2 * 60 * 1000, // 2 minutes (time-sensitive)
+      enabled: true,
+    },
+    {
+      pattern: '/api/mobile/home/templates',
+      key: 'home_templates',
+      ttl: 5 * 60 * 1000, // 5 minutes
+      enabled: true,
+    },
+    {
+      pattern: '/api/mobile/home/videos',
+      key: 'home_videos',
+      ttl: 5 * 60 * 1000, // 5 minutes
+      enabled: true,
+    },
+    // Subscription Plans - change infrequently
+    {
+      pattern: '/api/mobile/subscription/plans',
+      key: 'subscription_plans',
+      ttl: 15 * 60 * 1000, // 15 minutes
+      enabled: true,
+    },
+    // Calendar Posters
+    {
+      pattern: '/api/mobile/calendar/posters',
+      key: 'calendar_posters',
+      ttl: 5 * 60 * 1000, // 5 minutes
+      enabled: true,
+    },
+    // Templates
+    {
+      pattern: '/api/mobile/templates',
+      key: 'templates',
+      ttl: 5 * 60 * 1000, // 5 minutes
+      enabled: true,
+    },
+    {
+      pattern: '/api/mobile/greetings/templates',
+      key: 'greeting_templates',
+      ttl: 5 * 60 * 1000, // 5 minutes
+      enabled: true,
+    },
+  ];
 
 /**
  * Get cache configuration for a given URL
@@ -113,7 +113,7 @@ function getCacheConfig(url: string | undefined): { key: string; ttl: number } |
       const queryIndex = url.indexOf('?');
       const queryString = queryIndex !== -1 ? url.substring(queryIndex) : '';
       const cacheKey = queryString ? `${config.key}_${queryString}` : config.key;
-      
+
       return {
         key: cacheKey,
         ttl: config.ttl,
@@ -170,7 +170,7 @@ api.interceptors.response.use(
       console.log('Response Data:', JSON.stringify(response.data, null, 2));
       console.log('==================================================');
     }
-    
+
     // Cache successful GET responses
     if (response.config.method?.toLowerCase() === 'get' && response.status === 200) {
       const cacheConfig = getCacheConfig(response.config.url);
@@ -181,9 +181,9 @@ api.interceptors.response.use(
         });
       }
     }
-    
+
     // Category-related endpoints logging removed for cleaner console
-    
+
     return response;
   },
   async (error) => {
@@ -195,24 +195,24 @@ api.interceptors.response.use(
     console.log('🔍 Error code:', error.code);
     console.log('🔍 Error message:', error.message);
     console.log('🔍 Error name:', error.name);
-    
+
     // Handle timeout errors first
     if (error.code === 'ECONNABORTED' || error.message?.includes('timeout') || error.message?.includes('TIMEOUT')) {
       console.log('⏱️ API request timed out');
       return Promise.reject(new Error('TIMEOUT'));
     }
-    
+
     // Handle authentication errors (token expired or invalid)
     if (error.response?.status === 401) {
       // Check if this is a login/register endpoint (don't show modal for login failures)
-      const isLoginEndpoint = error.config?.url?.includes('/auth/login') || 
-                             error.config?.url?.includes('/auth/register') ||
-                             error.config?.url?.includes('/auth/google');
-      
+      const isLoginEndpoint = error.config?.url?.includes('/auth/login') ||
+        error.config?.url?.includes('/auth/register') ||
+        error.config?.url?.includes('/auth/google');
+
       // Only show token expiration modal if NOT a login endpoint and user was authenticated
       if (!isLoginEndpoint) {
         const hasToken = await AsyncStorage.getItem('authToken');
-        
+
         // Only emit once to prevent multiple modals, and only if user had a token
         // IMPORTANT: Do NOT clear auth data here - let user stay logged in until they explicitly sign out
         // The TokenExpirationHandler will handle logout only when user confirms
@@ -220,7 +220,7 @@ api.interceptors.response.use(
           hasEmittedTokenExpiration = true;
           console.log('🔴 Token expired or invalid - showing modal but keeping user logged in');
           console.log('ℹ️ User will remain logged in until they explicitly sign out');
-          
+
           // Emit token expiration event using React Native's DeviceEventEmitter
           // This will show a modal, but won't automatically log the user out
           DeviceEventEmitter.emit(TOKEN_EXPIRED_EVENT);
@@ -246,7 +246,7 @@ api.interceptors.response.use(
         });
         return Promise.reject(error);
       }
-      
+
       console.log('⚠️ Client error (4xx):', error.response?.status, error.response?.data);
       return Promise.reject(error);
     }
@@ -255,9 +255,9 @@ api.interceptors.response.use(
     if (!error.response) {
       const errorCode = error.code || '';
       const errorMessage = (error.message || '').toLowerCase();
-      
+
       // Check for actual network connectivity issues
-      const isNetworkError = 
+      const isNetworkError =
         errorCode === 'NETWORK_ERROR' ||
         errorCode === 'ERR_NETWORK' ||
         errorCode === 'ERR_INTERNET_DISCONNECTED' ||
@@ -272,9 +272,9 @@ api.interceptors.response.use(
         errorMessage.includes('dns') ||
         errorMessage.includes('econnrefused') ||
         errorMessage.includes('enotfound');
-      
+
       // Check for SSL/certificate issues
-      const isSSLError = 
+      const isSSLError =
         errorCode === 'CERT_HAS_EXPIRED' ||
         errorCode === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE' ||
         errorCode === 'SELF_SIGNED_CERT_IN_CHAIN' ||
@@ -282,17 +282,17 @@ api.interceptors.response.use(
         errorMessage.includes('certificate') ||
         errorMessage.includes('ssl') ||
         errorMessage.includes('tls');
-      
+
       if (isSSLError) {
         console.error('🔒 SSL/Certificate error:', error.message || error.code);
         return Promise.reject(new Error('SSL_ERROR'));
       }
-      
+
       if (isNetworkError) {
         console.error('🌐 Network connectivity error:', error.message || error.code);
         return Promise.reject(new Error('NETWORK_ERROR'));
       }
-      
+
       // For other errors without response, log more details and return original error
       // This could be server down, DNS issues, or other configuration problems
       console.error('⚠️ Request failed without response:', {
@@ -301,12 +301,12 @@ api.interceptors.response.use(
         name: error.name,
         url: error.config?.baseURL + error.config?.url,
       });
-      
+
       // Return original error instead of generic NETWORK_ERROR
       // This allows callers to handle it appropriately
       return Promise.reject(error);
     }
-    
+
     // For any other errors with response, return as-is
     return Promise.reject(error);
   }

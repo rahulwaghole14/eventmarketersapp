@@ -85,10 +85,10 @@ class SubscriptionApiService {
   async getPlans(): Promise<PlansResponse> {
     try {
       const response = await api.get('/api/mobile/subscription/plans');
-      
+
       // Check if response has the expected structure
       const plans = response.data?.data?.plans || response.data?.plans || [];
-      
+
       if (!Array.isArray(plans)) {
         console.warn('Plans data is not an array, returning empty array');
         return {
@@ -97,9 +97,9 @@ class SubscriptionApiService {
           message: 'No plans available'
         };
       }
-      
+
       console.log("Subscription plans API response:", response.data);
-      
+
       // Transform the response to match expected format
       const transformedData = plans.map((plan: any) => {
         // Safe parsing of features to handle array, string, or null/undefined
@@ -108,7 +108,7 @@ class SubscriptionApiService {
           : typeof plan.features === "string"
             ? plan.features.split(',').map((f: string) => f.trim()).filter((f: string) => f)
             : [];
-        
+
         return {
           id: plan.id || '',
           name: plan.name || '',
@@ -120,7 +120,7 @@ class SubscriptionApiService {
           isPopular: plan.originalPrice && plan.originalPrice > plan.price // Popular if has discount
         };
       });
-      
+
       console.log("Parsed subscription plans:", transformedData);
 
       return {
@@ -238,13 +238,13 @@ class SubscriptionApiService {
     try {
       const currentUser = authService.getCurrentUser();
       const userId = currentUser?.id;
-      
+
       if (!userId) {
         throw new Error('User not authenticated');
       }
 
       console.log('Creating subscription for user:', userId, 'Plan:', data.planId);
-      
+
       // Try to call the backend API first
       try {
         const response = await api.post('/api/mobile/subscription/subscribe', {
@@ -252,7 +252,7 @@ class SubscriptionApiService {
           paymentMethod: data.paymentMethod,
           autoRenew: data.autoRenew,
         });
-        
+
         if (response.data.success) {
           console.log('✅ Subscription created via backend API:', response.data);
           // Clear cache after subscription
@@ -261,14 +261,14 @@ class SubscriptionApiService {
         }
       } catch (backendError: any) {
         console.log('⚠️ Backend subscription API not available, using local activation');
-        
+
         // If backend is not available, we'll still activate the subscription locally
         // This ensures the user gets immediate access to pro features
         if (backendError.response?.status !== 404) {
           console.error('Backend subscription error:', backendError);
         }
       }
-      
+
       // Backend is not available - throw error instead of storing locally
       console.error('❌ Backend subscription API is required but not available');
       throw new Error('Subscription service is unavailable. Please ensure the backend is running.');
@@ -283,7 +283,7 @@ class SubscriptionApiService {
     try {
       const currentUser = authService.getCurrentUser();
       const userId = currentUser?.id;
-      
+
       if (!userId) {
         console.log('⚠️ No user ID available, cannot check subscription status');
         return {
@@ -307,15 +307,15 @@ class SubscriptionApiService {
         cacheKey,
         async () => {
           console.log('🔍 Fetching subscription status for user:', userId);
-          
+
           // Try to get status from backend first
           try {
             const response = await api.get('/api/mobile/subscription/status');
-            
+
             console.log('📊 Subscription API response:', response.data);
             console.log('SUBSCRIPTION_RAW_API_RESPONSE', response.data);
             console.log('🔍 Raw subscription data:', JSON.stringify(response.data, null, 2));
-            
+
             // Check if response has the expected structure
             if (response.data.success) {
               // FIXED: Prioritize response.data.data where backend now returns subscription data
@@ -326,18 +326,18 @@ class SubscriptionApiService {
                 'final_subscriptionData': subscriptionData
               });
               console.log("SUBSCRIPTION_PARSED_DATA", subscriptionData);
-              
+
               if (!subscriptionData) {
                 console.warn("SUBSCRIPTION_STATUS_EMPTY_RESPONSE");
               }
-              
+
               console.log("SUBSCRIPTION_FIELDS", {
                 planId: subscriptionData?.planId,
                 planName: subscriptionData?.planName,
                 expiryDate: subscriptionData?.expiryDate,
                 isActive: subscriptionData?.isActive
               });
-              
+
               console.log("Parsed subscription:", subscriptionData);
               console.log("Subscription fields check:", {
                 hasIsActive: !!subscriptionData?.isActive,
@@ -355,7 +355,7 @@ class SubscriptionApiService {
                 hasPlanId: !!subscriptionData?.planId,
                 planId: subscriptionData?.planId
               });
-              
+
               // Return default if subscription data is null/undefined
               if (!subscriptionData) {
                 return {
@@ -370,13 +370,13 @@ class SubscriptionApiService {
                   message: 'No subscription data found'
                 };
               }
-              
+
               // FIXED: Prioritize backend subscriptionStatus field while maintaining compatibility
-              const correctedStatus = 
+              const correctedStatus =
                 subscriptionData?.subscriptionStatus?.toLowerCase() ||
                 subscriptionData?.status?.toLowerCase() ||
                 (subscriptionData?.isActive ? "active" : "inactive");
-              
+
               // ADDED: Debug logging to verify backend response mapping
               console.log("SUBSCRIPTION_STATUS_MAPPING", {
                 backendSubscriptionStatus: subscriptionData?.subscriptionStatus,
@@ -385,7 +385,7 @@ class SubscriptionApiService {
                 finalStatus: correctedStatus,
                 context: 'user_subscription'
               });
-              
+
               return {
                 success: true,
                 data: {
@@ -401,12 +401,12 @@ class SubscriptionApiService {
             }
           } catch (backendError: any) {
             console.log('⚠️ Backend subscription status API error:', backendError.message);
-            
+
             if (backendError.response?.status !== 404) {
               console.error('Backend subscription status error:', backendError);
             }
           }
-          
+
           return {
             success: true,
             data: {
@@ -424,7 +424,7 @@ class SubscriptionApiService {
       );
     } catch (error: any) {
       console.error('Get subscription status error:', error);
-      
+
       // Return default status instead of throwing
       return {
         success: true,
@@ -445,7 +445,7 @@ class SubscriptionApiService {
     try {
       const currentUser = authService.getCurrentUser();
       const userId = currentUser?.id;
-      
+
       if (!userId) {
         throw new Error('User not authenticated');
       }
@@ -457,16 +457,16 @@ class SubscriptionApiService {
         cacheKey,
         async () => {
           console.log('🔍 Fetching subscription status for business profile:', businessProfileId);
-          
+
           try {
             const response = await api.get(`/api/mobile/subscription/status`, {
               params: { businessProfileId }
             });
-            
+
             if (response.data.success) {
               // FIXED: Prioritize response.data.data where backend now returns subscription data
               const subscriptionData = response.data?.data ?? response.data?.subscription ?? null;
-              
+
               if (!subscriptionData) {
                 return {
                   success: true,
@@ -480,13 +480,13 @@ class SubscriptionApiService {
                   message: 'No subscription data found'
                 };
               }
-              
+
               // FIXED: Prioritize backend subscriptionStatus field while maintaining compatibility
-              const correctedStatus = 
+              const correctedStatus =
                 subscriptionData?.subscriptionStatus?.toLowerCase() ||
                 subscriptionData?.status?.toLowerCase() ||
                 (subscriptionData?.isActive ? "active" : "inactive");
-              
+
               // ADDED: Debug logging to verify backend response mapping
               console.log("SUBSCRIPTION_STATUS_MAPPING", {
                 backendSubscriptionStatus: subscriptionData?.subscriptionStatus,
@@ -495,7 +495,7 @@ class SubscriptionApiService {
                 finalStatus: correctedStatus,
                 businessProfileId: businessProfileId
               });
-              
+
               return {
                 success: true,
                 data: {
@@ -512,7 +512,7 @@ class SubscriptionApiService {
           } catch (backendError: any) {
             console.log('⚠️ Backend profile subscription status API error:', backendError.message);
           }
-          
+
           return {
             success: true,
             data: {
@@ -539,16 +539,16 @@ class SubscriptionApiService {
     try {
       const currentUser = authService.getCurrentUser();
       const userId = currentUser?.id;
-      
+
       if (!userId) {
         throw new Error('User not authenticated');
       }
 
       console.log('Renewing subscription for user:', userId);
-      
+
       // For now, simulate renewal
       console.log('Simulating subscription renewal');
-      
+
       const result: SubscriptionResponse = {
         success: true,
         data: {
@@ -562,10 +562,10 @@ class SubscriptionApiService {
         },
         message: 'Subscription renewed successfully'
       };
-      
+
       // Clear cache after renewal
       this.clearStatusCache(userId);
-      
+
       return result;
     } catch (error) {
       console.error('Renew subscription error:', error);
@@ -578,7 +578,7 @@ class SubscriptionApiService {
     try {
       const currentUser = authService.getCurrentUser();
       const userId = currentUser?.id;
-      
+
       if (!userId) {
         console.log('⚠️ No user ID available, returning empty history');
         return {
@@ -590,9 +590,9 @@ class SubscriptionApiService {
 
 
       const response = await api.get('/api/mobile/subscription/history');
-      
+
       console.log('📡 Subscription history API response:', JSON.stringify(response.data, null, 2));
-      
+
       // Handle different response structures
       let paymentsArray = [];
       if (response.data.data && Array.isArray(response.data.data)) {
@@ -607,7 +607,7 @@ class SubscriptionApiService {
         console.warn('⚠️ Unexpected response structure for subscription history');
         paymentsArray = [];
       }
-      
+
       // Transform the response to match expected format
       const transformedData = paymentsArray.map((payment: any) => ({
         id: payment.id,
@@ -627,7 +627,7 @@ class SubscriptionApiService {
       };
     } catch (error: any) {
       console.error('Get subscription history error:', error);
-      
+
       // If it's a 401 error, return empty history instead of throwing
       if (error.response?.status === 401) {
         console.log('⚠️ Subscription history requires authentication, returning empty history');
@@ -637,7 +637,7 @@ class SubscriptionApiService {
           message: 'No subscription history'
         };
       }
-      
+
       throw error;
     }
   }
@@ -647,18 +647,18 @@ class SubscriptionApiService {
     try {
       const currentUser = authService.getCurrentUser();
       const userId = currentUser?.id;
-      
+
       if (!userId) {
         throw new Error('User not authenticated');
       }
 
       console.log('Cancelling subscription for user:', userId);
-      
+
       const response = await api.post('/api/mobile/subscription/cancel');
-      
+
       // Clear cache after cancellation
       this.clearStatusCache(userId);
-      
+
       return response.data;
     } catch (error) {
       console.error('Cancel subscription error:', error);
@@ -683,7 +683,7 @@ class SubscriptionApiService {
     try {
       const currentUser = authService.getCurrentUser();
       const userId = currentUser?.id;
-      
+
       if (!userId) {
         throw new Error('User not authenticated');
       }
@@ -692,7 +692,7 @@ class SubscriptionApiService {
         orderId: paymentData.orderId,
         paymentId: paymentData.paymentId,
       });
-      
+
       const payload: Record<string, any> = {
         orderId: paymentData.orderId,
         paymentId: paymentData.paymentId,
@@ -734,16 +734,16 @@ class SubscriptionApiService {
       console.log('📨 Sending verify-payment payload:', payload);
 
       const response = await api.post('/api/mobile/subscription/verify-payment', payload);
-      
+
       console.log('✅ Payment verified successfully:', response.data);
-      
+
       // Clear subscription status cache after payment verification
       this.clearStatusCache(userId);
-      
+
       return response.data;
     } catch (error: any) {
       console.error('❌ Payment verification error:', error);
-      
+
       // Provide more detailed error message
       const errorMessage = error.response?.data?.message || error.message || 'Payment verification failed';
       throw new Error(errorMessage);
@@ -779,7 +779,7 @@ class SubscriptionApiService {
       );
 
       console.log('📡 Autopay API response:', response.data);
-      
+
       // Prioritize root-level fields from backend response
       const root = response.data || {};
       const nested = root.data || {};

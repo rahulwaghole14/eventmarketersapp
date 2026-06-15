@@ -73,37 +73,40 @@ const SubscriptionScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
-  
-  // DYNAMIC TITLE: Check if navigation is from business profile lock screen
+
   const source = (route.params as any)?.source;
-  const businessProfileId = (route.params as any)?.businessProfileId;
+  const routeBusinessProfileId = (route.params as any)?.businessProfileId;
   console.log('🔍 SUBSCRIPTION SCREEN - Route params:', route.params);
   console.log('🔍 SUBSCRIPTION SCREEN - Source:', source);
-  console.log('🔍 SUBSCRIPTION SCREEN - Business Profile ID:', businessProfileId);
+
+  const { isSubscribed, subscriptionStatus: contextSubscriptionStatus, plans: contextPlans, refreshSubscription, refreshPlans, addTransaction, setIsSubscribed, isLoading, autopayState, enableAutopay, disableAutopay, refreshAutopayStatus, setPaymentInProgress } = useSubscription();
+  const { selectedBusinessProfile, setActivationPending, clearActivationPending, isActivationPending: isProfileActivationPending, setSelectedBusinessProfile } = useBusinessProfile();
+
+  const businessProfileId = routeBusinessProfileId || selectedBusinessProfile?.id;
+  console.log('🔍 SUBSCRIPTION SCREEN - Selected Business Profile from Context:', selectedBusinessProfile?.name, 'ID:', selectedBusinessProfile?.id);
+  console.log('🔍 SUBSCRIPTION SCREEN - Final Business Profile ID to use:', businessProfileId);
+  
   const screenTitle = source === 'BUSINESS_PROFILE_REQUIRED' ? 'Activate Business Plan' : 'Upgrade to Pro';
   console.log('🔍 SUBSCRIPTION SCREEN - Screen title:', screenTitle);
-  
-  const { isSubscribed, subscriptionStatus: contextSubscriptionStatus, plans: contextPlans, refreshSubscription, refreshPlans, addTransaction, setIsSubscribed, isLoading, autopayState, enableAutopay, disableAutopay, refreshAutopayStatus, setPaymentInProgress } = useSubscription();
-  const { setActivationPending, clearActivationPending, isActivationPending: isProfileActivationPending, setSelectedBusinessProfile } = useBusinessProfile();
-  
+
   // Business profile subscription state
   const [businessSubscriptionStatus, setBusinessSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const [isBusinessSubscriptionLoading, setIsBusinessSubscriptionLoading] = useState(false);
-  
+
   // Performance optimization: Flag to control post-payment flow
   const [isReturningFromPayment, setIsReturningFromPayment] = useState(false);
-  
+
   // FRONTEND-ONLY: Remove local activation pending state - use only context
   // const [isActivationPending, setIsActivationPending] = useState(false); // REMOVED
-  
+
   // Determine if we're in business profile mode - OPTIMIZED (removed heavy logging)
   const isBusinessProfileMode = !!businessProfileId;
-  
+
   // Memoize business profile object to prevent re-renders
-  const effectiveBusinessProfile = useMemo(() => businessProfileId 
+  const effectiveBusinessProfile = useMemo(() => businessProfileId
     ? { id: businessProfileId, name: 'Business Profile', subscriptionStatus: businessSubscriptionStatus?.status || 'INACTIVE' }
     : null, [businessProfileId, businessSubscriptionStatus?.status]);
-  
+
   const { theme } = useTheme();
 
   // BUSINESS PROFILE SUBSCRIPTION LOGIC: Use unified access state - OPTIMIZED
@@ -123,7 +126,7 @@ const SubscriptionScreen: React.FC = () => {
   // Detect payment success from multiple sources
   const isPaymentSuccess = (route.params as any)?.paymentSuccess === true;
   const isActivationPendingState = isProfileActivationPending(businessProfileId);
-  
+
   // ULTIMATE TRIGGER: Also show if screen loads with PENDING status (strong payment indicator)
   const [hasLoadedWithPending, setHasLoadedWithPending] = useState(false);
 
@@ -146,7 +149,7 @@ const SubscriptionScreen: React.FC = () => {
   }, [status, isProcessingStatus]);
 
   // FAILSAFE: Force show for business profiles with PENDING status
-  const isBusinessProfileWithPending = useMemo(() => 
+  const isBusinessProfileWithPending = useMemo(() =>
     isBusinessProfileMode && effectiveSubscriptionStatus?.status?.toUpperCase() === "PENDING",
     [isBusinessProfileMode, effectiveSubscriptionStatus?.status]
   );
@@ -231,19 +234,19 @@ const SubscriptionScreen: React.FC = () => {
   });
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [paymentInProgress, setPaymentInProgressState] = useState(false);
-  
+
   // Enhanced payment states for better UX
   const [isAuthenticating, setIsAuthenticating] = useState(false); // During Razorpay checkout
   const [isTransactionPending, setIsTransactionPending] = useState(false); // Post-payment, pre-activation
   const [pollingAttempts, setPollingAttempts] = useState(0);
-  
+
   // TEMPORARY DEBUG: Force show message for testing
   const [debugForceShow, setDebugForceShow] = useState(false);
 
   // State for showing processing message after successful payment
   const [showProcessingMessage, setShowProcessingMessage] = useState(false);
   const [disableSubscribeButton, setDisableSubscribeButton] = useState(false);
-  
+
 
   // Cleanup polling and event listeners on unmount
   useEffect(() => {
@@ -253,7 +256,7 @@ const SubscriptionScreen: React.FC = () => {
         pollingCleanupRef.current();
         pollingCleanupRef.current = null;
       }
-      
+
       // Cleanup any pending timers
       if (dimensionsSubscriptionRef.current) {
         dimensionsSubscriptionRef.current.remove();
@@ -272,7 +275,7 @@ const SubscriptionScreen: React.FC = () => {
     setPaymentInProgressState(inProgress);
     setPaymentInProgress(inProgress);
     console.log(`🔒 PAYMENT LOCK: ${inProgress ? 'ENGAGED' : 'RELEASED'}`);
-    
+
     // Reset all enhanced states when payment is not in progress
     if (!inProgress) {
       setIsAuthenticating(false);
@@ -292,7 +295,7 @@ const SubscriptionScreen: React.FC = () => {
   };
 
   // Memoize purchasable plans to prevent recalculation, sorted by price ascending
-  const purchasablePlans = useMemo(() => 
+  const purchasablePlans = useMemo(() =>
     [...contextPlans]
       .filter(plan => plan.name !== "PROMO")
       .sort((a, b) => getPrice(a) - getPrice(b)),
@@ -306,13 +309,18 @@ const SubscriptionScreen: React.FC = () => {
   const planCount = purchasablePlans.length;
   const isSinglePlan = planCount === 1;
 
-  // Use API plan data from context, always render plans regardless of subscription status
-  const getSelectedPlan = () => {
+  const selectedPlan = useMemo(() => {
     if (!selectedPlanId) return null;
     return purchasablePlans.find(plan => plan.id === selectedPlanId);
-  };
+  }, [selectedPlanId, purchasablePlans]);
 
-  const selectedPlan = getSelectedPlan();
+  const isCurrentPlanActive = useMemo(() => {
+    return status === "ACTIVE" && (
+      !effectiveSubscriptionStatus?.planId || 
+      effectiveSubscriptionStatus?.planId === selectedPlanId
+    );
+  }, [status, effectiveSubscriptionStatus?.planId, selectedPlanId]);
+
   const defaultPlan = purchasablePlans.length > 0 ? purchasablePlans[0] : null;
 
   const isStatusActive = (status: any) => {
@@ -337,11 +345,11 @@ const SubscriptionScreen: React.FC = () => {
   // Fetch business profile subscription status - OPTIMIZED
   const fetchBusinessSubscriptionStatus = useCallback(async () => {
     if (!businessProfileId) return;
-    
+
     setIsBusinessSubscriptionLoading(true);
     try {
       const response = await subscriptionApi.getBusinessProfileSubscriptionStatus(businessProfileId);
-      
+
       if (response.success && response.data) {
         setBusinessSubscriptionStatus(response.data);
       } else {
@@ -405,13 +413,15 @@ const SubscriptionScreen: React.FC = () => {
           refreshPlans();
         }
       }
-
-      // Set default selected plan when plans load
-      if (!selectedPlanId && purchasablePlans.length > 0) {
-        setSelectedPlanId(purchasablePlans[0].id);
-      }
-    }, [isBusinessProfileMode, businessProfileId, fetchBusinessSubscriptionStatus, refreshPlans, selectedPlanId, purchasablePlans, paymentInProgress, isReturningFromPayment])
+    }, [isBusinessProfileMode, businessProfileId, fetchBusinessSubscriptionStatus, refreshPlans, contextPlans.length, paymentInProgress, isReturningFromPayment])
   );
+
+  // Set default selected plan when plans load
+  useEffect(() => {
+    if (!selectedPlanId && purchasablePlans.length > 0) {
+      setSelectedPlanId(purchasablePlans[0].id);
+    }
+  }, [selectedPlanId, purchasablePlans]);
 
   // Helper function to show error modal - OPTIMIZED with useCallback
   const showErrorModal = useCallback((title: string, message: string) => {
@@ -471,13 +481,13 @@ const SubscriptionScreen: React.FC = () => {
 
   // Optimized polling mechanism for transaction pending state (5-6 minutes interval)
   const pollSubscriptionStatus = useCallback(async (maxAttempts = 3, interval = 300000) => {
-    console.log(`⏳ Starting optimized subscription polling - max attempts: ${maxAttempts}, interval: ${interval}ms (${interval/60000} minutes)`);
-    
+    console.log(`⏳ Starting optimized subscription polling - max attempts: ${maxAttempts}, interval: ${interval}ms (${interval / 60000} minutes)`);
+
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         console.log(`🔄 Polling attempt ${attempt}/${maxAttempts}`);
         setPollingAttempts(attempt);
-        
+
         // SINGLE SOURCE OF TRUTH: Only call fetchBusinessSubscriptionStatus
         if (isBusinessProfileMode) {
           await fetchBusinessSubscriptionStatus();
@@ -485,42 +495,42 @@ const SubscriptionScreen: React.FC = () => {
           // For user mode, minimal refresh
           await refreshSubscription(true);
         }
-        
+
         // Check if subscription is now active
         const currentUser = authService.getCurrentUser();
         if (currentUser?.id) {
           const isActive = isStatusActive(effectiveSubscriptionStatus);
-          
+
           console.log(`📊 Polling result - Attempt ${attempt}: isActive=${isActive}`);
-          
+
           if (isActive) {
             console.log('✅ Subscription activated! Stopping polling.');
             setIsSubscribed(true);
             setIsTransactionPending(false);
             updatePaymentInProgress(false);
-            
+
             // Show success message
             if (Platform.OS === 'android') {
               ToastAndroid.show('🎉 Payment successful! Welcome to Pro!', ToastAndroid.LONG);
             } else {
               Alert.alert('🎉 Success', 'Payment successful! Welcome to Pro!');
             }
-            
+
             return true; // Success
           }
         }
-        
+
         // Wait before next attempt (except for last attempt)
         if (attempt < maxAttempts) {
-          console.log(`⏳ Waiting ${interval}ms (${interval/60000} minutes) before next attempt...`);
+          console.log(`⏳ Waiting ${interval}ms (${interval / 60000} minutes) before next attempt...`);
           await new Promise(resolve => setTimeout(resolve, interval));
         }
-        
+
       } catch (error) {
         console.error(`❌ Polling attempt ${attempt} failed:`, error);
       }
     }
-    
+
     console.log(`⏱️ Optimized polling completed after ${maxAttempts} attempts - subscription not activated`);
     return false; // Failed to activate
   }, [refreshSubscription, setIsSubscribed, updatePaymentInProgress, isBusinessProfileMode, fetchBusinessSubscriptionStatus, effectiveSubscriptionStatus]);
@@ -722,7 +732,7 @@ const SubscriptionScreen: React.FC = () => {
             // Transition to transaction pending state immediately after payment success
             setIsTransactionPending(true);
             setIsAuthenticating(false);
-            
+
             // Get current user for transaction metadata
             const currentUserForTransaction = authService.getCurrentUser();
 
@@ -744,7 +754,7 @@ const SubscriptionScreen: React.FC = () => {
               isBusinessProfileMode,
               businessProfileId
             });
-            
+
             const verifyResult = await subscriptionApi.verifyPayment({
               orderId: response.razorpay_order_id,
               paymentId: response.razorpay_payment_id,
@@ -788,25 +798,25 @@ const SubscriptionScreen: React.FC = () => {
               console.log('🔍 DEBUG: isBusinessProfileMode:', isBusinessProfileMode);
               console.log('🔍 DEBUG: businessProfileId:', businessProfileId);
               console.log('🔍 DEBUG: verifyResult:', verifyResult);
-              
+
               // CRITICAL FIX: Set activation pending instead of immediate activation
               if (isBusinessProfileMode && businessProfileId) {
                 // Use only context state - remove local state
                 console.log('🔍 DEBUG: About to set activation pending for:', businessProfileId);
                 setActivationPending(businessProfileId, true);
                 console.log('🏢 Business profile activation pending for 24 hours:', businessProfileId);
-                
+
                 // Clear payment states
                 setIsTransactionPending(false);
                 updatePaymentInProgress(false);
-                
+
                 // Show Success Modal directly
                 setIsSuccessModalVisible(true);
               } else {
                 console.log('🔍 DEBUG: Not in business profile mode or missing businessProfileId');
                 console.log('🔍 DEBUG: isBusinessProfileMode =', isBusinessProfileMode);
                 console.log('🔍 DEBUG: businessProfileId =', businessProfileId);
-                
+
                 // User subscription: Use existing polling logic
                 pollingCleanupRef.current = startSubscriptionPolling(
                   () => {
@@ -815,14 +825,14 @@ const SubscriptionScreen: React.FC = () => {
                     setIsSubscribed(true);
                     setIsTransactionPending(false);
                     updatePaymentInProgress(false);
-                    
+
                     if (Platform.OS === 'android') {
                       ToastAndroid.show('🎉 Subscription activated! Welcome to Pro!', ToastAndroid.LONG);
                     }
-                    
+
                     // Final refresh of context to ensure everything is updated
                     refreshSubscription(true);
-                    
+
                     // Close screen once active
                     navigation.goBack();
                   },
@@ -831,7 +841,7 @@ const SubscriptionScreen: React.FC = () => {
                     console.warn('⚠️ Polling timed out - subscription not yet activated');
                     setIsTransactionPending(false);
                     updatePaymentInProgress(false);
-                    
+
                     Alert.alert(
                       'Processing Payment',
                       'Your payment was successful! Subscription activation may take a few moments. Please check your status after a short while.',
@@ -866,10 +876,10 @@ const SubscriptionScreen: React.FC = () => {
 
       console.log('💳 Opening Razorpay with options:', options);
       console.log('🧾 Razorpay checkout payload:', JSON.stringify(options, null, 2));
-      
+
       // Transition from authenticating to normal processing during checkout
       setIsAuthenticating(false);
-      
+
       const data = await RazorpayCheckout.open(options);
       console.log('📦 Payment data received:', JSON.stringify(data, null, 2));
 
@@ -958,7 +968,7 @@ const SubscriptionScreen: React.FC = () => {
         try {
           setIsTransactionPending(true);
           setIsAuthenticating(false);
-          
+
           if (!response.razorpay_payment_id || !response.razorpay_subscription_id) {
             throw new Error('Invalid payment response');
           }
@@ -995,10 +1005,10 @@ const SubscriptionScreen: React.FC = () => {
           if (verifyResult?.success) {
             if (isBusinessProfileMode && businessProfileId) {
               setActivationPending(businessProfileId, true);
-              
+
               setIsTransactionPending(false);
               updatePaymentInProgress(false);
-              
+
               // Show Success Modal directly
               setIsSuccessModalVisible(true);
             } else {
@@ -1008,11 +1018,11 @@ const SubscriptionScreen: React.FC = () => {
                   setIsSubscribed(true);
                   setIsTransactionPending(false);
                   updatePaymentInProgress(false);
-                  
+
                   if (Platform.OS === 'android') {
                     ToastAndroid.show('🎉 Mandate approved! Welcome to Pro!', ToastAndroid.LONG);
                   }
-                  
+
                   // NON-BLOCKING: Close screen
                   InteractionManager.runAfterInteractions(() => {
                     navigation.goBack();
@@ -1021,7 +1031,7 @@ const SubscriptionScreen: React.FC = () => {
                 () => {
                   setIsTransactionPending(false);
                   updatePaymentInProgress(false);
-                  
+
                   Alert.alert(
                     'Processing Mandate',
                     'Your mandate was approved! Subscription activation may take a few moments.',
@@ -1062,17 +1072,17 @@ const SubscriptionScreen: React.FC = () => {
       console.log('� Button disabled due to processing state, ignoring click');
       return;
     }
-    
+
     // IMMEDIATE: Show loader without any blocking operations
     if (paymentInProgress) {
       console.log('Payment already in progress, ignoring duplicate click');
       return;
     }
 
-    if (hasAccess) {
-      const errorMessage = isBusinessProfileMode 
-        ? 'This business profile already has an active subscription!'
-        : 'You are already a Pro subscriber!';
+    if (isCurrentPlanActive) {
+      const errorMessage = isBusinessProfileMode
+        ? 'This business profile already has an active subscription for this plan!'
+        : 'You are already subscribed to this plan!';
       showErrorModal('Already Subscribed', errorMessage);
       return;
     }
@@ -1180,7 +1190,7 @@ const SubscriptionScreen: React.FC = () => {
         updatePaymentInProgress(false);
       }
     });
-  }, [disableSubscribeButton, paymentInProgress, hasAccess, isBusinessProfileMode, selectedPlan, updatePaymentInProgress, setIsAuthenticating, enableAutopay, businessProfileId, setIsSubscribed, createRazorpayOptions, clearActivationPending, showErrorModal]);
+  }, [disableSubscribeButton, paymentInProgress, isCurrentPlanActive, isBusinessProfileMode, selectedPlan, updatePaymentInProgress, setIsAuthenticating, enableAutopay, businessProfileId, setIsSubscribed, createRazorpayOptions, clearActivationPending, showErrorModal]);
 
   // Verify payment with backend and activate subscription
   const verifyPaymentAndActivateSubscription = async (
@@ -1335,314 +1345,324 @@ const SubscriptionScreen: React.FC = () => {
         }]}
       >
         <>
-        {/* Processing Message - Show only when payment success confirmed AND backend confirms PROCESSING status */}
-        {(() => {
-          console.log('🔍 UI RENDER DEBUG:', {
-            showProcessingMessage,
-            debugForceShow,
-            isPaymentSuccess,
-            isActivationPendingState,
-            hasLoadedWithPending,
-            isBusinessProfileWithPending,
-            subscriptionStatus: effectiveSubscriptionStatus?.status?.toUpperCase(),
-            businessProfileId,
-            isBusinessProfileMode,
-            isProcessingStatus
-          });
-          return (showProcessingMessage || debugForceShow) && status !== "PROCESSING";
-        })() && (
-          <View style={{
-            backgroundColor: "#E8F5E9",
-            padding: dynamicModerateScale(12),
-            margin: dynamicModerateScale(10),
-            borderRadius: dynamicModerateScale(8),
-            borderWidth: 1,
-            borderColor: "#4CAF50",
-          }}>
-            <Text style={{ 
-              fontWeight: "bold", 
-              color: "#2E7D32",
-              fontSize: dynamicModerateScale(11),
-              marginBottom: dynamicModerateScale(4),
-            }}>
-              {debugForceShow ? 'DEBUG: Test Message' : 'Payment Successful'}
-            </Text>
-            <Text style={{ 
-              color: "#2E7D32",
-              fontSize: dynamicModerateScale(9),
-              lineHeight: dynamicModerateScale(12),
-            }}>
-              {debugForceShow ? 'This is a test message to verify UI works' : 'Your business profile will be activated within 24 hours'}
-            </Text>
-          </View>
-        )}
-        
-
-        {/* Current Subscription Status (if subscribed) */}
-        {effectiveSubscriptionStatus?.status?.toUpperCase() === 'ACTIVE' && (
-          <View style={[styles.currentSubscriptionCard, {
-            backgroundColor: theme.colors.cardBackground,
-            marginBottom: dynamicModerateScale(12),
-            padding: isTabletDevice ? dynamicModerateScale(16) : dynamicModerateScale(12),
-            borderRadius: dynamicModerateScale(12),
-            borderWidth: 1.5,
-          }]}>
-            <View style={[styles.currentSubscriptionHeader, {
-              marginBottom: isTabletDevice ? dynamicModerateScale(8) : dynamicModerateScale(6),
-            }]}>
-              <Icon name="check-circle" size={isTabletDevice ? getIconSize(28) : getIconSize(24)} color="#28a745" />
-              <View style={[styles.currentSubscriptionInfo, {
-                marginLeft: dynamicModerateScale(10),
-              }]}>
-                <Text style={[styles.currentSubscriptionTitle, {
-                  color: theme.colors.text,
-                  fontSize: dynamicModerateScale(12),
-                  marginBottom: dynamicModerateScale(2),
-                }]}>
-                  {effectiveSubscriptionStatus?.planName || (isBusinessProfileMode ? 'Business Plan' : 'Pro Subscription')}
-                </Text>
-                <Text style={[styles.currentSubscriptionSubtitle, {
-                  color: theme.colors.textSecondary,
-                  fontSize: dynamicModerateScale(9),
-                  lineHeight: dynamicModerateScale(14),
-                }]}>
-                  {(() => {
-                    const expiryDate = effectiveSubscriptionStatus?.expiryDate || effectiveSubscriptionStatus?.endDate;
-                    if (expiryDate) {
-                      const daysRemaining = Math.ceil((new Date(expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                      const expiryDateFormatted = new Date(expiryDate).toLocaleDateString('en-IN', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric'
-                      });
-                      return `${daysRemaining} days remaining • Expires ${expiryDateFormatted}`;
-                    }
-                    return 'Active subscription';
-                  })()}
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Autopay Status Display */}
-        {autopayState.isAutopayActive && (
-          <View style={[styles.autopayStatusCard, {
-            backgroundColor: theme.colors.cardBackground,
-            marginBottom: dynamicModerateScale(12),
-            padding: isTabletDevice ? dynamicModerateScale(16) : dynamicModerateScale(12),
-            borderRadius: dynamicModerateScale(12),
-            borderWidth: 1.5,
-            borderColor: '#28a745',
-          }]}>
-            <View style={[styles.autopayStatusHeader, {
-              marginBottom: isTabletDevice ? dynamicModerateScale(8) : dynamicModerateScale(6),
-            }]}>
-              <Icon name="autorenew" size={isTabletDevice ? getIconSize(28) : getIconSize(24)} color="#28a745" />
-              <View style={[styles.autopayStatusInfo, {
-                marginLeft: dynamicModerateScale(10),
-              }]}>
-                <Text style={[styles.autopayStatusTitle, {
-                  color: theme.colors.text,
-                  fontSize: dynamicModerateScale(12),
-                  marginBottom: dynamicModerateScale(2),
-                }]}>
-                  Auto-Renewal Active
-                </Text>
-                <Text style={[styles.autopayStatusSubtitle, {
-                  color: theme.colors.textSecondary,
-                  fontSize: dynamicModerateScale(9),
-                  lineHeight: dynamicModerateScale(14),
-                }]}>
-                  {autopayState.nextBillingDate ? `Next billing: ${new Date(autopayState.nextBillingDate).toLocaleDateString('en-IN', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric'
-                  })}` : 'Auto-renewal enabled'}
-                </Text>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={[styles.cancelAutopayButton, {
-                backgroundColor: '#ff4444',
-                paddingVertical: dynamicModerateScale(8),
-                paddingHorizontal: dynamicModerateScale(12),
+          {/* Processing Message - Show only when payment success confirmed AND backend confirms PROCESSING status */}
+          {(() => {
+            console.log('🔍 UI RENDER DEBUG:', {
+              showProcessingMessage,
+              debugForceShow,
+              isPaymentSuccess,
+              isActivationPendingState,
+              hasLoadedWithPending,
+              isBusinessProfileWithPending,
+              subscriptionStatus: effectiveSubscriptionStatus?.status?.toUpperCase(),
+              businessProfileId,
+              isBusinessProfileMode,
+              isProcessingStatus
+            });
+            return (showProcessingMessage || debugForceShow) && status !== "PROCESSING";
+          })() && (
+              <View style={{
+                backgroundColor: "#E8F5E9",
+                padding: dynamicModerateScale(12),
+                margin: dynamicModerateScale(10),
                 borderRadius: dynamicModerateScale(8),
-                alignItems: 'center',
-              }]}
-              onPress={disableAutopay}
-              disabled={autopayState.autopayLoading}
-            >
-              <Text style={[styles.cancelAutopayButtonText, {
-                color: '#ffffff',
-                fontSize: dynamicModerateScale(10),
-                fontWeight: '600',
+                borderWidth: 1,
+                borderColor: "#4CAF50",
+              }}>
+                <Text style={{
+                  fontWeight: "bold",
+                  color: "#2E7D32",
+                  fontSize: dynamicModerateScale(11),
+                  marginBottom: dynamicModerateScale(4),
+                }}>
+                  {debugForceShow ? 'DEBUG: Test Message' : 'Payment Successful'}
+                </Text>
+                <Text style={{
+                  color: "#2E7D32",
+                  fontSize: dynamicModerateScale(9),
+                  lineHeight: dynamicModerateScale(12),
+                }}>
+                  {debugForceShow ? 'This is a test message to verify UI works' : 'Your business profile will be activated within 24 hours'}
+                </Text>
+              </View>
+            )}
+
+
+          {/* Current Subscription Status (if subscribed) */}
+          {effectiveSubscriptionStatus?.status?.toUpperCase() === 'ACTIVE' && (
+            <View style={[styles.currentSubscriptionCard, {
+              backgroundColor: theme.colors.cardBackground,
+              marginBottom: dynamicModerateScale(12),
+              padding: isTabletDevice ? dynamicModerateScale(16) : dynamicModerateScale(12),
+              borderRadius: dynamicModerateScale(12),
+              borderWidth: 1.5,
+              borderColor: isCurrentPlanActive ? '#28a745' : '#2196f3',
+            }]}>
+              <View style={[styles.currentSubscriptionHeader, {
+                marginBottom: isTabletDevice ? dynamicModerateScale(8) : dynamicModerateScale(6),
               }]}>
-                {autopayState.autopayLoading ? 'Cancelling...' : 'Cancel Subscription'}
-              </Text>
-            </TouchableOpacity>
+                <Icon 
+                  name={isCurrentPlanActive ? "check-circle" : "info"} 
+                  size={isTabletDevice ? getIconSize(28) : getIconSize(24)} 
+                  color={isCurrentPlanActive ? "#28a745" : "#2196f3"} 
+                />
+                <View style={[styles.currentSubscriptionInfo, {
+                  marginLeft: dynamicModerateScale(10),
+                }]}>
+                  <Text style={[styles.currentSubscriptionTitle, {
+                    color: theme.colors.text,
+                    fontSize: dynamicModerateScale(12),
+                    marginBottom: dynamicModerateScale(2),
+                  }]}>
+                    {isCurrentPlanActive 
+                      ? (selectedPlan?.name || effectiveSubscriptionStatus?.planName || 'Active Plan')
+                      : `${selectedPlan?.name || 'Selected Plan'} (Not Active)`
+                    }
+                  </Text>
+                  <Text style={[styles.currentSubscriptionSubtitle, {
+                    color: theme.colors.textSecondary,
+                    fontSize: dynamicModerateScale(9),
+                    lineHeight: dynamicModerateScale(14),
+                  }]}>
+                    {isCurrentPlanActive ? (() => {
+                      const expiryDate = effectiveSubscriptionStatus?.expiryDate || effectiveSubscriptionStatus?.endDate;
+                      if (expiryDate) {
+                        const daysRemaining = Math.ceil((new Date(expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                        const expiryDateFormatted = new Date(expiryDate).toLocaleDateString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric'
+                        });
+                        return `${daysRemaining} days remaining • Expires ${expiryDateFormatted}`;
+                      }
+                      return 'Active subscription';
+                    })() : (
+                      `You currently have an active subscription to ${effectiveSubscriptionStatus?.planName || 'another plan'}.`
+                    )}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Autopay Status Display */}
+          {autopayState.isAutopayActive && (
+            <View style={[styles.autopayStatusCard, {
+              backgroundColor: theme.colors.cardBackground,
+              marginBottom: dynamicModerateScale(12),
+              padding: isTabletDevice ? dynamicModerateScale(16) : dynamicModerateScale(12),
+              borderRadius: dynamicModerateScale(12),
+              borderWidth: 1.5,
+              borderColor: '#28a745',
+            }]}>
+              <View style={[styles.autopayStatusHeader, {
+                marginBottom: isTabletDevice ? dynamicModerateScale(8) : dynamicModerateScale(6),
+              }]}>
+                <Icon name="autorenew" size={isTabletDevice ? getIconSize(28) : getIconSize(24)} color="#28a745" />
+                <View style={[styles.autopayStatusInfo, {
+                  marginLeft: dynamicModerateScale(10),
+                }]}>
+                  <Text style={[styles.autopayStatusTitle, {
+                    color: theme.colors.text,
+                    fontSize: dynamicModerateScale(12),
+                    marginBottom: dynamicModerateScale(2),
+                  }]}>
+                    Auto-Renewal Active
+                  </Text>
+                  <Text style={[styles.autopayStatusSubtitle, {
+                    color: theme.colors.textSecondary,
+                    fontSize: dynamicModerateScale(9),
+                    lineHeight: dynamicModerateScale(14),
+                  }]}>
+                    {autopayState.nextBillingDate ? `Next billing: ${new Date(autopayState.nextBillingDate).toLocaleDateString('en-IN', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric'
+                    })}` : 'Auto-renewal enabled'}
+                  </Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.cancelAutopayButton, {
+                  backgroundColor: '#ff4444',
+                  paddingVertical: dynamicModerateScale(8),
+                  paddingHorizontal: dynamicModerateScale(12),
+                  borderRadius: dynamicModerateScale(8),
+                  alignItems: 'center',
+                }]}
+                onPress={disableAutopay}
+                disabled={autopayState.autopayLoading}
+              >
+                <Text style={[styles.cancelAutopayButtonText, {
+                  color: '#ffffff',
+                  fontSize: dynamicModerateScale(10),
+                  fontWeight: '600',
+                }]}>
+                  {autopayState.autopayLoading ? 'Cancelling...' : 'Cancel Subscription'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Comparison Cards */}
+          <View style={[
+            styles.comparisonContainer,
+            isSinglePlan && styles.singlePlanContainer,
+            {
+              flexDirection: getComparisonCardLayout() as 'row' | 'column',
+              gap: isTabletDevice ? dynamicModerateScale(12) : dynamicModerateScale(8),
+              marginBottom: dynamicModerateScale(16),
+            }
+          ]}>
+            {purchasablePlans.map((plan: any) => (
+              <PlanCard
+                key={plan.id}
+                plan={plan}
+                isSelected={selectedPlanId === plan.id}
+                onSelect={() => setSelectedPlanId(plan.id)}
+                isSinglePlan={isSinglePlan}
+              />
+            ))}
           </View>
-        )}
 
-        {/* Comparison Cards */}
-        <View style={[
-          styles.comparisonContainer,
-          isSinglePlan && styles.singlePlanContainer,
-          {
-            flexDirection: getComparisonCardLayout() as 'row' | 'column',
-            gap: isTabletDevice ? dynamicModerateScale(12) : dynamicModerateScale(8),
-            marginBottom: dynamicModerateScale(16),
-          }
-        ]}>
-          {purchasablePlans.map((plan: any) => (
-            <PlanCard
-              key={plan.id}
-              plan={plan}
-              isSelected={selectedPlanId === plan.id}
-              onSelect={() => setSelectedPlanId(plan.id)}
-              isSinglePlan={isSinglePlan}
-            />
-          ))}
-        </View>
-
-        {/* Benefits Section */}
-        <View style={[styles.benefitsSection, {
-          backgroundColor: theme.colors.cardBackground,
-          borderRadius: dynamicModerateScale(12),
-          padding: isTabletDevice ? dynamicModerateScale(16) : dynamicModerateScale(12),
-        }]}>
-          <Text style={[styles.benefitsTitle, {
-            color: theme.colors.text,
-            fontSize: dynamicModerateScale(12),
-            marginBottom: isTabletDevice ? dynamicModerateScale(12) : dynamicModerateScale(10),
-          }]}>Why Upgrade to Pro?</Text>
-          <View style={[styles.benefitsGrid]}>
-            <View style={[styles.benefitItem, {
-              backgroundColor: theme.colors.inputBackground,
-              width: isTabletDevice
-                ? `${(100 - 3 * 2.5) / 4}%` // 4 items with 3 gaps
-                : `${(100 - 1 * 2.5) / 2}%`, // 2 items with 1 gap
-              marginRight: isTabletDevice ? dynamicModerateScale(8) : dynamicModerateScale(8),
-              marginBottom: dynamicModerateScale(8),
-              padding: isTabletDevice ? dynamicModerateScale(12) : dynamicModerateScale(10),
-              borderRadius: dynamicModerateScale(10),
-              minHeight: isTabletDevice ? dynamicModerateScale(90) : dynamicModerateScale(70),
-            }]}>
-              <Text style={[styles.infinityIcon, {
-                fontSize: getIconSize(20),
-                color: '#667eea',
-                marginBottom: dynamicModerateScale(4),
-              }]}>∞</Text>
-              <Text style={[styles.benefitTitle, {
-                color: theme.colors.text,
-                fontSize: dynamicModerateScale(10),
-                marginTop: dynamicModerateScale(4),
-                marginBottom: dynamicModerateScale(2),
-              }]}>Unlimited</Text>
-              <Text
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                ellipsizeMode="tail"
-                style={[styles.benefitText, {
-                  color: theme.colors.textSecondary,
-                  fontSize: dynamicModerateScale(7.5),
-                  lineHeight: dynamicModerateScale(12),
-                }]}
-              >Priority support</Text>
-            </View>
-            <View style={[styles.benefitItem, {
-              backgroundColor: theme.colors.inputBackground,
-              width: isTabletDevice
-                ? `${(100 - 3 * 2.5) / 4}%`
-                : `${(100 - 1 * 2.5) / 2}%`,
-              marginRight: isTabletDevice ? dynamicModerateScale(8) : 0, // No right margin for 2nd item in phone row
-              marginBottom: dynamicModerateScale(8),
-              padding: isTabletDevice ? dynamicModerateScale(12) : dynamicModerateScale(10),
-              borderRadius: dynamicModerateScale(10),
-              minHeight: isTabletDevice ? dynamicModerateScale(90) : dynamicModerateScale(70),
-            }]}>
-              <Icon name="star" size={getIconSize(20)} color="#667eea" />
-              <Text style={[styles.benefitTitle, {
-                color: theme.colors.text,
-                fontSize: dynamicModerateScale(10),
-                marginTop: dynamicModerateScale(4),
-                marginBottom: dynamicModerateScale(2),
-              }]}>Premium</Text>
-              <Text
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                ellipsizeMode="tail"
-                style={[styles.benefitText, {
-                  color: theme.colors.textSecondary,
-                  fontSize: dynamicModerateScale(7.5),
-                  lineHeight: dynamicModerateScale(12),
-                }]}
-              >Priority support</Text>
-            </View>
-            <View style={[styles.benefitItem, {
-              backgroundColor: theme.colors.inputBackground,
-              width: isTabletDevice
-                ? `${(100 - 3 * 2.5) / 4}%`
-                : `${(100 - 1 * 2.5) / 2}%`,
-              marginRight: isTabletDevice ? dynamicModerateScale(8) : dynamicModerateScale(8),
-              marginBottom: dynamicModerateScale(8),
-              padding: isTabletDevice ? dynamicModerateScale(12) : dynamicModerateScale(10),
-              borderRadius: dynamicModerateScale(10),
-              minHeight: isTabletDevice ? dynamicModerateScale(90) : dynamicModerateScale(70),
-            }]}>
-              <Icon name="hd" size={getIconSize(20)} color="#667eea" />
-              <Text style={[styles.benefitTitle, {
-                color: theme.colors.text,
-                fontSize: dynamicModerateScale(10),
-                marginTop: dynamicModerateScale(4),
-                marginBottom: dynamicModerateScale(2),
-              }]}>HD Quality</Text>
-              <Text
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                ellipsizeMode="tail"
-                style={[styles.benefitText, {
-                  color: theme.colors.textSecondary,
-                  fontSize: dynamicModerateScale(7.5),
-                  lineHeight: dynamicModerateScale(12),
-                }]}
-              >Priority support</Text>
-            </View>
-            <View style={[styles.benefitItem, {
-              backgroundColor: theme.colors.inputBackground,
-              width: isTabletDevice
-                ? `${(100 - 3 * 2.5) / 4}%`
-                : `${(100 - 1 * 2.5) / 2}%`,
-              marginRight: isTabletDevice ? dynamicModerateScale(8) : 0, // No right margin for last item in row
-              marginBottom: dynamicModerateScale(8),
-              padding: isTabletDevice ? dynamicModerateScale(12) : dynamicModerateScale(10),
-              borderRadius: dynamicModerateScale(10),
-              minHeight: isTabletDevice ? dynamicModerateScale(90) : dynamicModerateScale(70),
-            }]}>
-              <Icon name="support-agent" size={getIconSize(20)} color="#667eea" />
-              <Text style={[styles.benefitTitle, {
-                color: theme.colors.text,
-                fontSize: dynamicModerateScale(10),
-                marginTop: dynamicModerateScale(4),
-                marginBottom: dynamicModerateScale(2),
-              }]}>Priority</Text>
-              <Text
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                ellipsizeMode="tail"
-                style={[styles.benefitText, {
-                  color: theme.colors.textSecondary,
-                  fontSize: dynamicModerateScale(7.5),
-                  lineHeight: dynamicModerateScale(12),
-                }]}
-              >Priority support</Text>
+          {/* Benefits Section */}
+          <View style={[styles.benefitsSection, {
+            backgroundColor: theme.colors.cardBackground,
+            borderRadius: dynamicModerateScale(12),
+            padding: isTabletDevice ? dynamicModerateScale(16) : dynamicModerateScale(12),
+          }]}>
+            <Text style={[styles.benefitsTitle, {
+              color: theme.colors.text,
+              fontSize: dynamicModerateScale(12),
+              marginBottom: isTabletDevice ? dynamicModerateScale(12) : dynamicModerateScale(10),
+            }]}>Why Upgrade to Pro?</Text>
+            <View style={[styles.benefitsGrid]}>
+              <View style={[styles.benefitItem, {
+                backgroundColor: theme.colors.inputBackground,
+                width: isTabletDevice
+                  ? `${(100 - 3 * 2.5) / 4}%` // 4 items with 3 gaps
+                  : `${(100 - 1 * 2.5) / 2}%`, // 2 items with 1 gap
+                marginRight: isTabletDevice ? dynamicModerateScale(8) : dynamicModerateScale(8),
+                marginBottom: dynamicModerateScale(8),
+                padding: isTabletDevice ? dynamicModerateScale(12) : dynamicModerateScale(10),
+                borderRadius: dynamicModerateScale(10),
+                minHeight: isTabletDevice ? dynamicModerateScale(90) : dynamicModerateScale(70),
+              }]}>
+                <Text style={[styles.infinityIcon, {
+                  fontSize: getIconSize(20),
+                  color: '#667eea',
+                  marginBottom: dynamicModerateScale(4),
+                }]}>∞</Text>
+                <Text style={[styles.benefitTitle, {
+                  color: theme.colors.text,
+                  fontSize: dynamicModerateScale(10),
+                  marginTop: dynamicModerateScale(4),
+                  marginBottom: dynamicModerateScale(2),
+                }]}>Unlimited</Text>
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  ellipsizeMode="tail"
+                  style={[styles.benefitText, {
+                    color: theme.colors.textSecondary,
+                    fontSize: dynamicModerateScale(7.5),
+                    lineHeight: dynamicModerateScale(12),
+                  }]}
+                >Priority support</Text>
+              </View>
+              <View style={[styles.benefitItem, {
+                backgroundColor: theme.colors.inputBackground,
+                width: isTabletDevice
+                  ? `${(100 - 3 * 2.5) / 4}%`
+                  : `${(100 - 1 * 2.5) / 2}%`,
+                marginRight: isTabletDevice ? dynamicModerateScale(8) : 0, // No right margin for 2nd item in phone row
+                marginBottom: dynamicModerateScale(8),
+                padding: isTabletDevice ? dynamicModerateScale(12) : dynamicModerateScale(10),
+                borderRadius: dynamicModerateScale(10),
+                minHeight: isTabletDevice ? dynamicModerateScale(90) : dynamicModerateScale(70),
+              }]}>
+                <Icon name="star" size={getIconSize(20)} color="#667eea" />
+                <Text style={[styles.benefitTitle, {
+                  color: theme.colors.text,
+                  fontSize: dynamicModerateScale(10),
+                  marginTop: dynamicModerateScale(4),
+                  marginBottom: dynamicModerateScale(2),
+                }]}>Premium</Text>
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  ellipsizeMode="tail"
+                  style={[styles.benefitText, {
+                    color: theme.colors.textSecondary,
+                    fontSize: dynamicModerateScale(7.5),
+                    lineHeight: dynamicModerateScale(12),
+                  }]}
+                >Priority support</Text>
+              </View>
+              <View style={[styles.benefitItem, {
+                backgroundColor: theme.colors.inputBackground,
+                width: isTabletDevice
+                  ? `${(100 - 3 * 2.5) / 4}%`
+                  : `${(100 - 1 * 2.5) / 2}%`,
+                marginRight: isTabletDevice ? dynamicModerateScale(8) : dynamicModerateScale(8),
+                marginBottom: dynamicModerateScale(8),
+                padding: isTabletDevice ? dynamicModerateScale(12) : dynamicModerateScale(10),
+                borderRadius: dynamicModerateScale(10),
+                minHeight: isTabletDevice ? dynamicModerateScale(90) : dynamicModerateScale(70),
+              }]}>
+                <Icon name="hd" size={getIconSize(20)} color="#667eea" />
+                <Text style={[styles.benefitTitle, {
+                  color: theme.colors.text,
+                  fontSize: dynamicModerateScale(10),
+                  marginTop: dynamicModerateScale(4),
+                  marginBottom: dynamicModerateScale(2),
+                }]}>HD Quality</Text>
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  ellipsizeMode="tail"
+                  style={[styles.benefitText, {
+                    color: theme.colors.textSecondary,
+                    fontSize: dynamicModerateScale(7.5),
+                    lineHeight: dynamicModerateScale(12),
+                  }]}
+                >Priority support</Text>
+              </View>
+              <View style={[styles.benefitItem, {
+                backgroundColor: theme.colors.inputBackground,
+                width: isTabletDevice
+                  ? `${(100 - 3 * 2.5) / 4}%`
+                  : `${(100 - 1 * 2.5) / 2}%`,
+                marginRight: isTabletDevice ? dynamicModerateScale(8) : 0, // No right margin for last item in row
+                marginBottom: dynamicModerateScale(8),
+                padding: isTabletDevice ? dynamicModerateScale(12) : dynamicModerateScale(10),
+                borderRadius: dynamicModerateScale(10),
+                minHeight: isTabletDevice ? dynamicModerateScale(90) : dynamicModerateScale(70),
+              }]}>
+                <Icon name="support-agent" size={getIconSize(20)} color="#667eea" />
+                <Text style={[styles.benefitTitle, {
+                  color: theme.colors.text,
+                  fontSize: dynamicModerateScale(10),
+                  marginTop: dynamicModerateScale(4),
+                  marginBottom: dynamicModerateScale(2),
+                }]}>Priority</Text>
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  ellipsizeMode="tail"
+                  style={[styles.benefitText, {
+                    color: theme.colors.textSecondary,
+                    fontSize: dynamicModerateScale(7.5),
+                    lineHeight: dynamicModerateScale(12),
+                  }]}
+                >Priority support</Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        {/* Bottom Spacer for Sticky Button */}
-        <View style={{ height: dynamicModerateScale(200) }} />
+          {/* Bottom Spacer for Sticky Button */}
+          <View style={{ height: dynamicModerateScale(200) }} />
         </>
       </ScrollView>
 
@@ -1662,19 +1682,19 @@ const SubscriptionScreen: React.FC = () => {
           style={[styles.upgradeButton, {
             borderRadius: dynamicModerateScale(10),
             marginBottom: isTabletDevice ? dynamicModerateScale(8) : dynamicModerateScale(6),
-            opacity: isProcessingStatus ? 0.6 : 1,
+            opacity: isProcessingStatus || effectiveIsLoading ? 0.6 : 1,
           }]}
           onPress={handleAutopayPayment}
-          disabled={isProcessingStatus || isProcessing || paymentInProgress || isActiveStatus || isAuthenticating || isTransactionPending}
+          disabled={effectiveIsLoading || isProcessingStatus || isProcessing || paymentInProgress || isCurrentPlanActive || isAuthenticating || isTransactionPending}
         >
           <LinearGradient
-            colors={effectiveSubscriptionStatus?.status?.toUpperCase() === 'ACTIVE'
+            colors={isCurrentPlanActive
               ? ['#28a745', '#20c997']
               : isAuthenticating
                 ? ['#ff9800', '#f57c00'] // Orange for authenticating
                 : isTransactionPending
                   ? ['#2196f3', '#1976d2'] // Blue for transaction pending
-                  : isProcessing || paymentInProgress
+                  : isProcessing || paymentInProgress || effectiveIsLoading
                     ? ['#cccccc', '#999999']
                     : ['#667eea', '#764ba2']
             }
@@ -1683,24 +1703,35 @@ const SubscriptionScreen: React.FC = () => {
               paddingHorizontal: isTabletDevice ? dynamicModerateScale(16) : dynamicModerateScale(12),
             }]}
           >
-            <Text style={[styles.upgradeButtonText, {
-              fontSize: dynamicModerateScale(11),
-            }]}>
-              {isActiveStatus
-                ? 'Already Pro'
-                : isProcessingStatus
-                  ? 'Payment in progress...'
-                  : isAuthenticating
-                    ? 'Authenticating...'
-                    : isTransactionPending
-                      ? `Transaction Pending...${pollingAttempts > 0 ? ` (${pollingAttempts}/5)` : ''}`
-                      : isProcessing || paymentInProgress
-                        ? 'Processing...'
-                        : selectedPlan
-                          ? `Subscribe - ₹${selectedPlan.price || selectedPlan.amount || 99}`
-                          : 'Select a Plan'
-              }
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+              {effectiveIsLoading && (
+                <ActivityIndicator 
+                  size="small" 
+                  color="#ffffff" 
+                  style={{ marginRight: dynamicModerateScale(6) }} 
+                />
+              )}
+              <Text style={[styles.upgradeButtonText, {
+                fontSize: dynamicModerateScale(11),
+              }]}>
+                {effectiveIsLoading
+                  ? 'Checking subscription status...'
+                  : isCurrentPlanActive
+                    ? 'Already Active'
+                    : isProcessingStatus
+                      ? 'Payment in progress...'
+                      : isAuthenticating
+                        ? 'Authenticating...'
+                        : isTransactionPending
+                          ? `Transaction Pending...${pollingAttempts > 0 ? ` (${pollingAttempts}/5)` : ''}`
+                          : isProcessing || paymentInProgress
+                            ? 'Processing...'
+                            : selectedPlan
+                              ? `Subscribe - ₹${selectedPlan.price || selectedPlan.amount || 99}`
+                              : 'Select a Plan'
+                }
+              </Text>
+            </View>
           </LinearGradient>
         </TouchableOpacity>
 
@@ -1714,7 +1745,7 @@ const SubscriptionScreen: React.FC = () => {
           </Text>
         )}
 
-        
+
       </View>
 
       {/* Processing Modal */}
@@ -1726,15 +1757,15 @@ const SubscriptionScreen: React.FC = () => {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, { backgroundColor: theme.colors.cardBackground }]}>
             <ActivityIndicator size="large" color="#667eea" />
-            
+
             <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
               Payment in Progress
             </Text>
-            
+
             <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
               Please wait while we confirm your payment...
             </Text>
-            
+
             <TouchableOpacity
               style={styles.modalOkButton}
               onPress={() => {
@@ -1757,15 +1788,15 @@ const SubscriptionScreen: React.FC = () => {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, { backgroundColor: theme.colors.cardBackground }]}>
             <Icon name="check-circle" size={dynamicModerateScale(60)} color="#28a745" />
-            
+
             <Text style={[styles.modalTitle, { color: theme.colors.text, marginTop: dynamicModerateScale(16) }]}>
               Payment Successful
             </Text>
-            
+
             <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary, marginBottom: dynamicModerateScale(8) }]}>
               Business Profile Activated
             </Text>
-            
+
             <TouchableOpacity
               style={[styles.modalOkButton, { backgroundColor: '#28a745', minWidth: dynamicModerateScale(120) }]}
               onPress={async () => {

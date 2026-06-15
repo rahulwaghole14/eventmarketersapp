@@ -79,7 +79,7 @@ const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
             </Text>
             
             <Text style={[styles.description, { color: theme.colors.textSecondary }]}>
-              A new version of the app is available on the Play Store. Please update now to enjoy the latest features, improved performance, and bug fixes.
+              A new version of the app is available on the Play Store. Please update now to enjoy the latest features and improved performance.
             </Text>
 
             <View style={styles.buttonContainer}>
