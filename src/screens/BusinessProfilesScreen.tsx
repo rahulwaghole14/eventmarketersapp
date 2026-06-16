@@ -17,7 +17,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import businessProfileService from '../services/businessProfile';
 import userBusinessProfilesService from '../services/userBusinessProfiles';
 import authService from '../services/auth';
@@ -89,6 +89,7 @@ const BusinessProfilesScreen: React.FC = () => {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [processingProfiles, setProcessingProfiles] = useState<Set<string>>(new Set());
   const navigation = useNavigation();
+  const route = useRoute<any>();
   const pendingProfileDataRef = useRef<any>(null);
   const pollingCleanupRef = useRef<(() => void) | null>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
@@ -448,13 +449,32 @@ const BusinessProfilesScreen: React.FC = () => {
         startPolling();
       }
 
+      // Auto-open edit form if navigated with openEditForProfileId param
+      const openEditForProfileId = route.params?.openEditForProfileId;
+      if (openEditForProfileId) {
+        // Wait briefly for profiles to load, then find and open the edit form
+        setTimeout(() => {
+          setProfiles(current => {
+            const targetProfile = current.find((p: any) => p.id === openEditForProfileId);
+            if (targetProfile) {
+              console.log('📝 [AUTO EDIT] Opening edit form for profile:', targetProfile.name);
+              setEditingProfile(targetProfile);
+              setShowForm(true);
+            }
+            return current;
+          });
+        }, 400);
+        // Clear the param so it doesn't re-trigger on next focus
+        navigation.setParams({ openEditForProfileId: undefined } as any);
+      }
+
       return () => {
         if (pollingCleanupRef.current) {
           pollingCleanupRef.current();
           pollingCleanupRef.current = null;
         }
       };
-    }, [loadBusinessProfiles, checkPaymentAndCreateProfile, profiles, startPolling, lastRefreshTime])
+    }, [loadBusinessProfiles, checkPaymentAndCreateProfile, profiles, startPolling, lastRefreshTime, route.params?.openEditForProfileId, navigation])
   );
 
   const onRefresh = useCallback(async () => {
@@ -788,13 +808,21 @@ const BusinessProfilesScreen: React.FC = () => {
         {isLocked && (
           <View style={styles.lockOverlay}>
             <View style={[styles.lockBadge, { backgroundColor: theme.colors.surface }]}>
-              {/* Delete button top-right inside lock badge */}
-              <TouchableOpacity
-                style={[styles.lockBadgeTopDeleteButton, { backgroundColor: 'rgba(255, 80, 80, 0.35)', opacity: 0.85 }]}
-                onPress={() => onDelete(item.id)}
-              >
-                <Icon name="delete" size={10} color="#ff4444" />
-              </TouchableOpacity>
+              {/* Edit & Delete buttons top-right inside lock badge */}
+              <View style={styles.lockBadgeTopActions}>
+                <TouchableOpacity
+                  style={[styles.lockBadgeTopEditButton, { backgroundColor: 'rgba(100, 120, 255, 0.35)', opacity: 0.85 }]}
+                  onPress={() => onEdit(item)}
+                >
+                  <Icon name="edit" size={10} color="#667eea" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.lockBadgeTopDeleteButton, { backgroundColor: 'rgba(255, 80, 80, 0.35)', opacity: 0.85 }]}
+                  onPress={() => onDelete(item.id)}
+                >
+                  <Icon name="delete" size={10} color="#ff4444" />
+                </TouchableOpacity>
+              </View>
               {isProcessing ? (
                 <>
                   <Text style={[styles.lockBusinessInfo, { color: theme.colors.text }]} numberOfLines={1}>
@@ -929,9 +957,8 @@ const BusinessProfilesScreen: React.FC = () => {
             <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: `${theme.colors.primary}20` }]}
               onPress={() => onEdit(item)}
-              disabled={isLocked}
             >
-              <Icon name="edit" size={16} color={isLocked ? theme.colors.textSecondary : theme.colors.primary} />
+              <Icon name="edit" size={16} color={theme.colors.primary} />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: `${theme.colors.error}20` }]}
@@ -2021,10 +2048,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-  lockBadgeTopDeleteButton: {
+  lockBadgeTopActions: {
     position: 'absolute',
     top: 6,
     right: 6,
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'center',
+  },
+  lockBadgeTopEditButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(100, 120, 255, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(100, 120, 255, 0.4)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  lockBadgeTopDeleteButton: {
     width: 24,
     height: 24,
     borderRadius: 12,

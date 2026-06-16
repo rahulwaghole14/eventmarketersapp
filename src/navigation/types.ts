@@ -86,7 +86,7 @@ export type MainStackParamList = {
       layers: any[];
     };
   };
-  BusinessProfiles: undefined;
+  BusinessProfiles: { openEditForProfileId?: string } | undefined;
   Events: undefined;
   Subscription: undefined;
   TransactionHistory: undefined;

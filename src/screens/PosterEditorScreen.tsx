@@ -52,6 +52,7 @@ import { useBusinessProfile } from '../context/BusinessProfileContext';
 import { useTheme } from '../context/ThemeContext';
 import PremiumTemplateModal from '../components/PremiumTemplateModal';
 import InfoRequiredModal from '../components/InfoRequiredModal';
+import BusinessProfileForm from '../components/BusinessProfileForm';
 import { applyFrameLayoutToLayers, FRAME_ASSETS } from '../data/frames';
 
 
@@ -593,6 +594,8 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   const [showConnectionErrorModal, setShowConnectionErrorModal] = useState(false);
   const [showCategoryAccessModal, setShowCategoryAccessModal] = useState(false);
   const [showInfoRequiredModal, setShowInfoRequiredModal] = useState(false);
+  const [showEditProfileForm, setShowEditProfileForm] = useState(false);
+  const [editProfileFormLoading, setEditProfileFormLoading] = useState(false);
   const [showFrameRemovalModal, setShowFrameRemovalModal] = useState(false);
   const [pendingTemplate, setPendingTemplate] = useState<string | null>(null);
   const [selectedFieldName, setSelectedFieldName] = useState('');
@@ -2283,7 +2286,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
     return Animated.event(
       [{ nativeEvent: { translationX: translationValues[layerId].x, translationY: translationValues[layerId].y } }],
       {
-        useNativeDriver: true,
+        useNativeDriver: false,
         listener: (event: any) => {
           const { translationX, translationY } = event.nativeEvent;
 
@@ -2464,31 +2467,51 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         const maxScale = 5.0;
         const constrainedScale = Math.max(minScale, Math.min(maxScale, scale));
 
-        const newWidth = initialSize.width * constrainedScale;
-        const newHeight = initialSize.height * constrainedScale;
+        // Find the layer to determine its type
+        const targetLayer = layers.find(l => l.id === layerId);
+        const isTextLayer = targetLayer?.type === 'text';
 
-        // Commit the final size to state (called once — no lag during the gesture)
-        setLayers(prev => prev.map(layer => {
-          if (layer.id !== layerId) return layer;
+        if (isTextLayer) {
+          // For text layers: scale the fontSize and layer width — do NOT resize via size.width/height
+          setLayers(prev => prev.map(layer => {
+            if (layer.id !== layerId) return layer;
+            const currentFontSize = layer.style?.fontSize ?? 16;
+            const newFontSize = Math.max(6, Math.min(120, Math.round(currentFontSize * constrainedScale)));
+            const currentWidth = layer.size?.width ?? 100;
+            const newWidth = Math.max(20, Math.min(canvasWidth - layer.position.x, currentWidth * constrainedScale));
+            return {
+              ...layer,
+              style: { ...layer.style, fontSize: newFontSize },
+              size: { ...layer.size, width: newWidth, height: layer.size?.height ?? 40 },
+            };
+          }));
+        } else {
+          // For image/logo layers: commit new pixel dimensions
+          const newWidth = initialSize.width * constrainedScale;
+          const newHeight = initialSize.height * constrainedScale;
 
-          const maxWidth = canvasWidth - layer.position.x;
-          const maxHeight = canvasHeight - layer.position.y;
-          const finalWidth = Math.max(20, Math.min(newWidth, maxWidth));
-          const finalHeight = Math.max(20, Math.min(newHeight, maxHeight));
+          setLayers(prev => prev.map(layer => {
+            if (layer.id !== layerId) return layer;
 
-          // Sync circular logo borderRadius to final size
-          if (layer.type === 'logo' && layer.isCircular && borderRadiusValues[layerId]) {
-            const r = Math.min(finalWidth, finalHeight) / 2;
-            borderRadiusValues[layerId].setValue(r);
-            if (selectionBorderRadiusValues[layerId]) {
-              selectionBorderRadiusValues[layerId].setValue(r + 3);
+            const maxWidth = canvasWidth - layer.position.x;
+            const maxHeight = canvasHeight - layer.position.y;
+            const finalWidth = Math.max(20, Math.min(newWidth, maxWidth));
+            const finalHeight = Math.max(20, Math.min(newHeight, maxHeight));
+
+            // Sync circular logo borderRadius to final size
+            if (layer.type === 'logo' && layer.isCircular && borderRadiusValues[layerId]) {
+              const r = Math.min(finalWidth, finalHeight) / 2;
+              borderRadiusValues[layerId].setValue(r);
+              if (selectionBorderRadiusValues[layerId]) {
+                selectionBorderRadiusValues[layerId].setValue(r + 3);
+              }
             }
-          }
 
-          return { ...layer, size: { width: finalWidth, height: finalHeight } };
-        }));
+            return { ...layer, size: { width: finalWidth, height: finalHeight } };
+          }));
+        }
 
-        // Reset scale transform back to 1 so the committed pixel size is the source of truth
+        // Reset scale transform back to 1 so the committed state is the source of truth
         if (scaleValues[layerId]) {
           scaleValues[layerId].setValue(1);
         }
@@ -2928,6 +2951,11 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
       };
     }
 
+    // Ensure scale Animated.Value exists so pinch-to-zoom visual feedback works
+    if (!scaleValues[layer.id]) {
+      scaleValues[layer.id] = new Animated.Value(1);
+    }
+
     // Initialize borderRadius animated value for logos
     if (layer.type === 'logo' && !borderRadiusValues[layer.id]) {
       const initialRadius = layer.isCircular
@@ -2953,15 +2981,21 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
       transform: baseTransforms,
     };
 
-    // Text layer style without fixed dimensions
+    // Text layer style — NOT position:absolute (the gesture wrapper is the absolute positioned element)
+    // Only translate+rotate here so pan's Animated.event (useNativeDriver:false) can drive them.
     const textLayerStyle = {
-      position: 'absolute' as const,
       zIndex: layer.zIndex,
-      transform: baseTransforms,
       width: layer.size?.width ?? 'auto',
       minWidth: 10,
       maxWidth: layer.size?.width ?? 'auto',
-      alignSelf: 'flex-start',
+      alignSelf: 'flex-start' as const,
+    };
+
+    // Inner scale wrapper — carries only scale (JS driver). Kept separate to avoid
+    // mixing native/JS drivers on the same Animated.View.
+    const textScaleWrapperStyle = {
+      transform: [{ scale: scaleValues[layer.id] }],
+      alignSelf: 'flex-start' as const,
     };
 
     const handleLayerPress = () => {
@@ -3068,6 +3102,8 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         }
 
         return (
+          // The gesture wrapper (in layers.map) handles absolute positioning + translate.
+          // This Animated.View only carries zIndex and drag highlight — no position:absolute.
           <Animated.View
             key={layer.id}
             style={[
@@ -3075,45 +3111,48 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
               draggedLayer === layer.id && styles.draggedLayer
             ]}
           >
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={handleLayerPress}
-              style={{ alignSelf: 'flex-start' }}
-            >
-              <Text
-                style={{
-                  fontSize: layer.style?.fontSize,
-                  color: layer.style?.color,
-                  fontFamily: layer.style?.fontFamily,
-                  fontWeight: layer.style?.fontWeight as any,
-                  padding: 0,
-                  margin: 0,
-                  width: '100%', // Take full width of container for adjustsFontSizeToFit
-                  alignSelf: 'flex-start',
-                  includeFontPadding: false, // Remove extra padding for precise boundary alignment
-                }}
-                numberOfLines={1}
-                adjustsFontSizeToFit={true}
-                minimumFontScale={0.4}
+            {/* Inner scale wrapper uses JS driver for pinch — separate from pan’s JS driver view */}
+            <Animated.View style={textScaleWrapperStyle}>
+              <TouchableOpacity
+                activeOpacity={1}
+                onPress={handleLayerPress}
+                style={{ alignSelf: 'flex-start' }}
               >
-                {layer.content}
-              </Text>
-            </TouchableOpacity>
-            {isSelected && (
-              <View
-                style={{
-                  position: 'absolute',
-                  top: -3,
-                  left: -3,
-                  right: -3,
-                  bottom: -3,
-                  borderWidth: 3,
-                  borderColor: '#667eea',
-                  borderRadius: 8,
-                  pointerEvents: 'none',
-                }}
-              />
-            )}
+                <Text
+                  style={{
+                    fontSize: layer.style?.fontSize,
+                    color: layer.style?.color,
+                    fontFamily: layer.style?.fontFamily,
+                    fontWeight: layer.style?.fontWeight as any,
+                    padding: 0,
+                    margin: 0,
+                    width: '100%',
+                    alignSelf: 'flex-start',
+                    includeFontPadding: false,
+                  }}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit={true}
+                  minimumFontScale={0.4}
+                >
+                  {layer.content}
+                </Text>
+              </TouchableOpacity>
+              {isSelected && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: -3,
+                    left: -3,
+                    right: -3,
+                    bottom: -3,
+                    borderWidth: 3,
+                    borderColor: '#667eea',
+                    borderRadius: 8,
+                    pointerEvents: 'none',
+                  }}
+                />
+              )}
+            </Animated.View>
           </Animated.View>
         );
       case 'image':
@@ -3134,19 +3173,18 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
           ? selectionBorderRadiusValues[layer.id]
           : 8;
 
-        // Inject scale into the transform — this is what makes pinch feel instant.
-        // The Animated.Value is updated by Animated.event and drives the transform
-        // directly without going through React's render cycle.
-        const logoScaledLayerStyle = {
-          ...layerStyle,
-          transform: [...baseTransforms, { scale: scaleValues[layer.id] }],
+        // Logo/image content fills the wrapper — NO position/transform here since the
+        // gesture wrapper in layers.map owns those. Scale is also in the wrapper for logos.
+        const logoContentStyle = {
+          width: '100%' as const,
+          height: '100%' as const,
         };
 
         return (
           <Animated.View
             style={[
               styles.layer,
-              logoScaledLayerStyle,
+              logoContentStyle,
               draggedLayer === layer.id && styles.draggedLayer
             ]}
           >
@@ -3347,12 +3385,12 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                 `Your business profile subscription is ${activeBusinessProfile.subscriptionStatus}. Please activate your subscription to access this feature.`,
                 [
                   { text: "Cancel", style: "cancel" },
-                  { 
-                    text: "Upgrade", 
+                  {
+                    text: "Upgrade",
                     onPress: () => navigation.navigate('Subscription' as any, {
                       source: 'BUSINESS_PROFILE',
                       businessProfileId: activeBusinessProfile?.id
-                    }) 
+                    })
                   }
                 ]
               );
@@ -3577,17 +3615,64 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                   );
                 }
 
+                // Skip hidden layers entirely — they should not render gesture wrappers
+                // that could steal touches from visible layers
+                if (layer.fieldType && !visibleFields[layer.fieldType]) {
+                  return null;
+                }
+
                 // Ensure stable per-layer gesture refs exist before rendering
                 ensureGestureRefs(layer.id);
+                // Ensure animated values exist
+                if (!layerAnimations[layer.id]) {
+                  layerAnimations[layer.id] = { x: new Animated.Value(layer.position.x), y: new Animated.Value(layer.position.y) };
+                }
+                if (!translationValues[layer.id]) {
+                  translationValues[layer.id] = { x: new Animated.Value(0), y: new Animated.Value(0) };
+                }
+                if (!scaleValues[layer.id]) {
+                  scaleValues[layer.id] = new Animated.Value(1);
+                }
+                ensureSnapOffsets(layer.id);
+
+                // The gesture wrapper IS the absolutely-positioned, animated element.
+                // This gives RNGH a real measurable hit target (not zero-size).
+                // Pan translation and position are applied here.
+                const isText = layer.type === 'text';
+                const wrapperTransform = [
+                  { translateX: Animated.add(Animated.add(layerAnimations[layer.id].x, translationValues[layer.id].x), snapOffsets[layer.id].x) },
+                  { translateY: Animated.add(Animated.add(layerAnimations[layer.id].y, translationValues[layer.id].y), snapOffsets[layer.id].y) },
+                  { rotate: `${layer.rotation}deg` },
+                  // For logos/images, bake scale into wrapper so the hit target scales too
+                  ...(isText ? [] : [{ scale: scaleValues[layer.id] }]),
+                ];
+
+                const wrapperStyle = isText
+                  ? {
+                      position: 'absolute' as const,
+                      zIndex: layer.zIndex,
+                      transform: wrapperTransform,
+                      minWidth: 10,
+                      width: layer.size?.width ?? 'auto',
+                    }
+                  : {
+                      position: 'absolute' as const,
+                      zIndex: layer.zIndex,
+                      transform: wrapperTransform,
+                      width: layer.size.width,
+                      height: layer.size.height,
+                    };
 
                 // Logo/image layers get a generous hitSlop so that fingers placed
                 // *around* the logo (not just on top of it) still trigger pinch-to-zoom.
                 // Selected layers get an even larger zone for maximum ease of use.
                 const isLogoOrImage = layer.type === 'logo' || layer.type === 'image';
                 const isLayerSelected = selectedLayer === layer.id;
+                // Text toggle fields need a reasonable hitSlop so two-finger pinch is detected
+                // even when fingers don't land exactly on the (often small) text.
                 const pinchHitSlop = isLogoOrImage
                   ? isLayerSelected ? 140 : 100
-                  : 0;
+                  : 60;
 
                 return (
                   <PinchGestureHandler
@@ -3598,7 +3683,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                     onGestureEvent={onPinchGestureEvent(layer.id)}
                     onHandlerStateChange={onPinchHandlerStateChange(layer.id)}
                   >
-                    <Animated.View>
+                    <Animated.View style={wrapperStyle}>
                       <PanGestureHandler
                         ref={panHandlerRefs[layer.id]}
                         simultaneousHandlers={pinchHandlerRefs[layer.id]}
@@ -3606,7 +3691,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                         onGestureEvent={onPanGestureEvent(layer.id)}
                         onHandlerStateChange={onHandlerStateChange(layer.id)}
                       >
-                        <Animated.View>
+                        <Animated.View style={{ flex: 1 }}>
                           {renderLayer(layer)}
                         </Animated.View>
                       </PanGestureHandler>
@@ -3720,7 +3805,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
               </LinearGradient>
             </TouchableOpacity>
 
-            {selectedLayer && (
+            {selectedLayer && !layers.find(l => l.id === selectedLayer)?.fieldType && (
               <TouchableOpacity
                 style={styles.toolbarButton}
                 onPress={() => setShowDeleteElementModal(true)}
@@ -4550,6 +4635,39 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         visible={showInfoRequiredModal}
         fieldName={selectedFieldName}
         onClose={() => setShowInfoRequiredModal(false)}
+        onUpdate={() => {
+          setShowInfoRequiredModal(false);
+          setShowEditProfileForm(true);
+        }}
+      />
+
+      {/* Inline Business Profile Edit Form — opens directly without navigation */}
+      <BusinessProfileForm
+        visible={showEditProfileForm}
+        onClose={() => setShowEditProfileForm(false)}
+        profile={activeBusinessProfile as any}
+        loading={editProfileFormLoading}
+        onSubmit={async (formData) => {
+          if (!activeBusinessProfile?.id) return;
+          setEditProfileFormLoading(true);
+          try {
+            const updated = await businessProfileService.updateBusinessProfile(
+              activeBusinessProfile.id,
+              formData
+            );
+            // Refresh the business profiles list so new data is shown on the canvas
+            const currentUser = authService.getCurrentUser();
+            if (currentUser?.id) {
+              const freshProfiles = await businessProfileService.getUserBusinessProfiles(currentUser.id);
+              setBusinessProfiles(freshProfiles);
+            }
+            setShowEditProfileForm(false);
+          } catch (err: any) {
+            console.error('❌ [POSTER EDITOR] Profile update failed:', err);
+          } finally {
+            setEditProfileFormLoading(false);
+          }
+        }}
       />
 
       {/* Frame Removal Warning Modal */}

@@ -32,6 +32,7 @@ import { MainStackParamList } from '../navigation/types';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { PanGestureHandler, State, PinchGestureHandler } from 'react-native-gesture-handler';
 import { BusinessProfile } from '../services/businessProfile';
+import businessProfileService from '../services/businessProfile';
 import authService from '../services/auth';
 import { GOOGLE_FONTS, getFontsByCategory, SYSTEM_FONTS, getFontFamily } from '../services/fontService';
 import { getAccessState, isAccessGranted, getAccessStateMessage, isTransitionalState } from '../utils/subscriptionAccess';
@@ -51,6 +52,7 @@ import { responsiveText } from '../utils/responsiveUtils';
 import VideoOverlayProcessor, { OverlayPayload } from '../services/VideoOverlayProcessor';
 import PremiumTemplateModal from '../components/PremiumTemplateModal';
 import InfoRequiredModal from '../components/InfoRequiredModal';
+import BusinessProfileForm from '../components/BusinessProfileForm';
 import { applyVideoFrameLayoutToLayers as applyFrameLayoutToLayers, VIDEO_FRAME_ASSETS as FRAME_ASSETS } from '../data/videoFrames';
 
 // Frame options for overlay frames - dynamically generated from FRAME_ASSETS
@@ -439,7 +441,7 @@ const DraggableLayer = React.memo(({
   isSelected: boolean;
   onSelect: (id: string) => void;
   onDragEnd: (id: string, x: number, y: number) => void;
-  onResize?: (id: string, width: number, height: number) => void;
+  onResize?: (id: string, width: number, height: number, fontSize?: number) => void;
   currentCanvasWidth: number;
   currentCanvasHeight: number;
   selectedTemplate: string;
@@ -455,7 +457,7 @@ const DraggableLayer = React.memo(({
   const [isPinching, setIsPinching] = useState(false);
   const [liveScale, setLiveScale] = useState(1);
 
-  const pinchStartRef = useRef<{ initialDistance: number; initialWidth: number; initialHeight: number } | null>(null);
+  const pinchStartRef = useRef<{ initialDistance: number; initialWidth: number; initialHeight: number; initialFontSize?: number } | null>(null);
   const pinchActiveRef = useRef(false);
 
   const getTouchDistance = (touches: any[]) => {
@@ -479,7 +481,7 @@ const DraggableLayer = React.memo(({
     pinchScaleAnim.setValue(1);
     lastPinchScale.current = 1;
     setLiveScale(1);
-  }, [layer.size.width, layer.size.height]);
+  }, [layer.size.width, layer.size.height, pinchScaleAnim]);
 
   const left = Math.round((localPos.x || 0) * scaleX);
   const top = Math.round((localPos.y || 0) * scaleY);
@@ -488,7 +490,7 @@ const DraggableLayer = React.memo(({
 
   const isBackground = layer.type === 'text' && layer.content === '' && layer.fieldType === 'footerBackground';
   const isTextLayer = layer.type === 'text' && !isBackground;
-  const isPinchable = (layer.type === 'logo' || layer.type === 'image') && scaleX === 1 && scaleY === 1;
+  const isPinchable = (layer.type === 'logo' || layer.type === 'image' || layer.type === 'text') && scaleX === 1 && scaleY === 1 && !isBackground;
 
   const currentWidth = (isTextLayer && actualDimensions) ? actualDimensions.width : explicitWidth;
   const currentHeight = (isTextLayer && actualDimensions) ? actualDimensions.height : explicitHeight;
@@ -642,15 +644,22 @@ const DraggableLayer = React.memo(({
           if (dist > 0) {
             if (!pinchStartRef.current) {
               setIsPinching(true);
+              lastPinchScale.current = 1;
               pinchStartRef.current = {
                 initialDistance: dist,
                 initialWidth: layer.size.width || explicitWidth,
                 initialHeight: layer.size.height || explicitHeight,
+                initialFontSize: layer.style?.fontSize || 16,
               };
             } else {
-              const scale = dist / pinchStartRef.current.initialDistance;
-              setLiveScale(scale);
-              pinchScaleAnim.setValue(scale);
+              const distScale = dist / pinchStartRef.current.initialDistance;
+              pinchScaleAnim.setValue(distScale);
+              
+              const pct = Math.round(distScale * 100);
+              if (Math.round(lastPinchScale.current * 100) !== pct) {
+                lastPinchScale.current = distScale;
+                setLiveScale(distScale);
+              }
             }
           }
         }
@@ -680,12 +689,18 @@ const DraggableLayer = React.memo(({
 
           const baseW = pinchStartRef.current ? pinchStartRef.current.initialWidth : (layer.size.width || explicitWidth);
           const baseH = pinchStartRef.current ? pinchStartRef.current.initialHeight : (layer.size.height || explicitHeight);
+          const baseFontSize = pinchStartRef.current?.initialFontSize || layer.style?.fontSize || 16;
 
           const newW = Math.max(minSize, Math.min(maxW, baseW * finalScale));
           const newH = Math.max(minSize, Math.min(maxH, baseH * finalScale));
 
           if (onResize) {
-            onResize(layer.id, newW, newH);
+            if (layer.type === 'text') {
+              const finalFontSize = Math.max(6, Math.min(120, Math.round(baseFontSize * finalScale)));
+              onResize(layer.id, newW, newH, finalFontSize);
+            } else {
+              onResize(layer.id, newW, newH);
+            }
           }
 
           pinchStartRef.current = null;
@@ -827,6 +842,8 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   const [selectedLayer, setSelectedLayer] = useState<string | null>(null);
   const [showTextModal, setShowTextModal] = useState(false);
   const [showInfoRequiredModal, setShowInfoRequiredModal] = useState(false);
+  const [showEditProfileForm, setShowEditProfileForm] = useState(false);
+  const [editProfileFormLoading, setEditProfileFormLoading] = useState(false);
   const [selectedFieldName, setSelectedFieldName] = useState('');
   const [showImageModal, setShowImageModal] = useState(false);
   const [showStyleModal, setShowStyleModal] = useState(false);
@@ -2871,10 +2888,16 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   }, []);
 
   // Pinch-to-zoom: commit new size from DraggableLayer back to layer state
-  const handleLayerResize = useCallback((layerId: string, newWidth: number, newHeight: number) => {
+  const handleLayerResize = useCallback((layerId: string, newWidth: number, newHeight: number, newFontSize?: number) => {
     setLayers(prev => prev.map(l =>
       l.id === layerId
-        ? { ...l, size: { width: Math.round(newWidth), height: Math.round(newHeight) } }
+        ? {
+            ...l,
+            size: { width: Math.round(newWidth), height: Math.round(newHeight) },
+            ...(newFontSize !== undefined
+              ? { style: { ...l.style, fontSize: newFontSize } }
+              : {})
+          }
         : l
     ));
   }, []);
@@ -3289,7 +3312,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
                 </LinearGradient>
               </TouchableOpacity>
 
-              {selectedLayer && (
+              {selectedLayer && !layers.find(l => l.id === selectedLayer)?.fieldType && (
                 <TouchableOpacity
                   style={styles.toolbarButton}
                   onPress={() => setShowDeleteElementModal(true)}
@@ -3910,6 +3933,33 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         visible={showInfoRequiredModal}
         fieldName={selectedFieldName}
         onClose={() => setShowInfoRequiredModal(false)}
+        onUpdate={() => {
+          setShowInfoRequiredModal(false);
+          setShowEditProfileForm(true);
+        }}
+      />
+
+      {/* Inline Business Profile Edit Form — opens directly without navigation */}
+      <BusinessProfileForm
+        visible={showEditProfileForm}
+        onClose={() => setShowEditProfileForm(false)}
+        profile={selectedBusinessProfile as any}
+        loading={editProfileFormLoading}
+        onSubmit={async (formData) => {
+          if (!selectedBusinessProfile?.id) return;
+          setEditProfileFormLoading(true);
+          try {
+            await businessProfileService.updateBusinessProfile(
+              selectedBusinessProfile.id,
+              formData
+            );
+            setShowEditProfileForm(false);
+          } catch (err: any) {
+            console.error('❌ [VIDEO EDITOR] Profile update failed:', err);
+          } finally {
+            setEditProfileFormLoading(false);
+          }
+        }}
       />
 
       {/* Frame Removal Warning Modal */}
