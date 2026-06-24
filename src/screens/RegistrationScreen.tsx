@@ -23,6 +23,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import loginAPIs from '../services/loginAPIs';
 import { moderateScale } from '../utils/responsiveUtils';
+import { getUserFriendlyError } from '../utils/errorHandler';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -103,15 +104,17 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
           setResendCooldown(60);
           showCustomModal('OTP Sent', 'A verification OTP has been sent to your WhatsApp.', 'success');
         } catch (resendError: any) {
-          const resendMessage = resendError.response?.data?.error || resendError.response?.data?.message || resendError.message || '';
-          if (resendMessage.toLowerCase().includes('verified')) {
+          const resendMessage = getUserFriendlyError(resendError);
+          const rawResendMsg = resendError.response?.data?.error || resendError.response?.data?.message || resendError.message || '';
+          if (rawResendMsg.toLowerCase().includes('verified')) {
             showCustomModal('Already Registered', 'This phone number is already registered and verified. Please sign in instead.', 'warning', 'Go to Sign In', () => navigation.navigate('Login'));
           } else {
-            showCustomModal('Registration Error', resendMessage || 'Failed to send OTP code. Please try again.', 'error');
+            showCustomModal('Registration Error', resendMessage, 'error');
           }
         }
       } else {
-        showCustomModal('Registration Error', errMsg || 'Registration failed. Please try again.', 'error');
+        const friendlyMessage = getUserFriendlyError(error);
+        showCustomModal('Registration Error', friendlyMessage, 'error');
       }
     } finally {
       setIsLoading(false);
@@ -155,7 +158,7 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
         throw new Error('Verification failed');
       }
     } catch (error: any) {
-      const errMsg = error.response?.data?.error || error.response?.data?.message || error.message || 'Verification failed';
+      const errMsg = getUserFriendlyError(error);
       setOtpValidationError(errMsg);
     } finally {
       setIsLoading(false);
@@ -171,7 +174,7 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
       setResendCooldown(60);
       showCustomModal('OTP Resent', 'A new verification OTP has been sent to your WhatsApp.', 'success');
     } catch (error: any) {
-      const errMsg = error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to resend OTP';
+      const errMsg = getUserFriendlyError(error);
       showCustomModal('Error', errMsg, 'error');
     } finally {
       setIsLoading(false);

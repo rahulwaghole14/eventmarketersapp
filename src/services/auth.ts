@@ -360,13 +360,11 @@ class AuthService {
   // Sign out (API only)
   async signOut(): Promise<void> {
     try {
-      console.log('Signing out user...');
+      console.log('Signing out user: starting complete session clearing...');
 
-      // STEP 1: Capture auth token BEFORE clearing (needed for API logout)
-      const authToken = await AsyncStorage.getItem('authToken');
       const isGoogleUser = this.currentUser?.providerId === 'google';
 
-      // STEP 2: Ensure full Google logout to prevent auto-login
+      // STEP 1: Ensure full Google logout to prevent auto-login
       if (isGoogleUser) {
         try {
           await GoogleSignin.signOut();
@@ -377,8 +375,34 @@ class AuthService {
         }
       }
 
-      // STEP 3: Clear critical local data FIRST for instant UI update
-      this.currentUser = null;
+      // STEP 2: Call backend API logout (if we have a token)
+      const authToken = await AsyncStorage.getItem('authToken');
+      if (authToken) {
+        try {
+          console.log('📡 Calling backend logout API...');
+          // Wrap backend API logout in a timeout to prevent locking user out if server/network is slow
+          const apiLogoutPromise = authApi.logout();
+          await Promise.race([
+            apiLogoutPromise,
+            new Promise((resolve) => setTimeout(() => {
+              console.warn('⚠️ API logout timed out (5s), proceeding with local sign out');
+              resolve(null);
+            }, 5000))
+          ]);
+          console.log('✅ Backend logout API completed');
+        } catch (apiError) {
+          console.error('⚠️ Backend logout API failed, proceeding with local sign out:', apiError);
+        }
+      }
+
+      // STEP 3: Clear all service caches
+      try {
+        console.log('🧹 Clearing all service caches...');
+        await this.clearAllCaches();
+        console.log('✅ Service caches cleared');
+      } catch (cacheError) {
+        console.error('⚠️ Error clearing service caches:', cacheError);
+      }
 
       // STEP 4: Capture theme preference to preserve it, then completely clear storage
       const theme = await AsyncStorage.getItem('theme');
@@ -388,16 +412,15 @@ class AuthService {
         await AsyncStorage.setItem('theme', theme);
       }
 
-      // STEP 4.5: Set logout flag to prevent auto-restore on next app launch
+      // STEP 5: Set logout flag to prevent auto-restore on next app launch
       await AsyncStorage.setItem('isLoggedOut', 'true');
       console.log('🚫 Logout flag set - preventing auto-restore');
 
-      // STEP 5: Notify listeners AFTER clearing storage to prevent race conditions
-      this.notifyAuthStateListeners(null);
+      // STEP 6: Clear memory state
+      this.currentUser = null;
 
-      // STEP 6: Background cleanup (API logout with token, cache clearing)
-      // Don't await these - let them run in background
-      this.performBackgroundCleanup(authToken);
+      // STEP 7: Notify listeners to trigger navigation out of the app
+      this.notifyAuthStateListeners(null);
 
       console.log('✅ Sign out completed - user navigated to login');
     } catch (error) {
@@ -410,11 +433,7 @@ class AuthService {
         if (theme) {
           await AsyncStorage.setItem('theme', theme);
         }
-
-        // STEP 4.5: Also set logout flag in error scenario
         await AsyncStorage.setItem('isLoggedOut', 'true');
-        console.log('🚫 Logout flag set even in error scenario');
-
         this.notifyAuthStateListeners(null);
         console.log('✅ Local cleanup completed despite error');
       } catch (cleanupError) {
@@ -422,43 +441,6 @@ class AuthService {
       }
       throw error;
     }
-  }
-
-  // Perform background cleanup after sign out (non-blocking)
-  private performBackgroundCleanup(authToken: string | null): void {
-    // Run in background without awaiting - user already navigated away
-    setTimeout(async () => {
-      try {
-        const cleanupTasks = [];
-
-        // API logout with the captured token
-        if (authToken) {
-          cleanupTasks.push(
-            (async () => {
-              try {
-                // Temporarily restore token for logout API call
-                await AsyncStorage.setItem('authToken', authToken);
-                await authApi.logout();
-                // Remove it again after logout
-                await AsyncStorage.removeItem('authToken');
-              } catch (error) {
-                // Silent fail - user already logged out locally
-              }
-            })()
-          );
-        }
-
-        // Clear all service caches
-        cleanupTasks.push(this.clearAllCaches().catch(() => { }));
-
-        // Execute all cleanup tasks in parallel
-        await Promise.all(cleanupTasks);
-
-        console.log('✅ Background cleanup completed');
-      } catch (error) {
-        // Silent fail - user already logged out locally
-      }
-    }, 0);
   }
 
   // Get current user profile (API only)

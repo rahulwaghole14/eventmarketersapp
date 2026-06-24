@@ -126,7 +126,7 @@ function getCacheConfig(url: string | undefined): { key: string; ttl: number } |
 // Create axios instance with the EventMarketers backend URL
 const api = axios.create({
   baseURL: BASE_URL, // Uses environment-specific base URL
-  timeout: 30000, // 30 seconds timeout for slower connections and server cold starts
+  timeout: 60000, // 60 seconds timeout for slower connections and server cold starts
   headers: {
     'Accept': 'application/json',
     // Note: Content-Type is not set here to allow FormData to set multipart/form-data automatically

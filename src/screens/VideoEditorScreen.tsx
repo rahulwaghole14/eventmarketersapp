@@ -35,7 +35,6 @@ import { BusinessProfile } from '../services/businessProfile';
 import businessProfileService from '../services/businessProfile';
 import authService from '../services/auth';
 import { GOOGLE_FONTS, getFontsByCategory, SYSTEM_FONTS, getFontFamily } from '../services/fontService';
-import { getAccessState, isAccessGranted, getAccessStateMessage, isTransitionalState } from '../utils/subscriptionAccess';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { useBusinessProfile } from '../context/BusinessProfileContext';
 import { useTheme } from '../context/ThemeContext';
@@ -53,6 +52,7 @@ import VideoOverlayProcessor, { OverlayPayload } from '../services/VideoOverlayP
 import PremiumTemplateModal from '../components/PremiumTemplateModal';
 import InfoRequiredModal from '../components/InfoRequiredModal';
 import BusinessProfileForm from '../components/BusinessProfileForm';
+import SuccessModal from '../components/SuccessModal';
 import { applyVideoFrameLayoutToLayers as applyFrameLayoutToLayers, VIDEO_FRAME_ASSETS as FRAME_ASSETS } from '../data/videoFrames';
 
 // Frame options for overlay frames - dynamically generated from FRAME_ASSETS
@@ -589,7 +589,7 @@ const DraggableLayer = React.memo(({
             ? explicitWidth / 2
             : ((layer as any).borderRadius ? (layer as any).borderRadius * scaleX : 0),
         },
-        isTextLayer ? { maxWidth: currentCanvasWidth } : { width: explicitWidth, height: explicitHeight },
+        isTextLayer ? { maxWidth: currentCanvasWidth * scaleX } : { width: explicitWidth, height: explicitHeight },
         isSelected && scaleX === 1 && scaleY === 1 && styles.selectedLayer,
         isPinchable && { transform: [{ scale: pinchScaleAnim }] },
       ]}
@@ -654,7 +654,7 @@ const DraggableLayer = React.memo(({
             } else {
               const distScale = dist / pinchStartRef.current.initialDistance;
               pinchScaleAnim.setValue(distScale);
-              
+
               const pct = Math.round(distScale * 100);
               if (Math.round(lastPinchScale.current * 100) !== pct) {
                 lastPinchScale.current = distScale;
@@ -797,16 +797,9 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   const insets = useSafeAreaInsets();
   const { selectedLanguage: initialLanguage, selectedTemplateId, selectedVideo } = route.params;
 
-  const { isSubscribed, checkPremiumAccess, refreshSubscription } = useSubscription();
-  const { selectedBusinessProfile } = useBusinessProfile();
+  const { refreshSubscription } = useSubscription();
+  const { selectedBusinessProfile, updateBusinessProfileGlobally } = useBusinessProfile();
   const { isDarkMode, theme } = useTheme();
-
-  // Unified access state based on business profile or global subscription
-  const accessState = getAccessState({
-    businessProfile: selectedBusinessProfile,
-    isSubscribed,
-  });
-  const hasAccess = isAccessGranted(accessState);
 
   // Video refs
   const videoRef = useRef<any>(null);
@@ -840,11 +833,15 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   const [selectedFrame, setSelectedFrame] = useState<string | null>(null);
   const [isAutoLayoutApplied, setIsAutoLayoutApplied] = useState<{ [key: string]: boolean }>({});
   const [selectedLayer, setSelectedLayer] = useState<string | null>(null);
+  const prevFrameRef = useRef<string | null>(null);
   const [showTextModal, setShowTextModal] = useState(false);
   const [showInfoRequiredModal, setShowInfoRequiredModal] = useState(false);
   const [showEditProfileForm, setShowEditProfileForm] = useState(false);
   const [editProfileFormLoading, setEditProfileFormLoading] = useState(false);
   const [selectedFieldName, setSelectedFieldName] = useState('');
+  const [pendingToggleField, setPendingToggleField] = useState<string | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const [showImageModal, setShowImageModal] = useState(false);
   const [showStyleModal, setShowStyleModal] = useState(false);
   const [showLogoSelectionModal, setShowLogoSelectionModal] = useState(false);
@@ -875,7 +872,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
 
   // Business profiles
   const selectedProfile = selectedBusinessProfile;
-  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [showPremiumTemplateModal, setShowPremiumTemplateModal] = useState(false);
   const [showFrameRemovalModal, setShowFrameRemovalModal] = useState(false);
   const [pendingTemplate, setPendingTemplate] = useState<string | null>(null);
 
@@ -883,13 +880,13 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   const [showFontModal, setShowFontModal] = useState(false);
   const [visibleFields, setVisibleFields] = useState<{ [key: string]: boolean }>({
     logo: true,
-    companyName: true,
-    footerBackground: true,
+    companyName: false,
+    footerBackground: false,
     phone: true,
     email: true,
-    website: true,
-    category: true,
-    address: true,
+    website: false,
+    category: false,
+    address: false,
     services: false,
   });
   const [selectedFont, setSelectedFont] = useState('System');
@@ -921,6 +918,33 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   const currentCanvasWidth = canvasDimensions.width;
   const currentCanvasHeight = canvasDimensions.height;
   const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: number } | null>(null);
+
+  const getExportDimensions = () => {
+    // Export matches the canvas square exactly — the canvas is what the user edits,
+    // including overlay elements placed over the letterbox bars.
+    const rawWidth = Math.round(currentCanvasWidth);
+    const rawHeight = Math.round(currentCanvasHeight);
+    
+    // Target a high-quality export dimension (e.g., 1080px) to prevent text, logos,
+    // and image overlays from being rendered at low screen resolutions and then stretched.
+    const targetDimension = 1080;
+
+    if (rawWidth > 0 && rawHeight > 0) {
+      const scale = targetDimension / Math.max(rawWidth, rawHeight);
+      return {
+        width: Math.max(1, Math.round(rawWidth * scale)),
+        height: Math.max(1, Math.round(rawHeight * scale)),
+      };
+    }
+    return {
+      width: Math.max(1, rawWidth),
+      height: Math.max(1, rawHeight),
+    };
+  };
+
+  const { width: exportWidth, height: exportHeight } = getExportDimensions();
+  const captureScaleX = currentCanvasWidth > 0 ? exportWidth / currentCanvasWidth : 1;
+  const captureScaleY = currentCanvasHeight > 0 ? exportHeight / currentCanvasHeight : 1;
 
   const canvasTopOffset = insets.top + moderateScale(12);
   const canvasBottomY = canvasTopOffset + currentCanvasHeight;
@@ -1126,13 +1150,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
       setIsCapturing(true);
       // Wait a frame for any last UI updates before capture
       await new Promise(resolve => requestAnimationFrame(() => resolve(null)));
-      const exportWidth = Math.round(videoDimensions?.width || currentCanvasWidth);
-      const exportHeight = Math.round(videoDimensions?.height || currentCanvasHeight);
-
-      const captureOptions: any = { format: 'png', quality: 1, width: exportWidth, height: exportHeight };
-      if (videoDimensions) {
-        captureOptions.result = 'tmpfile';
-      }
+      const captureOptions: any = { format: 'png', quality: 1, width: exportWidth, height: exportHeight, result: 'tmpfile' };
 
       const captureUri = await captureTarget.capture?.(captureOptions);
       if (!captureUri) {
@@ -1162,14 +1180,14 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
     } finally {
       setIsCapturing(false);
     }
-  }, [videoDimensions, currentCanvasWidth, currentCanvasHeight]);
+  }, [currentCanvasWidth, currentCanvasHeight, exportWidth, exportHeight]);
 
   const ensureLocalVideoUri = useCallback(async (uri: string): Promise<string> => {
     if (!uri) {
       throw new Error('Video URI is missing.');
     }
 
-    if (uri.startsWith('file://') || uri.startsWith('/')) {
+    if (uri.startsWith('file://') || uri.startsWith('/') || uri.startsWith('content://')) {
       return uri;
     }
 
@@ -1546,6 +1564,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
     if (!isCurrentlyVisible && isBusinessField && !isFieldDataAvailable(field)) {
       const displayName = fieldDisplayNames[field] || field;
       setSelectedFieldName(displayName);
+      setPendingToggleField(field);
       setShowInfoRequiredModal(true);
       return;
     }
@@ -1771,17 +1790,20 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
       return;
 
       // Navigate to video preview
+      const visibleLayersOnly = layers.filter(
+        layer => !layer.fieldType || getEffectiveToggleValue(layer.fieldType)
+      );
       navigation.navigate('VideoPreview', {
         selectedVideo: { uri: currentVideoSource },
         selectedLanguage: getLanguageCode(currentLanguage),
         selectedTemplateId: 'custom',
-        layers: layers,
+        layers: visibleLayersOnly,
         selectedProfile: selectedProfile,
         processedVideoPath: undefined,
         canvasData: {
           width: currentCanvasWidth,
           height: currentCanvasHeight,
-          layers: layers,
+          layers: visibleLayersOnly,
         },
       });
 
@@ -1999,18 +2021,23 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
           setDisplayProgress(0);
         }, 1000);
 
+        // Filter layers to include only visible/enabled ones in the preview
+        const visibleLayersOnly = layers.filter(
+          layer => !layer.fieldType || getEffectiveToggleValue(layer.fieldType)
+        );
+
         // Navigate to video preview
         navigation.navigate('VideoPreview', {
           selectedVideo: { uri: videoUri }, // Keep original video as selectedVideo
           selectedLanguage: getLanguageCode(currentLanguage),
           selectedTemplateId: 'custom',
-          layers: layers,
+          layers: visibleLayersOnly,
           selectedProfile: selectedProfile,
           processedVideoPath: result.videoPath, // Pass processed video as processedVideoPath
           canvasData: {
             width: currentCanvasWidth,
             height: currentCanvasHeight,
-            layers: layers,
+            layers: visibleLayersOnly,
           },
         });
       } else {
@@ -2165,7 +2192,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         return Math.max(baseSize * scaleFactor, baseSize * 0.8); // Minimum 80% of base size
       };
 
-      const footerTextSize = getResponsiveFooterFontSize(isTabletDevice ? 14 : 11);
+      const footerTextSize = getResponsiveFooterFontSize(isTabletDevice ? 14 : 12);
 
       newLayers.push({
         id: generateId(),
@@ -2414,31 +2441,22 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         }
       }
 
+      // Canvas always stays at the fixed square dimensions (videoCanvasWidth × videoCanvasHeight).
+      // The video renders inside with resizeMode="contain", producing letterbox bars for
+      // non-square videos. Overlays span the full canvas, so elements can be placed
+      // anywhere — including on top of the bar areas.
+      // We only record videoDimensions for informational use.
       if (naturalWidth > 0 && naturalHeight > 0) {
-        // Keep canvas dimensions completely fixed to match template aspect ratio exactly
-        setCanvasDimensions({
-          width: videoCanvasWidth,
-          height: videoCanvasHeight,
-        });
         setVideoDimensions({
           width: Math.round(naturalWidth),
           height: Math.round(naturalHeight),
         });
       } else {
-        // Fall back to defaults if natural size unavailable
-        setCanvasDimensions({ width: videoCanvasWidth, height: videoCanvasHeight });
-        setVideoDimensions({
-          width: videoCanvasWidth,
-          height: videoCanvasHeight,
-        });
+        setVideoDimensions(null);
       }
     } catch (error) {
-      console.warn('⚠️ Failed to calculate canvas dimensions from video metadata:', error);
-      setCanvasDimensions({ width: videoCanvasWidth, height: videoCanvasHeight });
-      setVideoDimensions({
-        width: videoCanvasWidth,
-        height: videoCanvasHeight,
-      });
+      console.warn('⚠️ Failed to read video metadata:', error);
+      setVideoDimensions(null);
     }
   };
 
@@ -2634,13 +2652,20 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   };
 
   const handleNext = useCallback(async () => {
-    // Use unified access state instead of global isSubscribed
-    if (!hasAccess) {
-      if (isTransitionalState(accessState)) {
-        Alert.alert('Processing', getAccessStateMessage(accessState));
-      } else {
-        setShowPremiumModal(true);
-      }
+    console.log("🎯 [VIDEO EDITOR] Next button clicked");
+
+    // Safe guards - ensure business profile exists
+    if (!selectedBusinessProfile) {
+      console.log(":x: [VIDEO EDITOR] Validation failed - No business profile selected");
+      setShowPremiumTemplateModal(true);
+      return;
+    }
+
+    if (selectedBusinessProfile.subscriptionStatus !== "ACTIVE") {
+      console.log(":x: [VIDEO EDITOR] Validation failed - Subscription not active", {
+        subscriptionStatus: selectedBusinessProfile.subscriptionStatus
+      });
+      setShowPremiumTemplateModal(true);
       return;
     }
 
@@ -2660,18 +2685,22 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
 
     const { payload: overlayPayload, overlayImageUri } = await buildOverlayPayload();
 
+    const visibleLayersOnly = layers.filter(
+      layer => !layer.fieldType || getEffectiveToggleValue(layer.fieldType)
+    );
+
     if (Platform.OS !== 'android' || overlayPayload.length === 0) {
       navigation.navigate('VideoPreview', {
         selectedVideo: { uri: selectedVideo.uri },
         selectedLanguage: getLanguageCode(currentLanguage),
         selectedTemplateId: selectedTemplateId || 'custom',
-        layers,
+        layers: visibleLayersOnly,
         selectedProfile,
         processedVideoPath: undefined,
         canvasData: {
           width: currentCanvasWidth,
           height: currentCanvasHeight,
-          layers,
+          layers: visibleLayersOnly,
         },
       });
       return;
@@ -2713,13 +2742,13 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         selectedVideo: { uri: selectedVideo.uri },
         selectedLanguage: getLanguageCode(currentLanguage),
         selectedTemplateId: selectedTemplateId || 'custom',
-        layers,
+        layers: visibleLayersOnly,
         selectedProfile,
         processedVideoPath: outputPath,
         canvasData: {
           width: currentCanvasWidth,
           height: currentCanvasHeight,
-          layers,
+          layers: visibleLayersOnly,
         },
       });
     } catch (error) {
@@ -2735,13 +2764,13 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         selectedVideo: { uri: selectedVideo.uri },
         selectedLanguage: getLanguageCode(currentLanguage),
         selectedTemplateId: selectedTemplateId || 'custom',
-        layers,
+        layers: visibleLayersOnly,
         selectedProfile,
         processedVideoPath: undefined,
         canvasData: {
           width: currentCanvasWidth,
           height: currentCanvasHeight,
-          layers,
+          layers: visibleLayersOnly,
         },
       });
     } finally {
@@ -2768,8 +2797,6 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
     selectedTemplateId,
     selectedVideo?.uri,
     validateBusinessContent,
-    accessState,
-    hasAccess,
   ]);
 
   // Apply frame-specific layout to elements
@@ -2874,10 +2901,14 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         });
         setLayers(restoredLayers);
         setOriginalLayers([]);
-      } else {
+      }
+      
+      // Only restore footer background if a frame was actually active before and is now removed
+      if (prevFrameRef.current !== null) {
         setVisibleFields(prev => ({ ...prev, footerBackground: true }));
       }
     }
+    prevFrameRef.current = selectedFrame;
   }, [selectedFrame]);
 
   // Render functions
@@ -2892,12 +2923,12 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
     setLayers(prev => prev.map(l =>
       l.id === layerId
         ? {
-            ...l,
-            size: { width: Math.round(newWidth), height: Math.round(newHeight) },
-            ...(newFontSize !== undefined
-              ? { style: { ...l.style, fontSize: newFontSize } }
-              : {})
-          }
+          ...l,
+          size: { width: Math.round(newWidth), height: Math.round(newHeight) },
+          ...(newFontSize !== undefined
+            ? { style: { ...l.style, fontSize: newFontSize } }
+            : {})
+        }
         : l
     ));
   }, []);
@@ -2949,10 +2980,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
     outputRange: [0.18, 0],
   });
 
-  const exportWidth = Math.max(1, Math.round(videoDimensions?.width || currentCanvasWidth));
-  const exportHeight = Math.max(1, Math.round(videoDimensions?.height || currentCanvasHeight));
-  const captureScaleX = currentCanvasWidth > 0 ? exportWidth / currentCanvasWidth : 1;
-  const captureScaleY = currentCanvasHeight > 0 ? exportHeight / currentCanvasHeight : 1;
+
 
   const headerTopPadding = isTablet
     ? Math.max(insets.top - moderateScale(4), 0)
@@ -3030,7 +3058,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
             ref={videoRef}
             source={videoSource}
             style={styles.video}
-            resizeMode="cover"
+            resizeMode="contain"
             paused={!isVideoPlaying}
             onLoad={onVideoLoad}
             onLoadStart={onVideoLoadStart}
@@ -3916,14 +3944,17 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         </View>
       </Modal>
 
-      {/* Premium Modal */}
+      {/* Premium Template Modal */}
       <PremiumTemplateModal
-        visible={showPremiumModal}
-        onClose={() => setShowPremiumModal(false)}
+        visible={showPremiumTemplateModal}
+        onClose={() => setShowPremiumTemplateModal(false)}
         onUpgrade={async () => {
-          setShowPremiumModal(false);
+          setShowPremiumTemplateModal(false);
           await refreshSubscription();
-          (navigation as any).navigate('Subscription');
+          navigation.navigate('Subscription' as any, {
+            source: 'BUSINESS_PROFILE',
+            businessProfileId: selectedBusinessProfile?.id
+          });
         }}
         selectedTemplate={null}
       />
@@ -3932,7 +3963,13 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
       <InfoRequiredModal
         visible={showInfoRequiredModal}
         fieldName={selectedFieldName}
-        onClose={() => setShowInfoRequiredModal(false)}
+        onClose={() => {
+          setShowInfoRequiredModal(false);
+          // Only clear if the edit profile form is not being shown next
+          if (!showEditProfileForm) {
+            setPendingToggleField(null);
+          }
+        }}
         onUpdate={() => {
           setShowInfoRequiredModal(false);
           setShowEditProfileForm(true);
@@ -3942,17 +3979,46 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
       {/* Inline Business Profile Edit Form — opens directly without navigation */}
       <BusinessProfileForm
         visible={showEditProfileForm}
-        onClose={() => setShowEditProfileForm(false)}
+        onClose={() => {
+          setShowEditProfileForm(false);
+          setPendingToggleField(null);
+        }}
         profile={selectedBusinessProfile as any}
         loading={editProfileFormLoading}
         onSubmit={async (formData) => {
           if (!selectedBusinessProfile?.id) return;
           setEditProfileFormLoading(true);
           try {
-            await businessProfileService.updateBusinessProfile(
+            const updated = await businessProfileService.updateBusinessProfile(
               selectedBusinessProfile.id,
               formData
             );
+
+            // Retrieve latest complete data
+            let completeUpdatedProfile = updated;
+            const currentUser = authService.getCurrentUser();
+            if (currentUser?.id) {
+              const freshProfiles = await businessProfileService.getUserBusinessProfiles(currentUser.id);
+              const freshProfile = freshProfiles.find(p => p.id === updated.id);
+              if (freshProfile) {
+                completeUpdatedProfile = freshProfile;
+              }
+            }
+
+            // Update global context so the context gets the updated active profile
+            await updateBusinessProfileGlobally(selectedBusinessProfile.id, completeUpdatedProfile);
+
+            // Automatically toggle the updated field to visible on the canvas
+            if (pendingToggleField) {
+              setVisibleFields(prev => ({
+                ...prev,
+                [pendingToggleField]: true
+              }));
+              setPendingToggleField(null);
+            }
+
+            setSuccessMessage('Business profile updated successfully');
+            setShowSuccessModal(true);
             setShowEditProfileForm(false);
           } catch (err: any) {
             console.error('❌ [VIDEO EDITOR] Profile update failed:', err);
@@ -3960,6 +4026,13 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
             setEditProfileFormLoading(false);
           }
         }}
+      />
+
+      {/* Success Modal */}
+      <SuccessModal
+        visible={showSuccessModal}
+        message={successMessage}
+        onClose={() => setShowSuccessModal(false)}
       />
 
       {/* Frame Removal Warning Modal */}
@@ -4331,18 +4404,10 @@ const styles = StyleSheet.create({
     padding: isLandscape ? (isTablet ? responsiveSpacing.sm : responsiveSpacing.xs) : (isUltraSmallScreen ? 1 : isSmallScreen ? 2 : responsiveSpacing.xs),
     paddingBottom: isLandscape ? (isTablet ? responsiveSpacing.sm : responsiveSpacing.xs) : (isUltraSmallScreen ? 1 : isSmallScreen ? 2 : responsiveSpacing.xs),
     marginBottom: isTablet ? responsiveSpacing.md : isLandscape ? responsiveSpacing.sm : isUltraSmallScreen ? responsiveSpacing.sm : responsiveSpacing.md,
-    maxHeight: isLandscape
-      ? screenHeight * 0.65
-      : isTablet
-        ? screenHeight * 0.50
-        : isUltraSmallScreen
-          ? screenHeight * 0.42
-          : isSmallScreen
-            ? screenHeight * 0.44
-            : screenHeight * 0.45,
   },
   canvas: {
     borderRadius: 0,
+    backgroundColor: '#000', // Letterbox bars appear as clean black
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -4358,6 +4423,7 @@ const styles = StyleSheet.create({
   video: {
     width: '100%',
     height: '100%',
+    backgroundColor: '#000', // Ensures bars are black when video letterboxes
   },
   bottomToolbar: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',

@@ -207,7 +207,7 @@ class LoginAPIsService {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
-          timeout: 30000, // 30 second timeout for file upload
+          timeout: 90000, // 90 second timeout for file upload and cold starts
         });
         
       } else {
@@ -226,6 +226,8 @@ class LoginAPIsService {
           companyLogo: data.companyLogo,
           displayName: data.displayName,
           promoCode: data.promoCode,
+        }, {
+          timeout: 90000, // 90 second timeout for registration cold starts
         });
       }
 
@@ -348,6 +350,8 @@ class LoginAPIsService {
         password: data.password,
         phone: data.phone,
         rememberMe: data.rememberMe || false,
+      }, {
+        timeout: 90000, // 90 second timeout for login cold starts
       });
 
       console.log('📡 API Response status:', response.status);

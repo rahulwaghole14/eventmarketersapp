@@ -6,7 +6,7 @@
 export const getUserFriendlyError = (error: any): string => {
   // Check for network errors first (no response from server)
   if (!error.response) {
-    return "Please check your internet connection and try again.";
+    return "Some technical issue, please try again.";
   }
 
   const backendMessage =
@@ -74,7 +74,7 @@ export const getUserFriendlyError = (error: any): string => {
   }
 
   if (lowerMessage.includes("network") || lowerMessage.includes("timeout")) {
-    return "Connection problem. Please check your internet and try again.";
+    return "Some technical issue, please try again.";
   }
 
   if (lowerMessage.includes("rate limit") || lowerMessage.includes("too many")) {

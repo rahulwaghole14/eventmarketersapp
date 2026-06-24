@@ -391,7 +391,7 @@ class SubscriptionApiService {
                 data: {
                   isActive: Boolean(subscriptionData?.isActive),
                   planId: subscriptionData?.planId ?? null,
-                  planName: subscriptionData?.planName ?? null,
+                  planName: subscriptionData?.planName ?? (typeof subscriptionData?.plan === 'string' ? subscriptionData.plan : subscriptionData?.plan?.name) ?? null,
                   expiryDate: subscriptionData?.expiryDate ?? null,
                   autoRenew: Boolean(subscriptionData?.autoRenew),
                   status: correctedStatus
@@ -501,7 +501,7 @@ class SubscriptionApiService {
                 data: {
                   isActive: Boolean(subscriptionData?.isActive),
                   planId: subscriptionData?.planId ?? null,
-                  planName: subscriptionData?.planName ?? null,
+                  planName: subscriptionData?.planName ?? (typeof subscriptionData?.plan === 'string' ? subscriptionData.plan : subscriptionData?.plan?.name) ?? null,
                   expiryDate: subscriptionData?.expiryDate ?? null,
                   autoRenew: Boolean(subscriptionData?.autoRenew),
                   status: correctedStatus

@@ -668,9 +668,10 @@ const ProfileScreen: React.FC = () => {
           
           // 🔍 STEP 5: BUSINESS-SPECIFIC HISTORY API
           try {
+            let downloadsResponse: any;
             if (selectedBusinessProfileId) {
               console.log('📋 [PROFILE SCREEN] Fetching downloads for business:', selectedBusinessProfileId);
-              const downloadsResponse = await downloadTrackingService.getUserDownloads(userId);
+              downloadsResponse = await downloadTrackingService.getUserDownloads(userId);
               // Note: Backend should filter by businessProfileId automatically
             } else {
               console.log('⚠️ [PROFILE SCREEN] No business profile selected, skipping download fetch');
@@ -678,7 +679,7 @@ const ProfileScreen: React.FC = () => {
             }
             
             // Deduplicate downloads to match MyPostersScreen logic and prevent double-counting
-            const rawDownloads = downloadsResponse.downloads || [];
+            const rawDownloads = downloadsResponse?.downloads || [];
             const validDownloads = rawDownloads.filter((download: any) => {
               const url = download.fileUrl || download.thumbnail;
               return url && typeof url === 'string' && url.trim() !== '' && 

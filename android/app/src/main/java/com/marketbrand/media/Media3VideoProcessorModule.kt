@@ -12,15 +12,21 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.media3.common.MediaItem
+import androidx.media3.common.util.Clock
 import androidx.media3.effect.BitmapOverlay
 import androidx.media3.effect.OverlayEffect
 import androidx.media3.effect.TextureOverlay
+import androidx.media3.effect.Presentation
 import androidx.media3.transformer.Composition
+import androidx.media3.transformer.DefaultAssetLoaderFactory
+import androidx.media3.transformer.DefaultDecoderFactory
+import androidx.media3.transformer.DefaultEncoderFactory
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.Effects
 import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.Transformer
+import androidx.media3.transformer.VideoEncoderSettings
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -56,6 +62,7 @@ class Media3VideoProcessorModule(private val reactContext: ReactApplicationConte
     promise: Promise
   ) {
     executor.execute {
+      var compositeBitmap: Bitmap? = null
       try {
         val inputUri = Uri.parse(inputUriString)
         val appContext = reactApplicationContext ?: throw IllegalStateException("Context unavailable")
@@ -64,8 +71,28 @@ class Media3VideoProcessorModule(private val reactContext: ReactApplicationConte
 
         Log.d(TAG, "Preparing overlays: $overlaysArray")
         val layers = parseOverlayLayers(overlaysArray)
-        val (videoWidth, videoHeight) = getVideoDimensions(appContext, inputUri)
-        val compositeBitmap = buildCompositeOverlayBitmap(appContext, layers, videoWidth, videoHeight)
+        val (originalWidth, originalHeight) = getVideoDimensions(appContext, inputUri)
+
+        // Step 1: Downscale the video dimensions to max 1280px on the longest side.
+        val maxDimension = 1280
+        var videoWidth = originalWidth
+        var videoHeight = originalHeight
+        if (videoWidth > maxDimension || videoHeight > maxDimension) {
+          val scale = maxDimension.toFloat() / Math.max(videoWidth, videoHeight)
+          videoWidth = (videoWidth * scale).toInt()
+          videoHeight = (videoHeight * scale).toInt()
+          Log.d(TAG, "Downscaling from ${originalWidth}x${originalHeight} to ${videoWidth}x${videoHeight}")
+        }
+
+        // Step 2: Compute the square output side.
+        // The output is always a SQUARE canvas (same as the editor), with the video
+        // letterboxed inside using LAYOUT_SCALE_TO_FIT (black bars on the narrow sides).
+        // The overlay PNG from JS is also square so it maps 1:1 — no stretching, correct positions.
+        val squareSide = Math.min(videoWidth, videoHeight).coerceAtLeast(1)
+        Log.d(TAG, "Square output side: $squareSide (from ${videoWidth}x${videoHeight})")
+
+        // Step 3: Build overlay bitmap at the SQUARE size so it matches the JS canvas exactly.
+        compositeBitmap = buildCompositeOverlayBitmap(appContext, layers, squareSide, squareSide)
 
         val textureOverlays: ImmutableList<TextureOverlay> = if (compositeBitmap != null) {
           ImmutableList.of<TextureOverlay>(BitmapOverlay.createStaticBitmapOverlay(compositeBitmap))
@@ -75,14 +102,16 @@ class Media3VideoProcessorModule(private val reactContext: ReactApplicationConte
 
         mainHandler.post {
           try {
-            startTransformation(appContext, inputUri, textureOverlays, outputFile, promise)
-          } catch (error: Exception) {
+            startTransformation(appContext, inputUri, textureOverlays, outputFile, promise, squareSide, compositeBitmap)
+          } catch (error: Throwable) {
             Log.e(TAG, "Media3 transformation failed on main thread", error)
+            compositeBitmap?.recycle()
             promise.reject("MEDIA3_PROCESS_ERROR", error)
           }
         }
-      } catch (error: Exception) {
+      } catch (error: Throwable) {
         Log.e(TAG, "Media3 transformation failed", error)
+        compositeBitmap?.recycle()
         promise.reject("MEDIA3_PROCESS_ERROR", error)
       }
     }
@@ -94,20 +123,58 @@ class Media3VideoProcessorModule(private val reactContext: ReactApplicationConte
     textureOverlays: ImmutableList<TextureOverlay>,
     outputFile: File,
     promise: Promise,
+    squareSide: Int,       // Output is always a square canvas (letterboxed video + overlays)
+    compositeBitmap: Bitmap?
   ) {
     val editedMediaItemBuilder = EditedMediaItem.Builder(MediaItem.fromUri(inputUri))
 
+    val videoEffects = mutableListOf<androidx.media3.common.Effect>()
+
+    // Always apply a square Presentation: letterboxes the video into squareSide×squareSide
+    // with black bars on the shorter sides, exactly matching the editor's resizeMode="contain".
+    val presentationEffect = Presentation.createForWidthAndHeight(
+      squareSide,
+      squareSide,
+      Presentation.LAYOUT_SCALE_TO_FIT
+    )
+    videoEffects.add(presentationEffect)
+
     if (textureOverlays.isNotEmpty()) {
       val overlayEffect = OverlayEffect(textureOverlays)
-      val effects = Effects(emptyList(), listOf(overlayEffect))
-      editedMediaItemBuilder.setEffects(effects)
+      videoEffects.add(overlayEffect)
     }
+
+    val effects = Effects(emptyList(), videoEffects)
+    editedMediaItemBuilder.setEffects(effects)
 
     val editedMediaItem = editedMediaItemBuilder.build()
 
+    val encoderFactoryBuilder = DefaultEncoderFactory.Builder(context)
+      .setEnableFallback(true)
+
+    try {
+      val encoderSettings = VideoEncoderSettings.Builder()
+        .setBitrate(3_000_000) // 3 Mbps — sufficient for 720p square output
+        .build()
+      encoderFactoryBuilder.setRequestedVideoEncoderSettings(encoderSettings)
+    } catch (e: Exception) {
+      Log.w(TAG, "Failed to apply custom VideoEncoderSettings, using default factory settings", e)
+    }
+
+    val encoderFactory = encoderFactoryBuilder.build()
+
+    val decoderFactory = DefaultDecoderFactory.Builder(context)
+      .setEnableDecoderFallback(true)
+      .build()
+
+    val assetLoaderFactory = DefaultAssetLoaderFactory(context, decoderFactory, Clock.DEFAULT, null)
+
     val transformer = Transformer.Builder(context)
+      .setEncoderFactory(encoderFactory)
+      .setAssetLoaderFactory(assetLoaderFactory)
       .addListener(object : Transformer.Listener {
         override fun onCompleted(composition: Composition, exportResult: ExportResult) {
+          compositeBitmap?.recycle()
           promise.resolve(outputFile.absolutePath)
         }
 
@@ -116,6 +183,7 @@ class Media3VideoProcessorModule(private val reactContext: ReactApplicationConte
           exportResult: ExportResult,
           exportException: ExportException,
         ) {
+          compositeBitmap?.recycle()
           promise.reject("MEDIA3_EXPORT_ERROR", exportException)
         }
       })
@@ -183,16 +251,32 @@ class Media3VideoProcessorModule(private val reactContext: ReactApplicationConte
     var retriever: MediaMetadataRetriever? = null
     return try {
       retriever = MediaMetadataRetriever().apply {
-        setDataSource(context, uri)
+        if (uri.scheme == "file" && uri.path != null) {
+          setDataSource(uri.path)
+        } else {
+          setDataSource(context, uri)
+        }
       }
-      val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull()
-      val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull()
-      Pair(width ?: DEFAULT_VIDEO_WIDTH, height ?: DEFAULT_VIDEO_HEIGHT)
+      val rawWidth = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: DEFAULT_VIDEO_WIDTH
+      val rawHeight = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: DEFAULT_VIDEO_HEIGHT
+      val rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
+
+      Log.d(TAG, "Video metadata - rawWidth: $rawWidth, rawHeight: $rawHeight, rotation: $rotation")
+
+      if (rotation == 90 || rotation == 270) {
+        Pair(rawHeight, rawWidth)
+      } else {
+        Pair(rawWidth, rawHeight)
+      }
     } catch (error: Exception) {
       Log.w(TAG, "Failed to read video metadata, using defaults", error)
       Pair(DEFAULT_VIDEO_WIDTH, DEFAULT_VIDEO_HEIGHT)
     } finally {
-      retriever?.release()
+      try {
+        retriever?.release()
+      } catch (e: Exception) {
+        Log.w(TAG, "Failed to release MediaMetadataRetriever", e)
+      }
     }
   }
 

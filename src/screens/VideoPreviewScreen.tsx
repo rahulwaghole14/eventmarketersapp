@@ -231,15 +231,14 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
-  const [videoError, setVideoError] = useState(false);
-  const [isDemoVideo, setIsDemoVideo] = useState(false);
-  const [useProcessedVideo, setUseProcessedVideo] = useState(true);
-  const [processedVideoPath, setProcessedVideoPath] = useState(initialProcessedVideoPath);
   const [showDownloadSuccess, setShowDownloadSuccess] = useState(false);
   const [renderedVideoSize, setRenderedVideoSize] = useState<{ width: number; height: number }>({
     width: videoWidth,
     height: videoHeight,
   });
+
+  // processedVideoPath is only used for download/share, not for preview display
+  const processedVideoPath = initialProcessedVideoPath;
 
   const videoRef = useRef<any>(null);
   const naturalVideoSizeRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
@@ -293,63 +292,49 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
   };
 
   // Helper function to ensure we only use local video URIs
+  // Preview always plays the ORIGINAL video with React Native overlays on top.
+  // The processedVideoPath (Media3 output) is only used for download/share.
+  // This ensures overlay positions in the preview exactly match the editor canvas.
   const getSafeVideoUri = useCallback(() => {
-    if (useProcessedVideo && processedVideoPath) {
-      return processedVideoPath;
+    const uri = selectedVideo?.uri || '';
+    if (!uri) {
+      console.warn('⚠️ Empty URI detected, using fallback');
+      return Platform.OS === 'android'
+        ? 'android.resource://com.marketbrand/raw/test'
+        : 'https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4';
     }
 
-    // Ensure we only use local asset URIs, never web URLs
-    const fallbackUri = selectedVideo?.uri || 'asset://test.mp4';
-    if (fallbackUri.startsWith('http://') || fallbackUri.startsWith('https://')) {
-      console.warn('⚠️ Web URL detected, falling back to local test video');
-      return 'asset://test.mp4';
+    // Convert asset:// URIs to correct raw resource path on Android
+    if (Platform.OS === 'android' && uri.startsWith('asset://')) {
+      const fileName = uri.replace('asset://', '').replace('.mp4', '');
+      return `android.resource://com.marketbrand/raw/${fileName}`;
     }
 
-    return fallbackUri;
-  }, [useProcessedVideo, processedVideoPath, selectedVideo?.uri]);
+    // Remove asset:// prefix on iOS to load as local bundle file
+    if (Platform.OS === 'ios' && uri.startsWith('asset://')) {
+      return uri.replace('asset://', '');
+    }
 
-  // Debug logging
+    return uri;
+  }, [selectedVideo?.uri]);
+
   React.useEffect(() => {
     console.log('VideoPreviewScreen - Debug Info:');
     console.log('- Original video URI:', selectedVideo.uri);
-    console.log('- Processed video path:', processedVideoPath);
-    console.log('- Use processed video:', useProcessedVideo);
-    console.log('- Video error state:', videoError);
+    console.log('- Processed video path (for download):', initialProcessedVideoPath);
     console.log('- Layers count:', layers?.length || 0);
-
-    // Validate the processed video path format
-    if (processedVideoPath) {
-      console.log('✅ Processed video path validation:');
-      console.log('- Path format:', processedVideoPath.startsWith('file://') ? 'Valid file:// URI' : 'Invalid format');
-      console.log('- Path length:', processedVideoPath.length);
-      console.log('- Platform:', Platform.OS);
-
-      // Log expected path patterns
-      if (Platform.OS === 'android') {
-        console.log('- Expected Android pattern: file:///data/user/0/com.marketbrand/files/...');
-      } else if (Platform.OS === 'ios') {
-        console.log('- Expected iOS pattern: file:///var/mobile/Containers/Data/Application/.../Documents/...');
-      }
-    }
-
-    // Ensure processed video is used when available
-    if (processedVideoPath && !useProcessedVideo) {
-      console.log('Processed video available, switching to processed video');
-      setUseProcessedVideo(true);
-    }
-  }, [selectedVideo.uri, processedVideoPath, useProcessedVideo, videoError, layers]);
+    console.log('- Canvas data:', canvasData?.width, 'x', canvasData?.height);
+  }, [selectedVideo.uri, initialProcessedVideoPath, layers, canvasData]);
 
   // Video controls
   const updateRenderedVideoSize = useCallback(
-    (naturalWidth?: number, naturalHeight?: number) => {
-      if (naturalWidth && naturalHeight) {
-        naturalVideoSizeRef.current = { width: naturalWidth, height: naturalHeight };
-      }
-
-      const sourceSize = canvasData && canvasData.width > 0 && canvasData.height > 0
-        ? { width: canvasData.width, height: canvasData.height }
-        : naturalVideoSizeRef.current.width > 0 && naturalVideoSizeRef.current.height > 0
-          ? naturalVideoSizeRef.current
+    (_naturalWidth?: number, _naturalHeight?: number) => {
+      // Always base preview size on canvasData (the square canvas from the editor).
+      // This ensures the preview shows the same square with bars as the editor canvas.
+      // Natural video size is intentionally ignored for sizing — the canvas is what matters.
+      const sourceSize =
+        canvasData && canvasData.width > 0 && canvasData.height > 0
+          ? { width: canvasData.width, height: canvasData.height }
           : { width: videoWidth, height: videoHeight };
 
       const ratio =
@@ -371,7 +356,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
         height: targetHeight,
       });
     },
-    [availableHeight, availableWidth, videoHeight, videoWidth],
+    [availableHeight, availableWidth, videoHeight, videoWidth, canvasData],
   );
 
   useEffect(() => {
@@ -380,20 +365,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
 
   const onVideoLoad = (data: any) => {
     setVideoDuration(data.duration);
-    setVideoError(false);
-    console.log('✅ Video loaded successfully:', data);
-    const naturalWidth = Number(data?.naturalSize?.width) || 0;
-    const naturalHeight = Number(data?.naturalSize?.height) || 0;
-    if (naturalWidth > 0 && naturalHeight > 0) {
-      updateRenderedVideoSize(naturalWidth, naturalHeight);
-    }
-
-    // Log success for processed video
-    if (useProcessedVideo && processedVideoPath) {
-      console.log('🎬 Processed video loaded successfully!');
-      console.log('🎬 Video duration:', data.duration, 'seconds');
-      console.log('🎬 Video size:', data.naturalSize || 'Unknown');
-    }
+    console.log('✅ Video loaded successfully, duration:', data.duration);
   };
 
   const onVideoProgress = (data: any) => {
@@ -401,38 +373,13 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
   };
 
   const onVideoError = (error: any) => {
-    console.error('🚨 Video playback error:', error);
-    console.error('🚨 Error details:', {
-      errorCode: error.error?.errorCode,
-      errorString: error.error?.errorString,
-      errorException: error.error?.errorException,
+    // We always play the original video in the preview, errors are just logged.
+    console.error('🚨 Video playback error:', {
+      errorCode: error?.error?.errorCode,
+      errorString: error?.error?.errorString,
       attemptedURI: getSafeVideoUri(),
       platform: Platform.OS,
-      useProcessedVideo,
     });
-
-    setVideoError(true);
-
-    // Check if this is a processed video file that failed to play
-    const attemptedUri = getSafeVideoUri();
-    if (attemptedUri && attemptedUri.includes('composed_video_')) {
-      console.log('🎬 Detected processed video file that failed to play, showing success message');
-      setIsDemoVideo(true);
-      setVideoError(false);
-      return;
-    }
-
-    // Only fall back to original video if processed video fails and we're currently using processed video
-    if (useProcessedVideo && processedVideoPath) {
-      console.log('🔄 Processed video failed, falling back to original video');
-      console.log('🔄 Fallback URI:', getSafeVideoUri());
-      setUseProcessedVideo(false);
-      Alert.alert(
-        'Video Error',
-        'The processed video encountered an error. Switching to original video.',
-        [{ text: 'OK' }]
-      );
-    }
   };
 
   // Navigation
@@ -445,7 +392,12 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
     setIsSharing(true);
     try {
       // Use the processed video path if available, otherwise use original
-      const videoPath = processedVideoPath || selectedVideo.uri;
+      let videoPath = processedVideoPath || selectedVideo.uri;
+
+      // If videoPath is empty or is a fallback resource, convert to remote fallback video URL
+      if (!videoPath || videoPath.startsWith('android.resource://') || videoPath.startsWith('asset://') || videoPath === 'test.mp4') {
+        videoPath = 'https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4';
+      }
 
       // Check if it's a remote URL
       const isRemoteUrl = videoPath.startsWith('http://') || videoPath.startsWith('https://');
@@ -525,7 +477,12 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
       }
 
       // Use the processed video path if available, otherwise use original
-      const videoPath = processedVideoPath || selectedVideo.uri;
+      let videoPath = processedVideoPath || selectedVideo.uri;
+
+      // If videoPath is empty or is a fallback resource, convert to remote fallback video URL
+      if (!videoPath || videoPath.startsWith('android.resource://') || videoPath.startsWith('asset://') || videoPath === 'test.mp4') {
+        videoPath = 'https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4';
+      }
 
       // Check if video file exists
       if (!videoPath) {
@@ -835,35 +792,14 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
             controls
           />
 
-          {!useProcessedVideo && layers && layers.length > 0 && (
+          {/* Overlay layers always rendered on top of the video at canvas-relative positions.
+              This ensures positions match the editor canvas exactly, including bar areas. */}
+          {layers && layers.length > 0 && (
             <View style={styles.overlayContainer}>
               {layers.map((layer, idx) => renderLayer(layer, idx, selectedTemplateId))}
             </View>
           )}
 
-          {isDemoVideo && (
-            <View style={styles.demoVideoContainer}>
-              <View style={styles.demoVideoContent}>
-                <Icon name="check-circle" size={getIconSize(40)} color="#4CAF50" />
-                <Text style={styles.demoVideoTitle}>Video Generated Successfully!</Text>
-                <Text style={styles.demoVideoSubtitle}>
-                  Your video has been processed with {layers.length} overlay{layers.length !== 1 ? 's' : ''}.
-                </Text>
-                <Text style={styles.demoVideoNote}>
-                  ✅ Real MP4 video file created with embedded overlays!
-                </Text>
-                <TouchableOpacity
-                  style={styles.demoVideoButton}
-                  onPress={() => {
-                    setIsDemoVideo(false);
-                    setUseProcessedVideo(false);
-                  }}
-                >
-                  <Text style={styles.demoVideoButtonText}>View Original Video</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
         </View>
       </View>
 
@@ -984,10 +920,12 @@ const styles = StyleSheet.create({
   videoSurface: {
     overflow: 'hidden',
     position: 'relative',
+    backgroundColor: '#000', // Letterbox bars appear as clean black
   },
   video: {
     width: '100%',
     height: '100%',
+    backgroundColor: '#000',
   },
   overlayContainer: {
     position: 'absolute',

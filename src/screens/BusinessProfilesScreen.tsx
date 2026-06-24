@@ -57,7 +57,8 @@ const BusinessProfilesScreen: React.FC = () => {
     addTransaction,
     businessProfileSubscriptions,
     getBusinessProfileSubscription,
-    refreshBusinessProfileSubscription
+    refreshBusinessProfileSubscription,
+    plans
   } = useSubscription();
   const {
     setSelectedBusinessProfile,
@@ -231,7 +232,7 @@ const BusinessProfilesScreen: React.FC = () => {
 
       // All profiles loaded successfully - no special auto-sync needed
       if (apiProfiles.length > 0) {
-        // Clear activation pending state for any profiles that are now active in the backend
+        // Clear activation pending state and fetch subscription details for active profiles
         apiProfiles.forEach(profile => {
           if (profile?.subscriptionStatus?.toUpperCase() === "ACTIVE") {
             try {
@@ -239,6 +240,10 @@ const BusinessProfilesScreen: React.FC = () => {
             } catch (err) {
               console.warn('⚠️ Error clearing activation pending:', err);
             }
+            // Fetch/refresh subscription details for active profiles
+            refreshBusinessProfileSubscription(profile.id).catch(err => {
+              console.warn(`⚠️ Error refreshing subscription for profile ${profile.id}:`, err);
+            });
           }
         });
 
@@ -283,7 +288,7 @@ const BusinessProfilesScreen: React.FC = () => {
       setLoading(false);
       setBackgroundRefreshing(false);
     }
-  }, [profiles.length, clearActivationPending]);
+  }, [profiles.length, clearActivationPending, refreshBusinessProfileSubscription]);
 
   // 5-minute polling logic for business profile subscription status
   const startPolling = useCallback(() => {
@@ -753,8 +758,9 @@ const BusinessProfilesScreen: React.FC = () => {
     onSelect: (item: any) => void;
     onPay: (item: any) => void;
     subscription: any;
+    planName: string;
     isActivationPending: (profileId: string) => boolean;
-  }>(({ item, imageRefreshKey, theme, onEdit, onDelete, onSelect, onPay, subscription, isActivationPending }) => {
+  }>(({ item, imageRefreshKey, theme, onEdit, onDelete, onSelect, onPay, subscription, planName, isActivationPending }) => {
     // Debug logging to identify the issue
     console.log('🔍 [DEBUG] Profile Subscription Status:', {
       profileId: item.id,
@@ -970,6 +976,33 @@ const BusinessProfilesScreen: React.FC = () => {
           </View>
         </View>
         {item.description && <Text style={[styles.description, { color: theme.colors.textSecondary }]}>{item.description}</Text>}
+        {isActive && subscription && (
+          <View style={[styles.subscriptionDetailsContainer, { backgroundColor: `${theme.colors.primary}15`, borderColor: `${theme.colors.primary}35` }]}>
+            <Icon name="card-membership" size={14} color={theme.colors.primary} style={styles.subscriptionIcon} />
+            <Text style={[styles.subscriptionDetailsText, { color: theme.colors.textSecondary }]}>
+              Plan: <Text style={[styles.subscriptionPlanName, { color: theme.colors.text }]}>{planName}</Text>
+              {subscription.expiryDate && (
+                <>
+                  {'  |  '}Expires: <Text style={[styles.subscriptionExpiryDate, { color: theme.colors.text }]}>
+                    {(() => {
+                      try {
+                        const date = new Date(subscription.expiryDate);
+                        if (isNaN(date.getTime())) return '';
+                        return date.toLocaleDateString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric'
+                        });
+                      } catch (e) {
+                        return '';
+                      }
+                    })()}
+                  </Text>
+                </>
+              )}
+            </Text>
+          </View>
+        )}
         <View style={styles.contactInfo}>
           {item.phone && (
             <View style={styles.contactItem}>
@@ -1033,7 +1066,7 @@ const BusinessProfilesScreen: React.FC = () => {
       </TouchableOpacity>
     );
   }, (prevProps, nextProps) => {
-    // Only re-render if item data, mainProfileId, imageRefreshKey, theme, or activation pending state changes
+    // Only re-render if item data, mainProfileId, imageRefreshKey, theme, activation pending state, or subscription changes
     const prevActivationPending = prevProps.isActivationPending(prevProps.item.id);
     const nextActivationPending = nextProps.isActivationPending(nextProps.item.id);
 
@@ -1052,11 +1085,75 @@ const BusinessProfilesScreen: React.FC = () => {
       prevProps.imageRefreshKey === nextProps.imageRefreshKey &&
       prevProps.theme.colors.primary === nextProps.theme.colors.primary &&
       prevProps.theme.colors.text === nextProps.theme.colors.text &&
-      prevActivationPending === nextActivationPending
+      prevActivationPending === nextActivationPending &&
+      prevProps.planName === nextProps.planName &&
+      prevProps.subscription?.expiryDate === nextProps.subscription?.expiryDate &&
+      prevProps.subscription?.status === nextProps.subscription?.status
     );
   });
 
   const renderBusinessCard = useCallback(({ item, index }: { item: any; index: number }) => {
+    const sub = getBusinessProfileSubscription(item.id);
+
+    // Helper: sanitize a plan name string (trim whitespace only — never strip meaningful parts of the name)
+    const cleanPlanName = (name: string) => name.trim();
+
+    // Helper: get first non-PROMO plan from context plans as ultimate fallback
+    const getFallbackPlanName = (): string | null => {
+      if (!plans || plans.length === 0) return null;
+      const nonPromoPlan = plans.find((p: any) => p.name && !p.name.toUpperCase().includes('PROMO'));
+      if (nonPromoPlan?.name) {
+        const cleaned = cleanPlanName(nonPromoPlan.name);
+        return cleaned || null;
+      }
+      return null;
+    };
+
+    // Resolve plan name with layered fallbacks
+    let resolvedPlanName = 'Pro Subscription';
+    let resolved = false;
+
+    if (sub) {
+      console.log('🔍 [DEBUG] renderBusinessCard plan resolution:', {
+        profileId: item.id,
+        subPlanId: sub?.planId,
+        subPlanName: sub?.planName,
+        subIsActive: sub?.isActive,
+        subStatus: sub?.status,
+        plansLength: plans?.length,
+        allPlanIds: plans?.map((p: any) => p.id)
+      });
+
+      // Step 1: Match planId against context plans
+      if (!resolved && sub.planId && plans && plans.length > 0) {
+        const matchingPlan = plans.find((p: any) => p.id === sub.planId);
+        if (matchingPlan?.name) {
+          const cleaned = cleanPlanName(matchingPlan.name);
+          if (cleaned) { resolvedPlanName = cleaned; resolved = true; }
+        }
+      }
+
+      // Step 2: Use planName directly from API response
+      if (!resolved && sub.planName) {
+        const cleaned = cleanPlanName(sub.planName);
+        if (cleaned) { resolvedPlanName = cleaned; resolved = true; }
+      }
+
+      // Step 3: If active but planId/planName missing or not found, use first non-PROMO plan
+      // This matches SubscriptionScreen.tsx's working approach (selectedPlan defaults to first plan)
+      if (!resolved && (sub.isActive || sub.status?.toUpperCase() === 'ACTIVE') && plans && plans.length > 0) {
+        const fallback = getFallbackPlanName();
+        if (fallback) { resolvedPlanName = fallback; resolved = true; }
+      }
+    } else {
+      // sub undefined: subscription data still loading. If profile itself says ACTIVE, show fallback plan name.
+      const profileIsActive = item?.subscriptionStatus?.toUpperCase() === 'ACTIVE';
+      if (profileIsActive && plans && plans.length > 0) {
+        const fallback = getFallbackPlanName();
+        if (fallback) resolvedPlanName = fallback;
+      }
+    }
+
     return (
       <BusinessCard
         item={item}
@@ -1066,11 +1163,12 @@ const BusinessProfilesScreen: React.FC = () => {
         onDelete={handleDeleteProfile}
         onSelect={handleProfileSelect}
         onPay={initiatePaymentForProfile}
-        subscription={getBusinessProfileSubscription(item.id)}
+        subscription={sub}
+        planName={resolvedPlanName}
         isActivationPending={isActivationPending}
       />
     );
-  }, [imageRefreshKey, theme, handleEditProfile, handleDeleteProfile, handleProfileSelect, initiatePaymentForProfile, getBusinessProfileSubscription, isActivationPending]);
+  }, [imageRefreshKey, theme, handleEditProfile, handleDeleteProfile, handleProfileSelect, initiatePaymentForProfile, getBusinessProfileSubscription, isActivationPending, plans]);
 
   const keyExtractor = useCallback((item: any) => item.id, []);
 
@@ -2085,6 +2183,29 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 2,
     elevation: 2,
+  },
+  subscriptionDetailsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  subscriptionIcon: {
+    marginRight: 6,
+  },
+  subscriptionDetailsText: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  subscriptionPlanName: {
+    fontWeight: '700',
+  },
+  subscriptionExpiryDate: {
+    fontWeight: '600',
   },
 });
 

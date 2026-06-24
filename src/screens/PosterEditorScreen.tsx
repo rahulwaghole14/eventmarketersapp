@@ -53,6 +53,7 @@ import { useTheme } from '../context/ThemeContext';
 import PremiumTemplateModal from '../components/PremiumTemplateModal';
 import InfoRequiredModal from '../components/InfoRequiredModal';
 import BusinessProfileForm from '../components/BusinessProfileForm';
+import SuccessModal from '../components/SuccessModal';
 import { applyFrameLayoutToLayers, FRAME_ASSETS } from '../data/frames';
 
 
@@ -486,7 +487,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   // });
   const { isSubscribed, checkPremiumAccess, refreshSubscription, isSubscriptionActive } = useSubscription();
   const { isDarkMode, theme } = useTheme();
-  const { selectedBusinessProfile, selectedBusinessCategory, selectedBusinessId, isLoading: isContextLoading } = useBusinessProfile();
+  const { selectedBusinessProfile, selectedBusinessCategory, selectedBusinessId, isLoading: isContextLoading, updateBusinessProfileGlobally } = useBusinessProfile();
 
   // ✅ FIX: Prefer fresh context data over stale params when they match
   // Also check the local businessProfiles list which we refresh on focus
@@ -544,11 +545,11 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   // State for field visibility
   const [visibleFields, setVisibleFields] = useState<{ [key: string]: boolean }>({
     logo: true,
-    companyName: true,
-    footerBackground: true,
+    companyName: false,
+    footerBackground: false,
     phone: true,
     email: true,
-    website: true,
+    website: false,
     category: false,
     address: false,
     tagline: false,
@@ -599,6 +600,9 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   const [showFrameRemovalModal, setShowFrameRemovalModal] = useState(false);
   const [pendingTemplate, setPendingTemplate] = useState<string | null>(null);
   const [selectedFieldName, setSelectedFieldName] = useState('');
+  const [pendingToggleField, setPendingToggleField] = useState<string | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const [categoryData, setCategoryData] = useState({
     templateCategory: "",
     businessCategory: ""
@@ -1368,6 +1372,18 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   const dragTranslationRef = useRef<{ [key: string]: { x: number; y: number } }>({});
   const currentPositionsRef = useRef<{ [key: string]: { x: number; y: number } }>({});
 
+  const latestLayersRef = useRef<Layer[]>([]);
+  const prevFrameRef = useRef<string | null>(null);
+  useEffect(() => {
+    latestLayersRef.current = layers;
+  }, [layers]);
+
+  const dragBoundsRef = useRef<{ [layerId: string]: { maxX: number; maxY: number } }>({});
+  const draggedLayerRef = useRef<string | null>(null);
+
+  const panEventHandlersRef = useRef<{ [layerId: string]: any }>({});
+  const pinchEventHandlersRef = useRef<{ [layerId: string]: any }>({});
+
   // Pinch-to-zoom: initial layer size captured at BEGAN so ACTIVE always scales from the original
   const pinchInitialSizeRef = useRef<{ [key: string]: { width: number; height: number } }>({});
 
@@ -1420,7 +1436,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   }, [alignmentFrameRef, ensureSnapOffsets, snapOffsets]);
 
   const updateAlignmentGuides = useCallback((layerId: string, translationX: number, translationY: number) => {
-    const currentLayer = layers.find(layer => layer.id === layerId);
+    const currentLayer = latestLayersRef.current.find(layer => layer.id === layerId);
     if (!currentLayer) {
       return;
     }
@@ -1444,7 +1460,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
       bottom: proposedTop + height
     };
 
-    const otherLayers = layers.filter(layer => layer.id !== layerId && isLayerVisible(layer));
+    const otherLayers = latestLayersRef.current.filter(layer => layer.id !== layerId && isLayerVisible(layer));
 
     const verticalReferences: number[] = [0, canvasWidth / 2, canvasWidth];
     const horizontalReferences: number[] = [0, canvasHeight / 2, canvasHeight];
@@ -1452,8 +1468,10 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
     otherLayers.forEach(layer => {
       const layerWidth = layer.size?.width || 0;
       const layerHeight = layer.size?.height || 0;
-      verticalReferences.push(layer.position.x, layer.position.x + layerWidth / 2, layer.position.x + layerWidth);
-      horizontalReferences.push(layer.position.y, layer.position.y + layerHeight / 2, layer.position.y + layerHeight);
+      const lx = (layerAnimations[layer.id]?.x as any)?._value ?? layer.position.x;
+      const ly = (layerAnimations[layer.id]?.y as any)?._value ?? layer.position.y;
+      verticalReferences.push(lx, lx + layerWidth / 2, lx + layerWidth);
+      horizontalReferences.push(ly, ly + layerHeight / 2, ly + layerHeight);
     });
 
     let bestVerticalPosition: number | null = null;
@@ -1512,7 +1530,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
     snapOffsets[layerId].x.setValue(snapX);
     snapOffsets[layerId].y.setValue(snapY);
     snapOffsetsLatest.current[layerId] = { x: snapX, y: snapY };
-  }, [canvasHeight, canvasWidth, ensureSnapOffsets, layers, snapOffsets, visibleFields]);
+  }, [canvasHeight, canvasWidth, ensureSnapOffsets, snapOffsets, visibleFields]);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -1656,11 +1674,14 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         });
 
         setLayers(restoredLayers);
-      } else {
-        // Still restore footer background even if no original layers
+      }
+      
+      // Only restore footer background if a frame was actually active before and is now removed
+      if (prevFrameRef.current !== null) {
         setVisibleFields(prev => ({ ...prev, footerBackground: true }));
       }
     }
+    prevFrameRef.current = selectedFrame;
   }, [selectedFrame, layers.length, isAutoLayoutApplied, applyFrameLayout, originalLayers]);
 
 
@@ -1869,7 +1890,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
       return Math.max(baseSize * scaleFactor, baseSize * 0.8); // Minimum 80% of base size
     };
 
-    const footerTextSize = getResponsiveFooterFontSize(isTabletDevice ? 14 : 11);
+    const footerTextSize = getResponsiveFooterFontSize(isTabletDevice ? 14 : 12);
 
     // Footer background overlay for better readability
     const footerBackgroundLayer: Layer = {
@@ -2181,6 +2202,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
     if (!isCurrentlyVisible && isBusinessField && !isFieldDataAvailable(fieldType)) {
       const displayName = fieldDisplayNames[fieldType] || fieldType;
       setSelectedFieldName(displayName);
+      setPendingToggleField(fieldType);
       setShowInfoRequiredModal(true);
       return; // Prevent toggle
     }
@@ -2273,75 +2295,85 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
     };
   }, [canvasWidth, canvasHeight, isTabletDevice, isFoldableExpanded]);
 
-  const onPanGestureEvent = useCallback((layerId: string) => {
-    // Ensure translation values exist for this layer
-    if (!translationValues[layerId]) {
-      translationValues[layerId] = {
-        x: new Animated.Value(0),
-        y: new Animated.Value(0)
-      };
+  const panListenerRef = useRef<(event: any) => void>(null as any);
+  panListenerRef.current = (event: any) => {
+    const { translationX, translationY } = event.nativeEvent;
+    const layerId = draggedLayerRef.current;
+    if (!layerId) return;
+
+    const currentLayer = latestLayersRef.current.find(l => l.id === layerId);
+    if (!currentLayer) return;
+
+    const bounds = dragBoundsRef.current[layerId];
+    const maxX = bounds ? bounds.maxX : Math.max(0, canvasWidth - (currentLayer.size?.width || 0));
+    const maxY = bounds ? bounds.maxY : Math.max(0, canvasHeight - (currentLayer.size?.height || 0));
+
+    let newX = currentLayer.position.x + translationX;
+    let newY = currentLayer.position.y + translationY;
+
+    newX = Math.max(0, Math.min(newX, maxX));
+    newY = Math.max(0, Math.min(newY, maxY));
+
+    const clampedTranslationX = newX - currentLayer.position.x;
+    const clampedTranslationY = newY - currentLayer.position.y;
+
+    if (translationValues[layerId]) {
+      translationValues[layerId].x.setValue(clampedTranslationX);
+      translationValues[layerId].y.setValue(clampedTranslationY);
     }
-    ensureSnapOffsets(layerId);
+    dragTranslationRef.current[layerId] = { x: clampedTranslationX, y: clampedTranslationY };
 
-    return Animated.event(
-      [{ nativeEvent: { translationX: translationValues[layerId].x, translationY: translationValues[layerId].y } }],
-      {
-        useNativeDriver: false,
-        listener: (event: any) => {
-          const { translationX, translationY } = event.nativeEvent;
+    if (alignmentFrameRef.current) {
+      cancelAnimationFrame(alignmentFrameRef.current);
+    }
+    alignmentFrameRef.current = requestAnimationFrame(() => {
+      alignmentFrameRef.current = null;
+      updateAlignmentGuides(layerId, clampedTranslationX, clampedTranslationY);
+    });
+  };
 
-          // Get current layer
-          const currentLayer = layers.find(layer => layer.id === layerId);
-          if (!currentLayer) return;
-
-          // Get element dimensions
-          const { width: elementWidth, height: elementHeight } = getLayerEffectiveSize(currentLayer);
-          const effectiveWidth = elementWidth || 0;
-          const effectiveHeight = elementHeight || 0;
-
-          // Calculate new position (current position + translation)
-          let newX = currentLayer.position.x + translationX;
-          let newY = currentLayer.position.y + translationY;
-
-          // Clamp positions so the entire element remains inside the canvas
-          const maxX = Math.max(0, canvasWidth - effectiveWidth);
-          const maxY = Math.max(0, canvasHeight - effectiveHeight);
-          newX = Math.max(0, Math.min(newX, maxX));
-          newY = Math.max(0, Math.min(newY, maxY));
-          newX = Number.isFinite(newX) ? newX : 0;
-          newY = Number.isFinite(newY) ? newY : 0;
-
-          // Calculate clamped translation (new position - original position)
-          const clampedTranslationX = newX - currentLayer.position.x;
-          const clampedTranslationY = newY - currentLayer.position.y;
-
-          // Update animated values with clamped translations
-          translationValues[layerId].x.setValue(clampedTranslationX);
-          translationValues[layerId].y.setValue(clampedTranslationY);
-          dragTranslationRef.current[layerId] = { x: clampedTranslationX, y: clampedTranslationY };
-
-          // Update alignment guides with clamped values
-          if (alignmentFrameRef.current) {
-            cancelAnimationFrame(alignmentFrameRef.current);
-          }
-          alignmentFrameRef.current = requestAnimationFrame(() => {
-            alignmentFrameRef.current = null;
-            updateAlignmentGuides(layerId, clampedTranslationX, clampedTranslationY);
-          });
-        }
+  const onPanGestureEvent = useCallback((layerId: string) => {
+    if (!panEventHandlersRef.current[layerId]) {
+      if (!translationValues[layerId]) {
+        translationValues[layerId] = {
+          x: new Animated.Value(0),
+          y: new Animated.Value(0)
+        };
       }
-    );
-  }, [alignmentFrameRef, canvasHeight, canvasWidth, ensureSnapOffsets, getLayerEffectiveSize, layers, translationValues, updateAlignmentGuides]);
+      ensureSnapOffsets(layerId);
+
+      panEventHandlersRef.current[layerId] = Animated.event(
+        [{ nativeEvent: { translationX: translationValues[layerId].x, translationY: translationValues[layerId].y } }],
+        {
+          useNativeDriver: false,
+          listener: (event: any) => panListenerRef.current(event),
+        }
+      );
+    }
+    return panEventHandlersRef.current[layerId];
+  }, [ensureSnapOffsets, translationValues]);
 
   // Handle pan gesture state changes
   const onHandlerStateChange = useCallback((layerId: string) => {
     return (event: any) => {
       if (event.nativeEvent.state === State.BEGAN) {
+        draggedLayerRef.current = layerId;
         ensureSnapOffsets(layerId);
         snapOffsetsLatest.current[layerId] = { x: 0, y: 0 };
         clearAlignmentGuides(layerId);
         setDraggedLayer(layerId);
         setSelectedLayer(layerId);
+
+        // Pre-compute drag bounds at State.BEGAN
+        const snapshot = latestLayersRef.current.find(l => l.id === layerId);
+        if (snapshot) {
+          const { width: ew, height: eh } = getLayerEffectiveSize(snapshot);
+          dragBoundsRef.current[layerId] = {
+            maxX: Math.max(0, canvasWidth - ew),
+            maxY: Math.max(0, canvasHeight - eh),
+          };
+        }
+
         // Reset translation values when drag begins
         if (translationValues[layerId]) {
           translationValues[layerId].x.setValue(0);
@@ -2349,7 +2381,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         }
       } else if (event.nativeEvent.state === State.END) {
         // Get current layer
-        const currentLayer = layers.find(layer => layer.id === layerId);
+        const currentLayer = latestLayersRef.current.find(layer => layer.id === layerId);
         if (!currentLayer) return;
 
         // Get clamped translation values (already clamped during drag)
@@ -2358,25 +2390,29 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         const clampedTranslationY = clampedTranslation.y;
         const snapOffset = snapOffsetsLatest.current[layerId] || { x: 0, y: 0 };
 
-        // Get element dimensions
-        const { width: elementWidth, height: elementHeight } = getLayerEffectiveSize(currentLayer);
-        const effectiveWidth = elementWidth || 0;
-        const effectiveHeight = elementHeight || 0;
+        // Get pre-computed bounds
+        const bounds = dragBoundsRef.current[layerId];
+        let maxX, maxY;
+        if (bounds) {
+          maxX = bounds.maxX;
+          maxY = bounds.maxY;
+        } else {
+          const { width: elementWidth, height: elementHeight } = getLayerEffectiveSize(currentLayer);
+          maxX = Math.max(0, canvasWidth - (elementWidth || 0));
+          maxY = Math.max(0, canvasHeight - (elementHeight || 0));
+        }
 
         // Calculate new position (current position + clamped translation + snap offset)
         let newX = currentLayer.position.x + clampedTranslationX + snapOffset.x;
         let newY = currentLayer.position.y + clampedTranslationY + snapOffset.y;
 
         // Final clamp to ensure element stays within canvas bounds
-        const maxX = Math.max(0, canvasWidth - effectiveWidth);
-        const maxY = Math.max(0, canvasHeight - effectiveHeight);
         newX = Math.max(0, Math.min(newX, maxX));
         newY = Math.max(0, Math.min(newY, maxY));
         newX = Number.isFinite(newX) ? newX : 0;
         newY = Number.isFinite(newY) ? newY : 0;
 
-
-        // Update the animated position values directly
+        // Update the animated position values directly (exactly once, before setLayers)
         if (layerAnimations[layerId]) {
           layerAnimations[layerId].x.setValue(newX);
           layerAnimations[layerId].y.setValue(newY);
@@ -2386,15 +2422,6 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         // Update layer position in state
         setLayers(prev => prev.map(layer => {
           if (layer.id === layerId) {
-
-
-            // ✅ UPDATE ANIMATED VALUES TO MATCH NEW POSITION
-            if (layerAnimations[layerId]) {
-              // console.log(`🔄 [ANIMATION UPDATE] Updating animated values for layer ${layerId} to position: x: ${newX}, y: ${newY}`);
-              layerAnimations[layerId].x.setValue(newX);
-              layerAnimations[layerId].y.setValue(newY);
-            }
-
             return {
               ...layer,
               position: { x: newX, y: newY }
@@ -2411,23 +2438,26 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         clearAlignmentGuides(layerId);
 
         setDraggedLayer(null);
+        draggedLayerRef.current = null;
+        delete dragBoundsRef.current[layerId];
       }
     };
-  }, [canvasHeight, canvasWidth, clearAlignmentGuides, dragTranslationRef, ensureSnapOffsets, getLayerEffectiveSize, layerAnimations, layers, translationValues]);
+  }, [canvasHeight, canvasWidth, clearAlignmentGuides, dragTranslationRef, ensureSnapOffsets, getLayerEffectiveSize, layerAnimations, translationValues]);
 
   // Handle pinch gesture for zooming
   // useNativeDriver: false is required so the scale Animated.Value can be used
   // alongside JS-driven borderRadius animations on the same view hierarchy.
   const onPinchGestureEvent = useCallback((layerId: string) => {
-    // Ensure scale values exist for this layer
-    if (!scaleValues[layerId]) {
-      scaleValues[layerId] = new Animated.Value(1);
+    if (!pinchEventHandlersRef.current[layerId]) {
+      if (!scaleValues[layerId]) {
+        scaleValues[layerId] = new Animated.Value(1);
+      }
+      pinchEventHandlersRef.current[layerId] = Animated.event(
+        [{ nativeEvent: { scale: scaleValues[layerId] } }],
+        { useNativeDriver: false }  // Must be false to mix with borderRadius animated values
+      );
     }
-
-    return Animated.event(
-      [{ nativeEvent: { scale: scaleValues[layerId] } }],
-      { useNativeDriver: false }  // Must be false to mix with borderRadius animated values
-    );
+    return pinchEventHandlersRef.current[layerId];
   }, [scaleValues]);
 
   // Handle pinch gesture state changes
@@ -2856,6 +2886,12 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
     if (snapOffsetsLatest.current[layerId]) {
       delete snapOffsetsLatest.current[layerId];
     }
+    if (panEventHandlersRef.current[layerId]) {
+      delete panEventHandlersRef.current[layerId];
+    }
+    if (pinchEventHandlersRef.current[layerId]) {
+      delete pinchEventHandlersRef.current[layerId];
+    }
     setSelectedLayer(null);
   }, [snapOffsets]);
 
@@ -3106,10 +3142,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
           // This Animated.View only carries zIndex and drag highlight — no position:absolute.
           <Animated.View
             key={layer.id}
-            style={[
-              textLayerStyle,
-              draggedLayer === layer.id && styles.draggedLayer
-            ]}
+            style={textLayerStyle}
           >
             {/* Inner scale wrapper uses JS driver for pinch — separate from pan’s JS driver view */}
             <Animated.View style={textScaleWrapperStyle}>
@@ -3184,8 +3217,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
           <Animated.View
             style={[
               styles.layer,
-              logoContentStyle,
-              draggedLayer === layer.id && styles.draggedLayer
+              logoContentStyle
             ]}
           >
             <Animated.View
@@ -3234,7 +3266,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
       default:
         return null;
     }
-  }, [selectedLayer, visibleFields, draggedLayer, layerAnimations, translationValues, selectedTemplate, ensureSnapOffsets, snapOffsets]);
+  }, [selectedLayer, visibleFields, layerAnimations, translationValues, selectedTemplate, ensureSnapOffsets, snapOffsets, borderRadiusValues, scaleValues, selectionBorderRadiusValues]);
 
   // Render business profile selection item
   const renderProfileItem = ({ item }: { item: BusinessProfile }) => {
@@ -3647,17 +3679,18 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                   ...(isText ? [] : [{ scale: scaleValues[layer.id] }]),
                 ];
 
+                const isLayerSelected = selectedLayer === layer.id;
                 const wrapperStyle = isText
                   ? {
                       position: 'absolute' as const,
-                      zIndex: layer.zIndex,
+                      zIndex: isLayerSelected ? 100 : layer.zIndex,
                       transform: wrapperTransform,
                       minWidth: 10,
                       width: layer.size?.width ?? 'auto',
                     }
                   : {
                       position: 'absolute' as const,
-                      zIndex: layer.zIndex,
+                      zIndex: isLayerSelected ? 100 : layer.zIndex,
                       transform: wrapperTransform,
                       width: layer.size.width,
                       height: layer.size.height,
@@ -3667,7 +3700,6 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                 // *around* the logo (not just on top of it) still trigger pinch-to-zoom.
                 // Selected layers get an even larger zone for maximum ease of use.
                 const isLogoOrImage = layer.type === 'logo' || layer.type === 'image';
-                const isLayerSelected = selectedLayer === layer.id;
                 // Text toggle fields need a reasonable hitSlop so two-finger pinch is detected
                 // even when fingers don't land exactly on the (often small) text.
                 const pinchHitSlop = isLogoOrImage
@@ -3760,20 +3792,22 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
       </View>
 
       {/* Controls Container - Fixed layout with responsive heights */}
-      <View
-        style={[
-          styles.controlsContainer,
-          {
-            paddingBottom: isUltraSmallScreen
-              ? insets.bottom + 20
-              : isSmallScreen
-                ? insets.bottom + 16
-                : Math.max(insets.bottom + responsiveSpacing.md, responsiveSpacing.lg)
-          }
-        ]}
-      >
-        {/* Toolbar Below Canvas */}
-        <View style={styles.bottomToolbar}>
+      <View style={styles.controlsContainer}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.controlsContent,
+            {
+              paddingBottom: isUltraSmallScreen
+                ? insets.bottom + 20
+                : isSmallScreen
+                  ? insets.bottom + 16
+                  : Math.max(insets.bottom + responsiveSpacing.md, responsiveSpacing.lg)
+            }
+          ]}
+        >
+          {/* Toolbar Below Canvas */}
+          <View style={styles.bottomToolbar}>
           <ScrollView
             horizontal={true}
             showsHorizontalScrollIndicator={false}
@@ -4011,7 +4045,8 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
             removeClippedSubviews={true} // Important for Android memory
           />
         </View>
-      </View>
+      </ScrollView>
+    </View>
 
       {/* Business Profile Selection Modal */}
       <Modal
@@ -4634,7 +4669,13 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
       <InfoRequiredModal
         visible={showInfoRequiredModal}
         fieldName={selectedFieldName}
-        onClose={() => setShowInfoRequiredModal(false)}
+        onClose={() => {
+          setShowInfoRequiredModal(false);
+          // Only clear if the edit profile form is not being shown next
+          if (!showEditProfileForm) {
+            setPendingToggleField(null);
+          }
+        }}
         onUpdate={() => {
           setShowInfoRequiredModal(false);
           setShowEditProfileForm(true);
@@ -4644,7 +4685,10 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
       {/* Inline Business Profile Edit Form — opens directly without navigation */}
       <BusinessProfileForm
         visible={showEditProfileForm}
-        onClose={() => setShowEditProfileForm(false)}
+        onClose={() => {
+          setShowEditProfileForm(false);
+          setPendingToggleField(null);
+        }}
         profile={activeBusinessProfile as any}
         loading={editProfileFormLoading}
         onSubmit={async (formData) => {
@@ -4655,12 +4699,33 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
               activeBusinessProfile.id,
               formData
             );
+            
             // Refresh the business profiles list so new data is shown on the canvas
             const currentUser = authService.getCurrentUser();
+            let completeUpdatedProfile = updated;
             if (currentUser?.id) {
               const freshProfiles = await businessProfileService.getUserBusinessProfiles(currentUser.id);
               setBusinessProfiles(freshProfiles);
+              const freshProfile = freshProfiles.find(p => p.id === updated.id);
+              if (freshProfile) {
+                completeUpdatedProfile = freshProfile;
+              }
             }
+            
+            // Update global context so the context gets the updated active profile
+            await updateBusinessProfileGlobally(activeBusinessProfile.id, completeUpdatedProfile);
+            
+            // Automatically toggle the updated field to visible on the canvas
+            if (pendingToggleField) {
+              setVisibleFields(prev => ({
+                ...prev,
+                [pendingToggleField]: true
+              }));
+              setPendingToggleField(null);
+            }
+
+            setSuccessMessage('Business profile updated successfully');
+            setShowSuccessModal(true);
             setShowEditProfileForm(false);
           } catch (err: any) {
             console.error('❌ [POSTER EDITOR] Profile update failed:', err);
@@ -4668,6 +4733,13 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
             setEditProfileFormLoading(false);
           }
         }}
+      />
+
+      {/* Success Modal */}
+      <SuccessModal
+        visible={showSuccessModal}
+        message={successMessage}
+        onClose={() => setShowSuccessModal(false)}
       />
 
       {/* Frame Removal Warning Modal */}
@@ -4957,21 +5029,13 @@ const styles = StyleSheet.create({
     padding: isLandscape ? (isTablet ? responsiveSpacing.sm : responsiveSpacing.xs) : (isUltraSmallScreen ? 1 : isSmallScreen ? 2 : responsiveSpacing.xs),
     paddingBottom: isLandscape ? (isTablet ? responsiveSpacing.sm : responsiveSpacing.xs) : (isUltraSmallScreen ? 1 : isSmallScreen ? 2 : responsiveSpacing.xs),
     marginBottom: (isTablet || isFoldableUnfolded) ? 4 : isLandscape ? responsiveSpacing.sm : isUltraSmallScreen ? responsiveSpacing.sm : responsiveSpacing.md,
-    maxHeight: isLandscape
-      ? screenHeight * 0.65
-      : isFoldableUnfolded
-        ? screenHeight * 0.35 // Extreme reduction to 35% for foldables
-        : isTablet
-          ? screenHeight * 0.42
-          : isUltraSmallScreen
-            ? screenHeight * 0.42
-            : isSmallScreen
-              ? screenHeight * 0.44
-              : screenHeight * 0.45,
   },
   controlsContainer: {
     flex: 0, // Don't use flex to prevent expansion
     paddingTop: 0,
+  },
+  controlsContent: {
+    paddingHorizontal: isLandscape ? (isTablet ? responsiveSpacing.sm : responsiveSpacing.xs) : (isUltraSmallScreen ? responsiveSpacing.xs : responsiveSpacing.sm),
   },
   viewShotContainer: {
     // These will be set dynamically based on responsive dimensions

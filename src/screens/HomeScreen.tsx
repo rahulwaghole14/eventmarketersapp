@@ -4342,7 +4342,8 @@ loadCachedData();
 
   const handleTemplatePress = useCallback((template: Template | VideoContent | any) => {
     // Check for active subscription if a business profile is selected
-    if (!isActive && selectedBusinessProfile) {
+    const isVideo = videoContentMap.has(template.id);
+    if (!isVideo && !isActive && selectedBusinessProfile) {
       Alert.alert(
         "Subscription Required",
         "This profile is currently locked. Please activate your subscription to use this template.",
@@ -4365,24 +4366,15 @@ loadCachedData();
     const matchedVideo = videoContentMap.get(template.id);
 
     if (matchedVideo) {
-      if (isActive) {
-        navigation.navigate('VideoEditor', {
-          selectedVideo: {
-            uri: matchedVideo.videoUrl,
-            title: matchedVideo.title,
-            description: matchedVideo.description,
-          },
-          selectedLanguage: 'English',
-          selectedTemplateId: matchedVideo.id,
-        });
-      } else {
-        // Pre-filter related videos for faster access
-        const related = videoContent.filter(video => video.id !== matchedVideo.id);
-        navigation.navigate('VideoPlayer', {
-          selectedVideo: matchedVideo,
-          relatedVideos: related,
-        });
-      }
+      navigation.navigate('VideoEditor', {
+        selectedVideo: {
+          uri: matchedVideo.videoUrl,
+          title: matchedVideo.title,
+          description: matchedVideo.description,
+        },
+        selectedLanguage: 'English',
+        selectedTemplateId: matchedVideo.id,
+      });
       return;
     }
 

@@ -29,31 +29,7 @@ const PosterCanvas: React.FC<PosterCanvasProps> = ({
   translationValues,
   currentPositions,
 }) => {
-  // Debug logging for ViewShot capture
-  console.log('=== POSTER CANVAS CAPTURE DEBUG ===');
-  console.log('Canvas rendering with:', {
-    selectedImage: selectedImage?.uri?.substring(0, 50) + '...',
-    layersCount: layers?.length,
-    selectedTemplate,
-    canvasWidth,
-    canvasHeight,
-    posterRefAvailable: !!posterRef?.current,
-  });
-  
-  // Log layer details for debugging
-  console.log('Layers to render:', layers.length);
-  layers.forEach((layer, index) => {
-    console.log(`Layer ${index}:`, {
-      id: layer.id,
-      type: layer.type,
-      fieldType: layer.fieldType,
-      position: layer.position,
-      size: layer.size,
-      content: layer.content?.substring(0, 50) + '...',
-      visible: layer.visible !== false,
-    });
-  });
-  console.log('=== END POSTER CANVAS DEBUG ===');
+
   const renderLayer = (layer: any) => {
     if (layer.type === 'text') {
       // Special handling for footer background (same as visible canvas)
@@ -309,8 +285,7 @@ const PosterCanvas: React.FC<PosterCanvasProps> = ({
             const translationY = translationValues[layer.id].y._value || 0;
             currentY = baseY + translationY;
           }
-          
-          console.log(`Rendering layer in PosterCanvas: ${layer.id} (${layer.type}) - static position: ${layer.position.x},${layer.position.y} - final position: ${currentX},${currentY} - visible: ${layer.visible !== false}`);
+
           
           return (
             <View
