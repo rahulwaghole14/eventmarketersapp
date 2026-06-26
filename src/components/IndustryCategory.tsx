@@ -260,11 +260,109 @@ const IndustryCategory: React.FC<IndustryCategoryProps> = ({
 
   // Get high quality image URL
   const getHighQualityImageUrl = useCallback((poster: Template) => {
-    if (poster.thumbnailUrl && poster.thumbnailUrl.includes('unsplash')) {
-      return poster.thumbnailUrl.replace(/w=\d+/, 'w=1600').replace(/h=\d+/, 'h=1200');
+    if (!poster) return '';
+    let url = poster.thumbnailUrl || poster.thumbnail || '';
+    if (!url) return '';
+
+    // If it's a local file, return as is (do not append query params which break local loading)
+    if (
+      url.startsWith('file://') ||
+      url.startsWith('content://') ||
+      url.startsWith('assets-library://') ||
+      url.startsWith('ph://') ||
+      !url.startsWith('http')
+    ) {
+      return url;
     }
-    return poster.thumbnailUrl || poster.thumbnail || '';
-  }, []);
+
+    // 1. Check if it is a Cloudinary URL
+    if (url.includes('res.cloudinary.com') && url.includes('/upload/')) {
+      try {
+        const [prefix, remainder] = url.split('/upload/');
+        if (remainder) {
+          const parts = remainder.split('/');
+          let versionIndex = -1;
+          for (let i = 0; i < parts.length; i++) {
+            if (/^v\d+/.test(parts[i])) {
+              versionIndex = i;
+              break;
+            }
+          }
+          if (versionIndex >= 0) {
+            const versionAndPath = parts.slice(versionIndex).join('/');
+            const maxWidth = Math.max(Math.round(screenWidth * 2.5), 2400);
+            const highQualityTransform = `q_100,c_limit,w_${maxWidth}`;
+            return `${prefix}/upload/${highQualityTransform}/${versionAndPath}`;
+          } else {
+            const lastSegment = parts[parts.length - 1];
+            if (lastSegment && (lastSegment.includes('.') || parts.length === 1)) {
+              const imagePath = lastSegment;
+              const maxWidth = Math.max(Math.round(screenWidth * 2.5), 2400);
+              const highQualityTransform = `q_100,c_limit,w_${maxWidth}`;
+              return `${prefix}/upload/${highQualityTransform}/${imagePath}`;
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Error parsing Cloudinary URL for high quality:', error);
+      }
+    }
+
+    // 2. Check if it is an Unsplash URL
+    if (url.includes('images.unsplash.com')) {
+      const urlWithoutParams = url.split('?')[0];
+      const existingParams = url.includes('?') ? url.split('?')[1] : '';
+      
+      let params: Record<string, string> = {};
+      if (existingParams) {
+        existingParams.split('&').forEach(param => {
+          const [key, val] = param.split('=');
+          if (key) params[key] = val || '';
+        });
+      }
+      
+      params['w'] = '2400';
+      params['q'] = '90';
+      
+      const paramString = Object.keys(params)
+        .map(key => `${key}=${params[key]}`)
+        .join('&');
+        
+      return paramString ? `${urlWithoutParams}?${paramString}` : urlWithoutParams;
+    }
+
+    // 3. For any other CDN URL or generic URL
+    if (url.includes('/thumbnailUrl/') || url.includes('/thumbnail/')) {
+      url = url.replace(/\/thumbnailUrl\//g, '/url/').replace(/\/thumbnail\//g, '/images/');
+    }
+
+    const urlWithoutParams = url.split('?')[0];
+    const existingParams = url.includes('?') ? url.split('?')[1] : '';
+    
+    let params: Record<string, string> = {};
+    if (existingParams) {
+      existingParams.split('&').forEach(param => {
+        const [key, val] = param.split('=');
+        if (key) params[key] = val || '';
+      });
+    }
+
+    delete params['quality'];
+    delete params['width'];
+    delete params['height'];
+    delete params['w'];
+    delete params['h'];
+    delete params['size'];
+
+    params['quality'] = '100';
+    params['width'] = '2400';
+
+    const paramString = Object.keys(params)
+      .map(key => `${key}=${params[key]}`)
+      .join('&');
+
+    return paramString ? `${urlWithoutParams}?${paramString}` : urlWithoutParams;
+  }, [screenWidth]);
 
   // Handle poster selection
   const handlePosterSelect = useCallback((poster: Template) => {

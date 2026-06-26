@@ -17,6 +17,7 @@ import {
   Text,
   StyleSheet,
   Dimensions,
+  PixelRatio,
   TouchableOpacity,
   TouchableWithoutFeedback,
   ScrollView,
@@ -733,14 +734,107 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
 
   // Get high quality image URL for editor (replace thumbnail params with high quality)
   const getHighQualityImageUrl = (imageUri: string): string => {
+    if (!imageUri) return '';
     let url = imageUri;
 
-    // Remove any existing quality/size parameters
-    url = url.replace(/[?&](quality|width|height|w|h|size)=[^&]*/gi, '');
+    // If it's a local file, return as is (do not append query params which break local loading)
+    if (
+      url.startsWith('file://') ||
+      url.startsWith('content://') ||
+      url.startsWith('assets-library://') ||
+      url.startsWith('ph://') ||
+      !url.startsWith('http')
+    ) {
+      return url;
+    }
 
-    // Add high quality parameters for editor
-    const separator = url.includes('?') ? '&' : '?';
-    return `${url}${separator}quality=high&width=2400`;
+    // 1. Check if it is a Cloudinary URL
+    if (url.includes('res.cloudinary.com') && url.includes('/upload/')) {
+      try {
+        const [prefix, remainder] = url.split('/upload/');
+        if (remainder) {
+          const parts = remainder.split('/');
+          let versionIndex = -1;
+          for (let i = 0; i < parts.length; i++) {
+            if (/^v\d+/.test(parts[i])) {
+              versionIndex = i;
+              break;
+            }
+          }
+          if (versionIndex >= 0) {
+            const versionAndPath = parts.slice(versionIndex).join('/');
+            const maxWidth = Math.max(Math.round(screenWidth * 2.5), 2400);
+            const highQualityTransform = `q_100,c_limit,w_${maxWidth}`;
+            return `${prefix}/upload/${highQualityTransform}/${versionAndPath}`;
+          } else {
+            const lastSegment = parts[parts.length - 1];
+            if (lastSegment && (lastSegment.includes('.') || parts.length === 1)) {
+              const imagePath = lastSegment;
+              const maxWidth = Math.max(Math.round(screenWidth * 2.5), 2400);
+              const highQualityTransform = `q_100,c_limit,w_${maxWidth}`;
+              return `${prefix}/upload/${highQualityTransform}/${imagePath}`;
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Error parsing Cloudinary URL for high quality:', error);
+      }
+    }
+
+    // 2. Check if it is an Unsplash URL
+    if (url.includes('images.unsplash.com')) {
+      const urlWithoutParams = url.split('?')[0];
+      const existingParams = url.includes('?') ? url.split('?')[1] : '';
+      
+      let params: Record<string, string> = {};
+      if (existingParams) {
+        existingParams.split('&').forEach(param => {
+          const [key, val] = param.split('=');
+          if (key) params[key] = val || '';
+        });
+      }
+      
+      params['w'] = '2400';
+      params['q'] = '90';
+      
+      const paramString = Object.keys(params)
+        .map(key => `${key}=${params[key]}`)
+        .join('&');
+        
+      return paramString ? `${urlWithoutParams}?${paramString}` : urlWithoutParams;
+    }
+
+    // 3. For any other CDN URL or generic URL (like backend node server)
+    if (url.includes('/thumbnailUrl/') || url.includes('/thumbnail/')) {
+      url = url.replace(/\/thumbnailUrl\//g, '/url/').replace(/\/thumbnail\//g, '/images/');
+    }
+
+    const urlWithoutParams = url.split('?')[0];
+    const existingParams = url.includes('?') ? url.split('?')[1] : '';
+    
+    let params: Record<string, string> = {};
+    if (existingParams) {
+      existingParams.split('&').forEach(param => {
+        const [key, val] = param.split('=');
+        if (key) params[key] = val || '';
+      });
+    }
+
+    delete params['quality'];
+    delete params['width'];
+    delete params['height'];
+    delete params['w'];
+    delete params['h'];
+    delete params['size'];
+
+    params['quality'] = '100';
+    params['width'] = '2400';
+
+    const paramString = Object.keys(params)
+      .map(key => `${key}=${params[key]}`)
+      .join('&');
+
+    return paramString ? `${urlWithoutParams}?${paramString}` : urlWithoutParams;
   };
 
   // Listen for orientation changes and update dimensions
@@ -828,6 +922,20 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   }, [currentScreenWidth, currentScreenHeight, isLandscapeMode, isTabletDevice, isUltraSmallDevice, isSmallDevice, isMediumDevice, isLargeDevice, insets]);
 
   const { canvasWidth, canvasHeight, availableWidth, availableHeight } = responsiveDimensions;
+
+  // Calculate a custom pixel ratio to capture the poster at exactly 2400x2400px resolution
+  const capturePixelRatio = useMemo(() => {
+    return canvasWidth > 0 ? 2400 / canvasWidth : PixelRatio.get();
+  }, [canvasWidth]);
+
+  // Memoized background image source to prevent reloads during state changes/re-renders
+  const backgroundImageSource = useMemo(() => {
+    return {
+      uri: getHighQualityImageUrl(selectedImage.uri),
+      width: 2400,
+      height: 2400,
+    };
+  }, [selectedImage.uri]);
 
   // Dynamic responsive helper functions
   const getResponsiveIconSize = useCallback(() => {
@@ -1675,7 +1783,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
 
         setLayers(restoredLayers);
       }
-      
+
       // Only restore footer background if a frame was actually active before and is now removed
       if (prevFrameRef.current !== null) {
         setVisibleFields(prev => ({ ...prev, footerBackground: true }));
@@ -3235,7 +3343,11 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                 activeOpacity={0.9}
               >
                 <Animated.Image
-                  source={{ uri: layer.content }}
+                  source={{ 
+                    uri: layer.content,
+                    width: Math.round(layer.size.width * capturePixelRatio),
+                    height: Math.round(layer.size.height * capturePixelRatio)
+                  }}
                   style={[
                     styles.layerImage,
                     {
@@ -3502,7 +3614,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                 setIsCapturing(true);
 
                 // Add a delay to ensure the canvas is fully rendered with watermark
-                await new Promise(resolve => setTimeout(resolve, 100));
+                await new Promise(resolve => setTimeout(resolve, 500));
 
                 // Capture the visible canvas as an image
                 const uri = await visibleCanvasRef.current.capture();
@@ -3573,7 +3685,9 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
           options={{
             format: 'png',
             quality: 1.0,
-            result: 'tmpfile'
+            result: 'tmpfile',
+            // ✅ Use custom pixel ratio to guarantee output resolution is exactly 2400x2400px
+            pixelRatio: capturePixelRatio,
           }}
         >
           {/* Visible Canvas for editing */}
@@ -3622,9 +3736,17 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
               {/* Background Image (always show the poster image) */}
               <View style={styles.backgroundImageContainer}>
                 <Image
-                  source={{ uri: getHighQualityImageUrl(selectedImage.uri), cache: 'force-cache' }}
-                  style={styles.backgroundImage}
-                  resizeMode="contain"
+                  source={backgroundImageSource}
+                  style={{
+                    position: 'absolute',
+                    width: 2400,
+                    height: 2400,
+                    left: (canvasWidth - 2400) / 2,
+                    top: (canvasHeight - 2400) / 2,
+                    transform: [{ scale: canvasWidth / 2400 }],
+                  }}
+                  resizeMode="cover"
+                  resizeMethod="scale"
                 />
                 {/* ✅ FRAME integrated into background layer - won't interfere with text */}
                 {selectedFrame && (
@@ -3682,19 +3804,19 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                 const isLayerSelected = selectedLayer === layer.id;
                 const wrapperStyle = isText
                   ? {
-                      position: 'absolute' as const,
-                      zIndex: isLayerSelected ? 100 : layer.zIndex,
-                      transform: wrapperTransform,
-                      minWidth: 10,
-                      width: layer.size?.width ?? 'auto',
-                    }
+                    position: 'absolute' as const,
+                    zIndex: isLayerSelected ? 100 : layer.zIndex,
+                    transform: wrapperTransform,
+                    minWidth: 10,
+                    width: layer.size?.width ?? 'auto',
+                  }
                   : {
-                      position: 'absolute' as const,
-                      zIndex: isLayerSelected ? 100 : layer.zIndex,
-                      transform: wrapperTransform,
-                      width: layer.size.width,
-                      height: layer.size.height,
-                    };
+                    position: 'absolute' as const,
+                    zIndex: isLayerSelected ? 100 : layer.zIndex,
+                    transform: wrapperTransform,
+                    width: layer.size.width,
+                    height: layer.size.height,
+                  };
 
                 // Logo/image layers get a generous hitSlop so that fingers placed
                 // *around* the logo (not just on top of it) still trigger pinch-to-zoom.
@@ -3808,245 +3930,245 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         >
           {/* Toolbar Below Canvas */}
           <View style={styles.bottomToolbar}>
-          <ScrollView
-            horizontal={true}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.toolbarScrollContent}
-          >
-            <TouchableOpacity
-              style={styles.toolbarButton}
-              onPress={() => setShowTextModal(true)}
+            <ScrollView
+              horizontal={true}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.toolbarScrollContent}
             >
-              <LinearGradient
-                colors={['#667eea', '#764ba2']}
-                style={styles.toolbarButtonGradient}
-              >
-                <Icon name="text-fields" size={getResponsiveIconSize()} color="#ffffff" />
-                <Text style={styles.toolbarButtonText}>Text</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.toolbarButton}
-              onPress={() => setShowFontStyleModal(true)}
-            >
-              <LinearGradient
-                colors={['#667eea', '#764ba2']}
-                style={styles.toolbarButtonGradient}
-              >
-                <Icon name="format-size" size={getResponsiveIconSize()} color="#ffffff" />
-                <Text style={styles.toolbarButtonText}>Font</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            {selectedLayer && !layers.find(l => l.id === selectedLayer)?.fieldType && (
               <TouchableOpacity
                 style={styles.toolbarButton}
-                onPress={() => setShowDeleteElementModal(true)}
+                onPress={() => setShowTextModal(true)}
               >
                 <LinearGradient
-                  colors={['#ff4757', '#ff3742']}
+                  colors={['#667eea', '#764ba2']}
                   style={styles.toolbarButtonGradient}
                 >
-                  <Icon name="delete" size={getResponsiveIconSize()} color="#ffffff" />
-                  <Text style={styles.toolbarButtonText}>Delete</Text>
+                  <Icon name="text-fields" size={getResponsiveIconSize()} color="#ffffff" />
+                  <Text style={styles.toolbarButtonText}>Text</Text>
                 </LinearGradient>
               </TouchableOpacity>
-            )}
 
-            {selectedFrame && (
               <TouchableOpacity
                 style={styles.toolbarButton}
-                onPress={handleRemoveFrameOnly}
+                onPress={() => setShowFontStyleModal(true)}
               >
                 <LinearGradient
-                  colors={['#ff6b6b', '#ff5252']}
+                  colors={['#667eea', '#764ba2']}
                   style={styles.toolbarButtonGradient}
                 >
-                  <Icon name="close" size={getResponsiveIconSize()} color="#ffffff" />
-                  <Text style={styles.toolbarButtonText}>Remove Frame</Text>
+                  <Icon name="format-size" size={getResponsiveIconSize()} color="#ffffff" />
+                  <Text style={styles.toolbarButtonText}>Font</Text>
                 </LinearGradient>
               </TouchableOpacity>
-            )}
-          </ScrollView>
-        </View>
 
-        {/* Field Toggle Buttons */}
-        <View style={styles.fieldToggleSection}>
-          <View style={styles.fieldToggleHeader}>
-            <Text style={styles.fieldToggleTitle}>Toggle Fields</Text>
-            <Text style={styles.fieldToggleSubtitle}>Click to show/hide elements</Text>
+              {selectedLayer && !layers.find(l => l.id === selectedLayer)?.fieldType && (
+                <TouchableOpacity
+                  style={styles.toolbarButton}
+                  onPress={() => setShowDeleteElementModal(true)}
+                >
+                  <LinearGradient
+                    colors={['#ff4757', '#ff3742']}
+                    style={styles.toolbarButtonGradient}
+                  >
+                    <Icon name="delete" size={getResponsiveIconSize()} color="#ffffff" />
+                    <Text style={styles.toolbarButtonText}>Delete</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              )}
+
+              {selectedFrame && (
+                <TouchableOpacity
+                  style={styles.toolbarButton}
+                  onPress={handleRemoveFrameOnly}
+                >
+                  <LinearGradient
+                    colors={['#ff6b6b', '#ff5252']}
+                    style={styles.toolbarButtonGradient}
+                  >
+                    <Icon name="close" size={getResponsiveIconSize()} color="#ffffff" />
+                    <Text style={styles.toolbarButtonText}>Remove Frame</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
           </View>
-          <ScrollView
-            style={styles.fieldToggleContent}
-            horizontal={true}
-            showsHorizontalScrollIndicator={false}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.fieldToggleScrollContent}
-          >
-            <TouchableOpacity
-              style={[
-                styles.fieldToggleButton,
-                visibleFields.footerBackground && styles.fieldToggleButtonActive,
-                selectedFrame && styles.fieldToggleButtonDisabled
-              ]}
-              onPress={() => !selectedFrame && toggleFieldVisibility('footerBackground')}
-              disabled={!!selectedFrame}
-            >
-              <Icon
-                name="format-color-fill"
-                size={getResponsiveIconSize()}
-                color={
-                  selectedFrame
-                    ? "#999999"
-                    : visibleFields.footerBackground
-                      ? "#ffffff"
-                      : "#667eea"
-                }
-              />
-              <Text style={[
-                styles.fieldToggleButtonText,
-                visibleFields.footerBackground && styles.fieldToggleButtonTextActive,
-                selectedFrame && styles.fieldToggleButtonTextDisabled
-              ]}>
-                Footer BG {selectedFrame && '(Frame)'}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.fieldToggleButton, getEffectiveToggleValue('logo') && styles.fieldToggleButtonActive]}
-              onPress={() => toggleFieldVisibility('logo')}
-            >
-              <Icon name="account-balance" size={getResponsiveIconSize()} color={getEffectiveToggleValue('logo') ? "#ffffff" : "#667eea"} />
-              <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('logo') && styles.fieldToggleButtonTextActive]}>
-                Logo
-              </Text>
-            </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.fieldToggleButton, getEffectiveToggleValue('companyName') && styles.fieldToggleButtonActive]}
-              onPress={() => toggleFieldVisibility('companyName')}
+          {/* Field Toggle Buttons */}
+          <View style={styles.fieldToggleSection}>
+            <View style={styles.fieldToggleHeader}>
+              <Text style={styles.fieldToggleTitle}>Toggle Fields</Text>
+              <Text style={styles.fieldToggleSubtitle}>Click to show/hide elements</Text>
+            </View>
+            <ScrollView
+              style={styles.fieldToggleContent}
+              horizontal={true}
+              showsHorizontalScrollIndicator={false}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.fieldToggleScrollContent}
             >
-              <Icon name="title" size={getResponsiveIconSize()} color={getEffectiveToggleValue('companyName') ? "#ffffff" : "#667eea"} />
-              <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('companyName') && styles.fieldToggleButtonTextActive]}>
-                Company Name
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.fieldToggleButton, getEffectiveToggleValue('phone') && styles.fieldToggleButtonActive]}
-              onPress={() => toggleFieldVisibility('phone')}
-            >
-              <Icon name="call" size={getResponsiveIconSize()} color={getEffectiveToggleValue('phone') ? "#ffffff" : "#667eea"} />
-              <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('phone') && styles.fieldToggleButtonTextActive]}>
-                Phone
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.fieldToggleButton, getEffectiveToggleValue('email') && styles.fieldToggleButtonActive]}
-              onPress={() => toggleFieldVisibility('email')}
-            >
-              <Icon name="mail" size={getResponsiveIconSize()} color={getEffectiveToggleValue('email') ? "#ffffff" : "#667eea"} />
-              <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('email') && styles.fieldToggleButtonTextActive]}>
-                Email
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.fieldToggleButton, getEffectiveToggleValue('website') && styles.fieldToggleButtonActive]}
-              onPress={() => toggleFieldVisibility('website')}
-            >
-              <Icon name="public" size={getResponsiveIconSize()} color={getEffectiveToggleValue('website') ? "#ffffff" : "#667eea"} />
-              <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('website') && styles.fieldToggleButtonTextActive]}>
-                Website
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.fieldToggleButton, getEffectiveToggleValue('category') && styles.fieldToggleButtonActive]}
-              onPress={() => toggleFieldVisibility('category')}
-            >
-              <Icon name="business-center" size={getResponsiveIconSize()} color={getEffectiveToggleValue('category') ? "#ffffff" : "#667eea"} />
-              <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('category') && styles.fieldToggleButtonTextActive]}>
-                Category
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.fieldToggleButton, getEffectiveToggleValue('address') && styles.fieldToggleButtonActive]}
-              onPress={() => toggleFieldVisibility('address')}
-            >
-              <Icon name="place" size={getResponsiveIconSize()} color={getEffectiveToggleValue('address') ? "#ffffff" : "#667eea"} />
-              <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('address') && styles.fieldToggleButtonTextActive]}>
-                Address
-              </Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-
-        {/* Templates Section */}
-        <View style={styles.templatesSection}>
-          <View style={styles.templatesHeader}>
-            <Text style={styles.templatesTitle}>Templates</Text>
-          </View>
-          <FlatList
-            data={TEMPLATE_OPTIONS}
-            renderItem={({ item: option }) => (
-              <TemplateItem
-                option={option}
-                isSelected={selectedTemplate === option.id}
-                onPress={() => applyTemplate(option.id)}
-                styles={styles}
-                templateStyle={TEMPLATE_FOOTER_STYLES[option.id]}
-              />
-            )}
-            keyExtractor={item => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.templatesScrollContent}
-            initialNumToRender={5}
-            maxToRenderPerBatch={3}
-            windowSize={3}
-            removeClippedSubviews={true}
-          />
-        </View>
-
-        {/* Frames Section */}
-        <View style={styles.framesSection}>
-          <View style={styles.framesHeader}>
-            <Text style={styles.framesTitle}>Frames</Text>
-          </View>
-          <FlatList
-            data={FRAME_OPTIONS}
-            renderItem={({ item: frame }) => (
-              <FrameItem
-                frame={frame}
-                isSelected={selectedFrame === frame.id}
-                onPress={() => {
-                  if (selectedFrame === frame.id) {
-                    // If same frame is selected, remove it with proper restoration
-                    handleRemoveFrameOnly();
-                  } else {
-                    setSelectedFrame(frame.id);
-                    setVisibleFields(prev => ({ ...prev, footerBackground: false }));
-                    applyFrameLayout(frame.id);
+              <TouchableOpacity
+                style={[
+                  styles.fieldToggleButton,
+                  visibleFields.footerBackground && styles.fieldToggleButtonActive,
+                  selectedFrame && styles.fieldToggleButtonDisabled
+                ]}
+                onPress={() => !selectedFrame && toggleFieldVisibility('footerBackground')}
+                disabled={!!selectedFrame}
+              >
+                <Icon
+                  name="format-color-fill"
+                  size={getResponsiveIconSize()}
+                  color={
+                    selectedFrame
+                      ? "#999999"
+                      : visibleFields.footerBackground
+                        ? "#ffffff"
+                        : "#667eea"
                   }
-                }}
-                styles={styles}
-              />
-            )}
-            keyExtractor={item => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.framesScrollContent}
-            initialNumToRender={6}
-            maxToRenderPerBatch={4}
-            windowSize={3}
-            removeClippedSubviews={true} // Important for Android memory
-          />
-        </View>
-      </ScrollView>
-    </View>
+                />
+                <Text style={[
+                  styles.fieldToggleButtonText,
+                  visibleFields.footerBackground && styles.fieldToggleButtonTextActive,
+                  selectedFrame && styles.fieldToggleButtonTextDisabled
+                ]}>
+                  Footer BG {selectedFrame && '(Frame)'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.fieldToggleButton, getEffectiveToggleValue('logo') && styles.fieldToggleButtonActive]}
+                onPress={() => toggleFieldVisibility('logo')}
+              >
+                <Icon name="account-balance" size={getResponsiveIconSize()} color={getEffectiveToggleValue('logo') ? "#ffffff" : "#667eea"} />
+                <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('logo') && styles.fieldToggleButtonTextActive]}>
+                  Logo
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.fieldToggleButton, getEffectiveToggleValue('companyName') && styles.fieldToggleButtonActive]}
+                onPress={() => toggleFieldVisibility('companyName')}
+              >
+                <Icon name="title" size={getResponsiveIconSize()} color={getEffectiveToggleValue('companyName') ? "#ffffff" : "#667eea"} />
+                <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('companyName') && styles.fieldToggleButtonTextActive]}>
+                  Company Name
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.fieldToggleButton, getEffectiveToggleValue('phone') && styles.fieldToggleButtonActive]}
+                onPress={() => toggleFieldVisibility('phone')}
+              >
+                <Icon name="call" size={getResponsiveIconSize()} color={getEffectiveToggleValue('phone') ? "#ffffff" : "#667eea"} />
+                <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('phone') && styles.fieldToggleButtonTextActive]}>
+                  Phone
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.fieldToggleButton, getEffectiveToggleValue('email') && styles.fieldToggleButtonActive]}
+                onPress={() => toggleFieldVisibility('email')}
+              >
+                <Icon name="mail" size={getResponsiveIconSize()} color={getEffectiveToggleValue('email') ? "#ffffff" : "#667eea"} />
+                <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('email') && styles.fieldToggleButtonTextActive]}>
+                  Email
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.fieldToggleButton, getEffectiveToggleValue('website') && styles.fieldToggleButtonActive]}
+                onPress={() => toggleFieldVisibility('website')}
+              >
+                <Icon name="public" size={getResponsiveIconSize()} color={getEffectiveToggleValue('website') ? "#ffffff" : "#667eea"} />
+                <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('website') && styles.fieldToggleButtonTextActive]}>
+                  Website
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.fieldToggleButton, getEffectiveToggleValue('category') && styles.fieldToggleButtonActive]}
+                onPress={() => toggleFieldVisibility('category')}
+              >
+                <Icon name="business-center" size={getResponsiveIconSize()} color={getEffectiveToggleValue('category') ? "#ffffff" : "#667eea"} />
+                <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('category') && styles.fieldToggleButtonTextActive]}>
+                  Category
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.fieldToggleButton, getEffectiveToggleValue('address') && styles.fieldToggleButtonActive]}
+                onPress={() => toggleFieldVisibility('address')}
+              >
+                <Icon name="place" size={getResponsiveIconSize()} color={getEffectiveToggleValue('address') ? "#ffffff" : "#667eea"} />
+                <Text style={[styles.fieldToggleButtonText, getEffectiveToggleValue('address') && styles.fieldToggleButtonTextActive]}>
+                  Address
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+
+          {/* Templates Section */}
+          <View style={styles.templatesSection}>
+            <View style={styles.templatesHeader}>
+              <Text style={styles.templatesTitle}>Templates</Text>
+            </View>
+            <FlatList
+              data={TEMPLATE_OPTIONS}
+              renderItem={({ item: option }) => (
+                <TemplateItem
+                  option={option}
+                  isSelected={selectedTemplate === option.id}
+                  onPress={() => applyTemplate(option.id)}
+                  styles={styles}
+                  templateStyle={TEMPLATE_FOOTER_STYLES[option.id]}
+                />
+              )}
+              keyExtractor={item => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.templatesScrollContent}
+              initialNumToRender={5}
+              maxToRenderPerBatch={3}
+              windowSize={3}
+              removeClippedSubviews={true}
+            />
+          </View>
+
+          {/* Frames Section */}
+          <View style={styles.framesSection}>
+            <View style={styles.framesHeader}>
+              <Text style={styles.framesTitle}>Frames</Text>
+            </View>
+            <FlatList
+              data={FRAME_OPTIONS}
+              renderItem={({ item: frame }) => (
+                <FrameItem
+                  frame={frame}
+                  isSelected={selectedFrame === frame.id}
+                  onPress={() => {
+                    if (selectedFrame === frame.id) {
+                      // If same frame is selected, remove it with proper restoration
+                      handleRemoveFrameOnly();
+                    } else {
+                      setSelectedFrame(frame.id);
+                      setVisibleFields(prev => ({ ...prev, footerBackground: false }));
+                      applyFrameLayout(frame.id);
+                    }
+                  }}
+                  styles={styles}
+                />
+              )}
+              keyExtractor={item => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.framesScrollContent}
+              initialNumToRender={6}
+              maxToRenderPerBatch={4}
+              windowSize={3}
+              removeClippedSubviews={true} // Important for Android memory
+            />
+          </View>
+        </ScrollView>
+      </View>
 
       {/* Business Profile Selection Modal */}
       <Modal
@@ -4699,7 +4821,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
               activeBusinessProfile.id,
               formData
             );
-            
+
             // Refresh the business profiles list so new data is shown on the canvas
             const currentUser = authService.getCurrentUser();
             let completeUpdatedProfile = updated;
@@ -4711,10 +4833,10 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                 completeUpdatedProfile = freshProfile;
               }
             }
-            
+
             // Update global context so the context gets the updated active profile
             await updateBusinessProfileGlobally(activeBusinessProfile.id, completeUpdatedProfile);
-            
+
             // Automatically toggle the updated field to visible on the canvas
             if (pendingToggleField) {
               setVisibleFields(prev => ({

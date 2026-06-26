@@ -9,11 +9,12 @@ import {
   Image,
   Alert,
   Modal,
-  Share,
   Platform,
   ActivityIndicator,
   PermissionsAndroid,
+  PixelRatio,
 } from 'react-native';
+import Share from 'react-native-share';
 import Video from 'react-native-video';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -402,55 +403,32 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
       // Check if it's a remote URL
       const isRemoteUrl = videoPath.startsWith('http://') || videoPath.startsWith('https://');
 
+      // Ensure local file paths are properly prefixed with file://
+      if (videoPath && !videoPath.startsWith('http://') && !videoPath.startsWith('https://') && !videoPath.startsWith('file://')) {
+        videoPath = `file://${videoPath}`;
+      }
+
       const shareOptions = {
-        title: selectedVideo.title || 'Event Video',
-        message: `Event Video: ${selectedVideo.title || 'Professional Event Content'}`,
         url: videoPath,
+        type: videoPath.startsWith('http') ? undefined : 'video/mp4',
       };
 
-      // For remote URLs, we can share the URL directly
-      if (isRemoteUrl) {
-        const result = await Share.share(shareOptions);
-
-        if (result.action === Share.sharedAction) {
-          // Successfully shared
-        } else if (result.action === Share.dismissedAction) {
-          // User dismissed the share sheet
-        }
-      } else {
-        // For local files, handle platform differences
-        if (Platform.OS === 'ios') {
-          // On iOS, we'll share the video file directly
-          const result = await Share.share(shareOptions);
-
-          if (result.action === Share.sharedAction) {
-            // Successfully shared
-          } else if (result.action === Share.dismissedAction) {
-            // User dismissed the share sheet
-          }
-        } else {
-          // For Android, we can share the file path
-          const result = await Share.share(shareOptions);
-
-          if (result.action === Share.sharedAction) {
-            // Successfully shared
-          } else if (result.action === Share.dismissedAction) {
-            // User dismissed the share sheet
-          }
-        }
+      console.log('🎬 [VIDEO PREVIEW] Sharing video via react-native-share:', shareOptions);
+      await Share.open(shareOptions);
+      console.log('🎬 [VIDEO PREVIEW] Video shared successfully');
+    } catch (error: any) {
+      if (error?.message?.includes('User did not share') || error?.message?.toLowerCase().includes('cancel')) {
+        console.log('🎬 [VIDEO PREVIEW] Share dismissed by user');
+        return;
       }
-    } catch (error) {
+      console.error('🎬 [VIDEO PREVIEW] Error sharing video:', error);
       Alert.alert(
         '❌ Share Failed',
-        'We encountered an issue while sharing your video.\n\nPlease try again or check your internet connection.',
+        'We encountered an issue while sharing your video.\n\nPlease try again.',
         [
           {
-            text: 'Try Again',
+            text: 'OK',
             style: 'default'
-          },
-          {
-            text: 'Cancel',
-            style: 'cancel'
           }
         ]
       );
@@ -748,14 +726,22 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
         )}
         {layer.type === 'image' && (
           <Image
-            source={{ uri: layer.content }}
+            source={{ 
+              uri: layer.content,
+              width: Math.round(explicitWidth * PixelRatio.get()),
+              height: Math.round(explicitHeight * PixelRatio.get())
+            }}
             style={[styles.layerImage, { borderRadius: imageRadius }]}
             resizeMode="cover"
           />
         )}
         {layer.type === 'logo' && (
           <Image
-            source={{ uri: layer.content }}
+            source={{ 
+              uri: layer.content,
+              width: Math.round(explicitWidth * PixelRatio.get()),
+              height: Math.round(explicitHeight * PixelRatio.get())
+            }}
             style={[styles.layerLogo, { borderRadius: imageRadius }]}
             resizeMode="contain"
           />

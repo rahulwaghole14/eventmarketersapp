@@ -541,6 +541,15 @@ const DraggableLayer = React.memo(({
       };
     }
 
+    // Enhance text sharpness and bold weight on transparent backgrounds during offscreen high-res export
+    if (scaleX > 1.1 || scaleY > 1.1) {
+      if (baseStyle.color) {
+        scaled.textShadowColor = baseStyle.color;
+        scaled.textShadowOffset = { width: 0, height: 0 };
+        scaled.textShadowRadius = Math.max(1, Math.round(0.35 * avgScale));
+      }
+    }
+
     return scaled;
   };
 
@@ -550,7 +559,11 @@ const DraggableLayer = React.memo(({
 
   const renderImageContent = () => (
     <Image
-      source={{ uri: layer.content }}
+      source={{ 
+        uri: layer.content,
+        width: Math.round(explicitWidth),
+        height: Math.round(explicitHeight)
+      }}
       style={[
         styles.layerImage,
         { borderRadius: imageRadius },
@@ -561,7 +574,11 @@ const DraggableLayer = React.memo(({
 
   const renderLogoContent = () => (
     <Image
-      source={{ uri: layer.content }}
+      source={{ 
+        uri: layer.content,
+        width: Math.round(explicitWidth),
+        height: Math.round(explicitHeight)
+      }}
       style={[
         styles.layerLogo,
         {
@@ -925,9 +942,9 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
     const rawWidth = Math.round(currentCanvasWidth);
     const rawHeight = Math.round(currentCanvasHeight);
     
-    // Target a high-quality export dimension (e.g., 1080px) to prevent text, logos,
+    // Target a high-quality export dimension (e.g., 1920px) to prevent text, logos,
     // and image overlays from being rendered at low screen resolutions and then stretched.
-    const targetDimension = 1080;
+    const targetDimension = 1920;
 
     if (rawWidth > 0 && rawHeight > 0) {
       const scale = targetDimension / Math.max(rawWidth, rawHeight);
@@ -3186,7 +3203,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
               top: -exportHeight - 1000,
               width: exportWidth,
               height: exportHeight,
-              opacity: 0,
+              opacity: 1,
             }}
             pointerEvents="none"
           >

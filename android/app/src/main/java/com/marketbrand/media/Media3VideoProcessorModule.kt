@@ -73,8 +73,8 @@ class Media3VideoProcessorModule(private val reactContext: ReactApplicationConte
         val layers = parseOverlayLayers(overlaysArray)
         val (originalWidth, originalHeight) = getVideoDimensions(appContext, inputUri)
 
-        // Step 1: Downscale the video dimensions to max 1280px on the longest side.
-        val maxDimension = 1280
+        // Step 1: Downscale the video dimensions to max 1920px on the longest side.
+        val maxDimension = 1920
         var videoWidth = originalWidth
         var videoHeight = originalHeight
         if (videoWidth > maxDimension || videoHeight > maxDimension) {
@@ -88,7 +88,7 @@ class Media3VideoProcessorModule(private val reactContext: ReactApplicationConte
         // The output is always a SQUARE canvas (same as the editor), with the video
         // letterboxed inside using LAYOUT_SCALE_TO_FIT (black bars on the narrow sides).
         // The overlay PNG from JS is also square so it maps 1:1 — no stretching, correct positions.
-        val squareSide = Math.min(videoWidth, videoHeight).coerceAtLeast(1)
+        val squareSide = Math.max(videoWidth, videoHeight).coerceAtLeast(1)
         Log.d(TAG, "Square output side: $squareSide (from ${videoWidth}x${videoHeight})")
 
         // Step 3: Build overlay bitmap at the SQUARE size so it matches the JS canvas exactly.
@@ -153,8 +153,9 @@ class Media3VideoProcessorModule(private val reactContext: ReactApplicationConte
       .setEnableFallback(true)
 
     try {
+      val targetBitrate = if (squareSide >= 1080) 6_000_000 else 3_000_000
       val encoderSettings = VideoEncoderSettings.Builder()
-        .setBitrate(3_000_000) // 3 Mbps — sufficient for 720p square output
+        .setBitrate(targetBitrate)
         .build()
       encoderFactoryBuilder.setRequestedVideoEncoderSettings(encoderSettings)
     } catch (e: Exception) {

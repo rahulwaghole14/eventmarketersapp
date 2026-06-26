@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   ScrollView,
   FlatList,
   Image,
+  Modal,
+  Animated,
   Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -69,6 +71,12 @@ const TemplateGalleryScreen: React.FC = () => {
   const navigation = useNavigation<StackNavigationProp<MainStackParamList>>();
   const [imagePickerVisible, setImagePickerVisible] = useState(false);
   const [uploadedPhotos, setUploadedPhotos] = useState<UploadedPhoto[]>([]);
+
+  // Custom delete confirmation modal state
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [photoToDelete, setPhotoToDelete] = useState<string | null>(null);
+  const deleteModalAnim = useRef(new Animated.Value(0)).current;
+  const deleteModalScale = useRef(new Animated.Value(0.85)).current;
 
   // Dynamic dimensions for responsive layout
   const [dimensions, setDimensions] = useState(() => {
@@ -216,24 +224,52 @@ const TemplateGalleryScreen: React.FC = () => {
     } as any);
   };
 
-  // Handle delete photo
+  // Show custom delete modal
   const handleDeletePhoto = (photoId: string) => {
-    Alert.alert(
-      'Delete Photo',
-      'Are you sure you want to delete this photo?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            const updatedPhotos = uploadedPhotos.filter(p => p.id !== photoId);
-            setUploadedPhotos(updatedPhotos);
-            await saveUploadedPhotos(updatedPhotos);
-          },
-        },
-      ]
-    );
+    setPhotoToDelete(photoId);
+    setDeleteModalVisible(true);
+    Animated.parallel([
+      Animated.timing(deleteModalAnim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.spring(deleteModalScale, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 120,
+        friction: 8,
+      }),
+    ]).start();
+  };
+
+  const closeDeleteModal = () => {
+    Animated.parallel([
+      Animated.timing(deleteModalAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(deleteModalScale, {
+        toValue: 0.85,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setDeleteModalVisible(false);
+      setPhotoToDelete(null);
+    });
+  };
+
+  const confirmDeletePhoto = async () => {
+    if (!photoToDelete) return;
+    const updatedPhotos = uploadedPhotos.filter(p => p.id !== photoToDelete);
+    closeDeleteModal();
+    // Slight delay so animation plays before state update
+    setTimeout(async () => {
+      setUploadedPhotos(updatedPhotos);
+      await saveUploadedPhotos(updatedPhotos);
+    }, 200);
   };
 
   // Calculate grid dimensions dynamically
@@ -453,12 +489,97 @@ const TemplateGalleryScreen: React.FC = () => {
         </ScrollView>
       </LinearGradient>
       
-      {/* Image Picker Modal */}
       <ImagePickerModal
         visible={imagePickerVisible}
         onClose={() => setImagePickerVisible(false)}
         onImageSelected={handleImageSelected}
+        cropWidth={2400}
+        cropHeight={2400}
+        isCircleCrop={false}
+        title="Crop Background Image"
       />
+
+      {/* ── Custom Delete Confirmation Modal ── */}
+      <Modal
+        visible={deleteModalVisible}
+        transparent
+        animationType="none"
+        onRequestClose={closeDeleteModal}
+        statusBarTranslucent
+      >
+        <Animated.View
+          style={[
+            styles.deleteModalBackdrop,
+            { opacity: deleteModalAnim },
+          ]}
+        >
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={closeDeleteModal}
+          />
+          <Animated.View
+            style={[
+              styles.deleteModalCard,
+              {
+                backgroundColor: theme.colors.cardBackground || '#ffffff',
+                transform: [{ scale: deleteModalScale }],
+                opacity: deleteModalAnim,
+              },
+            ]}
+          >
+            {/* Icon */}
+            <View style={[styles.deleteModalIconWrap, { backgroundColor: 'rgba(255,59,48,0.12)' }]}>
+              <Icon name="delete-forever" size={36} color="#FF3B30" />
+            </View>
+
+            {/* Title */}
+            <Text style={[styles.deleteModalTitle, { color: theme.colors.text }]}>
+              Delete Photo
+            </Text>
+
+            {/* Subtitle */}
+            <Text style={[styles.deleteModalSubtitle, { color: theme.colors.textSecondary }]}>
+              This photo will be permanently removed from your gallery. This action cannot be undone.
+            </Text>
+
+            {/* Buttons */}
+            <View style={styles.deleteModalButtons}>
+              {/* Cancel */}
+              <TouchableOpacity
+                style={[
+                  styles.deleteModalBtn,
+                  styles.deleteModalCancelBtn,
+                  { borderColor: theme.colors.border || '#e0e0e0', backgroundColor: theme.colors.surface || '#f8f8f8' },
+                ]}
+                onPress={closeDeleteModal}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.deleteModalBtnText, { color: theme.colors.textSecondary }]}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              {/* Delete */}
+              <TouchableOpacity
+                style={[styles.deleteModalBtn, styles.deleteModalDeleteBtn]}
+                onPress={confirmDeletePhoto}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={['#FF3B30', '#FF6B6B']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.deleteModalDeleteGradient}
+                >
+                  <Icon name="delete" size={16} color="#fff" style={{ marginRight: 6 }} />
+                  <Text style={styles.deleteModalDeleteText}>Delete</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </Animated.View>
+      </Modal>
 
     </SafeAreaView>
   );
@@ -581,6 +702,83 @@ const styles = StyleSheet.create({
     fontSize: isTablet ? 13 : 11,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  // ── Delete Modal Styles ──
+  deleteModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.52)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 28,
+  },
+  deleteModalCard: {
+    width: '100%',
+    borderRadius: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.22,
+    shadowRadius: 24,
+    elevation: 20,
+  },
+  deleteModalIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  deleteModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  deleteModalSubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 28,
+    opacity: 0.8,
+  },
+  deleteModalButtons: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 12,
+  },
+  deleteModalBtn: {
+    flex: 1,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  deleteModalCancelBtn: {
+    borderWidth: 1.5,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+  },
+  deleteModalBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  deleteModalDeleteBtn: {
+    borderRadius: 14,
+  },
+  deleteModalDeleteGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+  },
+  deleteModalDeleteText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '700',
   },
   emptyStateSubtext: {
     fontSize: isTablet ? 11 : 9,

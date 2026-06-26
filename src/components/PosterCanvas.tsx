@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Image, Text, StyleSheet } from 'react-native';
+import { View, Image, Text, StyleSheet, PixelRatio } from 'react-native';
 import ViewShot from 'react-native-view-shot';
 
 interface PosterCanvasProps {
@@ -16,6 +16,7 @@ interface PosterCanvasProps {
   layerAnimations?: { [key: string]: { x: any; y: any } };
   translationValues?: { [key: string]: { x: any; y: any } };
   currentPositions?: { [key: string]: { x: number; y: number } };
+  screenCanvasWidth?: number;
 }
 
 const PosterCanvas: React.FC<PosterCanvasProps> = ({
@@ -28,7 +29,9 @@ const PosterCanvas: React.FC<PosterCanvasProps> = ({
   layerAnimations,
   translationValues,
   currentPositions,
+  screenCanvasWidth,
 }) => {
+  const scale = screenCanvasWidth ? (canvasWidth / screenCanvasWidth) : 1;
 
   const renderLayer = (layer: any) => {
     if (layer.type === 'text') {
@@ -75,8 +78,8 @@ const PosterCanvas: React.FC<PosterCanvasProps> = ({
               height: '100%',
               backgroundColor: layer.style?.backgroundColor || templateStyle.backgroundColor,
               borderRadius: 0,
-              borderBottomLeftRadius: 12,
-              borderBottomRightRadius: 12,
+              borderBottomLeftRadius: 12 * scale,
+              borderBottomRightRadius: 12 * scale,
             }}
           />
         );
@@ -123,7 +126,7 @@ const PosterCanvas: React.FC<PosterCanvasProps> = ({
           style={[
             styles.layerText,
             {
-              fontSize: layer.style?.fontSize || 16,
+              fontSize: (layer.style?.fontSize || 16) * scale,
               color: textColor,
               fontFamily: layer.style?.fontFamily || 'System',
               fontWeight: layer.style?.fontWeight || 'normal',
@@ -140,9 +143,9 @@ const PosterCanvas: React.FC<PosterCanvasProps> = ({
         </Text>
       );
     } else if (layer.type === 'image' || layer.type === 'logo') {
-      const effectiveBorderRadius = layer.isCircular
+      const effectiveBorderRadius = (layer.isCircular
         ? Math.min(layer.size.width, layer.size.height) / 2
-        : (layer.borderRadius || 0);
+        : (layer.borderRadius || 0)) * scale;
 
       return (
         <View style={{
@@ -165,150 +168,133 @@ const PosterCanvas: React.FC<PosterCanvasProps> = ({
     return null;
   };
 
+  // Helper for border frames with scaling
+  const borderStyle = (() => {
+    const borderWidthMap = {
+      business: 8, event: 6, restaurant: 8, fashion: 10, 'real-estate': 6,
+      education: 8, healthcare: 6, fitness: 8, wedding: 12, birthday: 10,
+      corporate: 6, creative: 8, minimal: 4, luxury: 12, modern: 8,
+      vintage: 8, retro: 6, elegant: 8, bold: 10, tech: 8, nature: 6,
+      ocean: 8, sunset: 10, cosmic: 8, artistic: 8, sport: 6, warm: 8, cool: 8
+    };
+
+    const borderColorMap = {
+      business: '#667eea', event: '#f97316', restaurant: '#22c55e', fashion: '#ec4899', 'real-estate': '#8b5cf6',
+      education: '#3b82f6', healthcare: '#10b981', fitness: '#ef4444', wedding: '#fbbf24', birthday: '#f472b6',
+      corporate: '#374151', creative: '#000000', minimal: '#95a5a6', luxury: '#d4af37', modern: '#607d8b',
+      vintage: '#78716c', retro: '#fb923c', elegant: '#795548', bold: '#000000', tech: '#00ff00', nature: '#22c55e',
+      ocean: '#06b6d4', sunset: '#f59e0b', cosmic: '#1e293b', artistic: '#a855f7', sport: '#ef4444', warm: '#fb923c', cool: '#3b82f6'
+    };
+
+    const baseBorderWidth = borderWidthMap[selectedTemplate as keyof typeof borderWidthMap] || 8;
+    const finalBorderWidth = baseBorderWidth * scale;
+    const finalBorderColor = borderColorMap[selectedTemplate as keyof typeof borderColorMap] || '#667eea';
+
+    return {
+      borderWidth: finalBorderWidth,
+      borderColor: finalBorderColor,
+      borderStyle: 'solid' as const,
+    };
+  })();
+
   // Only render ViewShot if we have layers to capture
   if (layers.length === 0) {
     console.log('PosterCanvas: No layers to render, skipping ViewShot');
     return (
       <View style={[
         styles.canvas,
-        selectedTemplate !== 'business' && styles.canvasWithFrame,
-        selectedTemplate === 'business' && styles.businessFrame,
-        selectedTemplate === 'event' && styles.eventFrame,
-        selectedTemplate === 'restaurant' && styles.restaurantFrame,
-        selectedTemplate === 'fashion' && styles.fashionFrame,
-        selectedTemplate === 'real-estate' && styles.realEstateFrame,
-        selectedTemplate === 'education' && styles.educationFrame,
-        selectedTemplate === 'healthcare' && styles.healthcareFrame,
-        selectedTemplate === 'fitness' && styles.fitnessFrame,
-        selectedTemplate === 'wedding' && styles.weddingFrame,
-        selectedTemplate === 'birthday' && styles.birthdayFrame,
-        selectedTemplate === 'corporate' && styles.corporateFrame,
-        selectedTemplate === 'creative' && styles.creativeFrame,
-        selectedTemplate === 'minimal' && styles.minimalFrame,
-        selectedTemplate === 'luxury' && styles.luxuryFrame,
-        selectedTemplate === 'modern' && styles.modernFrame,
-        selectedTemplate === 'vintage' && styles.vintageFrame,
-        selectedTemplate === 'retro' && styles.retroFrame,
-        selectedTemplate === 'elegant' && styles.elegantFrame,
-        selectedTemplate === 'bold' && styles.boldFrame,
-        selectedTemplate === 'tech' && styles.techFrame,
-        selectedTemplate === 'nature' && styles.natureFrame,
-        selectedTemplate === 'ocean' && styles.oceanFrame,
-        selectedTemplate === 'sunset' && styles.sunsetFrame,
-        selectedTemplate === 'cosmic' && styles.cosmicFrame,
-        selectedTemplate === 'artistic' && styles.artisticFrame,
-        selectedTemplate === 'sport' && styles.sportFrame,
-        selectedTemplate === 'warm' && styles.warmFrame,
-        selectedTemplate === 'cool' && styles.coolFrame,
+        borderStyle,
+        { width: canvasWidth, height: canvasHeight, borderRadius: 12 * scale }
       ]}>
         {/* Background Image */}
         <View style={styles.backgroundImageContainer}>
           <Image
-            source={{ uri: selectedImage.uri }}
-            style={styles.backgroundImage}
+            source={{
+              uri: selectedImage.uri,
+              width: PixelRatio.getPixelSizeForLayoutSize(canvasWidth),
+              height: PixelRatio.getPixelSizeForLayoutSize(canvasHeight),
+            }}
+            style={[styles.backgroundImage, { borderRadius: 12 * scale }]}
             resizeMode="cover"
+            resizeMethod="scale"
           />
         </View>
       </View>
     );
   }
 
-    return (
+  return (
     <ViewShot
       ref={posterRef}
       style={[
         styles.canvas,
-        selectedTemplate !== 'business' && styles.canvasWithFrame,
-        selectedTemplate === 'business' && styles.businessFrame,
-        selectedTemplate === 'event' && styles.eventFrame,
-        selectedTemplate === 'restaurant' && styles.restaurantFrame,
-        selectedTemplate === 'fashion' && styles.fashionFrame,
-        selectedTemplate === 'real-estate' && styles.realEstateFrame,
-        selectedTemplate === 'education' && styles.educationFrame,
-        selectedTemplate === 'healthcare' && styles.healthcareFrame,
-        selectedTemplate === 'fitness' && styles.fitnessFrame,
-        selectedTemplate === 'wedding' && styles.weddingFrame,
-        selectedTemplate === 'birthday' && styles.birthdayFrame,
-        selectedTemplate === 'corporate' && styles.corporateFrame,
-        selectedTemplate === 'creative' && styles.creativeFrame,
-        selectedTemplate === 'minimal' && styles.minimalFrame,
-        selectedTemplate === 'luxury' && styles.luxuryFrame,
-        selectedTemplate === 'modern' && styles.modernFrame,
-        selectedTemplate === 'vintage' && styles.vintageFrame,
-        selectedTemplate === 'retro' && styles.retroFrame,
-        selectedTemplate === 'elegant' && styles.elegantFrame,
-        selectedTemplate === 'bold' && styles.boldFrame,
-        selectedTemplate === 'tech' && styles.techFrame,
-        selectedTemplate === 'nature' && styles.natureFrame,
-        selectedTemplate === 'ocean' && styles.oceanFrame,
-        selectedTemplate === 'sunset' && styles.sunsetFrame,
-        selectedTemplate === 'cosmic' && styles.cosmicFrame,
-        selectedTemplate === 'artistic' && styles.artisticFrame,
-        selectedTemplate === 'sport' && styles.sportFrame,
-        selectedTemplate === 'warm' && styles.warmFrame,
-        selectedTemplate === 'cool' && styles.coolFrame,
-        { width: canvasWidth, height: canvasHeight }
+        borderStyle,
+        { width: canvasWidth, height: canvasHeight, borderRadius: 12 * scale }
       ]}
       options={{
         format: 'png',
         quality: 1.0,
-        result: 'tmpfile'
+        result: 'tmpfile',
+        pixelRatio: PixelRatio.get(),
       }}
     >
       {/* Background Image */}
       <View style={styles.backgroundImageContainer}>
         <Image
-          source={{ uri: selectedImage.uri }}
-          style={styles.backgroundImage}
+          source={{
+            uri: selectedImage.uri,
+            width: PixelRatio.getPixelSizeForLayoutSize(canvasWidth),
+            height: PixelRatio.getPixelSizeForLayoutSize(canvasHeight),
+          }}
+          style={[styles.backgroundImage, { borderRadius: 12 * scale }]}
           resizeMode="cover"
+          resizeMethod="scale"
         />
       </View>
       
-      
-             {/* Layers */}
-               {layers.map(layer => {
-          // Use captured current positions if available, otherwise fall back to calculated positions
-          let currentX = layer.position.x;
-          let currentY = layer.position.y;
+      {/* Layers */}
+      {layers.map(layer => {
+        // Use captured current positions if available, otherwise fall back to calculated positions
+        let currentX = layer.position.x;
+        let currentY = layer.position.y;
+        
+        if (currentPositions?.[layer.id]) {
+          // Use the captured current positions
+          currentX = currentPositions[layer.id].x;
+          currentY = currentPositions[layer.id].y;
+        } else if (layerAnimations?.[layer.id]?.x && translationValues?.[layer.id]?.x) {
+          // Fallback to calculated positions
+          const baseX = layerAnimations[layer.id].x._value || 0;
+          const translationX = translationValues[layer.id].x._value || 0;
+          currentX = baseX + translationX;
           
-          if (currentPositions?.[layer.id]) {
-            // Use the captured current positions
-            currentX = currentPositions[layer.id].x;
-            currentY = currentPositions[layer.id].y;
-          } else if (layerAnimations?.[layer.id]?.x && translationValues?.[layer.id]?.x) {
-            // Fallback to calculated positions
-            const baseX = layerAnimations[layer.id].x._value || 0;
-            const translationX = translationValues[layer.id].x._value || 0;
-            currentX = baseX + translationX;
-            
-            const baseY = layerAnimations[layer.id].y._value || 0;
-            const translationY = translationValues[layer.id].y._value || 0;
-            currentY = baseY + translationY;
-          }
+          const baseY = layerAnimations[layer.id].y._value || 0;
+          const translationY = translationValues[layer.id].y._value || 0;
+          currentY = baseY + translationY;
+        }
 
-          
-          return (
-            <View
-              key={layer.id}
-              style={[
-                styles.layer,
-                {
-                  position: 'absolute',
-                  width: layer.size.width,
-                  height: layer.size.height,
-                  zIndex: layer.zIndex,
-                  transform: [
-                    { translateX: currentX },
-                    { translateY: currentY },
-                    { rotate: `${layer.rotation || 0}deg` }
-                  ],
-                }
-              ]}
-            >
-              {renderLayer(layer)}
-            </View>
-          );
-        })}
+        return (
+          <View
+            key={layer.id}
+            style={[
+              styles.layer,
+              {
+                position: 'absolute',
+                width: layer.size.width * scale,
+                height: layer.size.height * scale,
+                zIndex: layer.zIndex,
+                transform: [
+                  { translateX: currentX * scale },
+                  { translateY: currentY * scale },
+                  { rotate: `${layer.rotation || 0}deg` }
+                ],
+              }
+            ]}
+          >
+            {renderLayer(layer)}
+          </View>
+        );
+      })}
     </ViewShot>
   );
 };
@@ -317,7 +303,6 @@ const styles = StyleSheet.create({
   canvas: {
     width: '100%',
     height: '100%',
-    borderRadius: 12,
     position: 'relative',
     overflow: 'hidden',
     backgroundColor: '#ffffff',
@@ -332,7 +317,6 @@ const styles = StyleSheet.create({
   backgroundImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 12,
   },
   layer: {
     position: 'absolute',
@@ -344,152 +328,6 @@ const styles = StyleSheet.create({
   layerImage: {
     width: '100%',
     height: '100%',
-  },
-  // Template Styles
-  canvasWithFrame: {
-    borderWidth: 8,
-    borderColor: '#667eea',
-    borderStyle: 'solid',
-  },
-  businessFrame: {
-    borderWidth: 8,
-    borderColor: '#667eea',
-    borderStyle: 'solid',
-  },
-  eventFrame: {
-    borderWidth: 6,
-    borderColor: '#f97316',
-    borderStyle: 'solid',
-  },
-  restaurantFrame: {
-    borderWidth: 8,
-    borderColor: '#22c55e',
-    borderStyle: 'solid',
-  },
-  fashionFrame: {
-    borderWidth: 10,
-    borderColor: '#ec4899',
-    borderStyle: 'solid',
-  },
-  realEstateFrame: {
-    borderWidth: 6,
-    borderColor: '#8b5cf6',
-    borderStyle: 'solid',
-  },
-  educationFrame: {
-    borderWidth: 8,
-    borderColor: '#3b82f6',
-    borderStyle: 'solid',
-  },
-  healthcareFrame: {
-    borderWidth: 6,
-    borderColor: '#10b981',
-    borderStyle: 'solid',
-  },
-  fitnessFrame: {
-    borderWidth: 8,
-    borderColor: '#ef4444',
-    borderStyle: 'solid',
-  },
-  weddingFrame: {
-    borderWidth: 12,
-    borderColor: '#fbbf24',
-    borderStyle: 'solid',
-  },
-  birthdayFrame: {
-    borderWidth: 10,
-    borderColor: '#f472b6',
-    borderStyle: 'solid',
-  },
-  corporateFrame: {
-    borderWidth: 6,
-    borderColor: '#374151',
-    borderStyle: 'solid',
-  },
-  creativeFrame: {
-    borderWidth: 8,
-    borderColor: '#000000',
-    borderStyle: 'solid',
-  },
-  minimalFrame: {
-    borderWidth: 4,
-    borderColor: '#95a5a6',
-    borderStyle: 'solid',
-  },
-  luxuryFrame: {
-    borderWidth: 12,
-    borderColor: '#d4af37',
-    borderStyle: 'solid',
-  },
-  modernFrame: {
-    borderWidth: 8,
-    borderColor: '#607d8b',
-    borderStyle: 'solid',
-  },
-  vintageFrame: {
-    borderWidth: 8,
-    borderColor: '#78716c',
-    borderStyle: 'solid',
-  },
-  retroFrame: {
-    borderWidth: 6,
-    borderColor: '#fb923c',
-    borderStyle: 'solid',
-  },
-  elegantFrame: {
-    borderWidth: 8,
-    borderColor: '#795548',
-    borderStyle: 'solid',
-  },
-  boldFrame: {
-    borderWidth: 10,
-    borderColor: '#000000',
-    borderStyle: 'solid',
-  },
-  techFrame: {
-    borderWidth: 8,
-    borderColor: '#00ff00',
-    borderStyle: 'solid',
-  },
-  natureFrame: {
-    borderWidth: 6,
-    borderColor: '#22c55e',
-    borderStyle: 'solid',
-  },
-  oceanFrame: {
-    borderWidth: 8,
-    borderColor: '#06b6d4',
-    borderStyle: 'solid',
-  },
-  sunsetFrame: {
-    borderWidth: 10,
-    borderColor: '#f59e0b',
-    borderStyle: 'solid',
-  },
-  cosmicFrame: {
-    borderWidth: 8,
-    borderColor: '#1e293b',
-    borderStyle: 'solid',
-  },
-  artisticFrame: {
-    borderWidth: 8,
-    borderColor: '#a855f7',
-    borderStyle: 'solid',
-  },
-  sportFrame: {
-    borderWidth: 6,
-    borderColor: '#ef4444',
-    borderStyle: 'solid',
-  },
-  warmFrame: {
-    borderWidth: 8,
-    borderColor: '#fb923c',
-    borderStyle: 'solid',
-  },
-  coolFrame: {
-    borderWidth: 8,
-    borderColor: '#3b82f6',
-    borderStyle: 'solid',
   },
 });
 

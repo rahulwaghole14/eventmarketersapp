@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Platform,
   ToastAndroid,
   PermissionsAndroid,
+  PixelRatio,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -206,10 +207,16 @@ const getResponsiveDimensions = (insets: any) => {
   
   const imageWidth = Math.min(availableWidth * imageWidthRatio, screenWidth * imageWidthRatio);
   const imageHeight = Math.min(availableHeight * imageHeightRatio, screenHeight * imageHeightRatio);
+
+  // ✅ The poster canvas is always 1:1 square, so use the smaller dimension to
+  // create a square preview frame. Without this, a 360×260 container with
+  // resizeMode='contain' would shrink the square poster to 260×260 — blurry.
+  const posterSquareSize = Math.min(imageWidth, imageHeight);
   
   return {
     imageWidth,
     imageHeight,
+    posterSquareSize,
     availableWidth,
     availableHeight,
     imageWidthRatio,
@@ -287,7 +294,7 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
   };
   
   // Get responsive dimensions
-  const { imageWidth, imageHeight, availableWidth, availableHeight } = getResponsiveDimensions(insets);
+  const { imageWidth, imageHeight, posterSquareSize, availableWidth, availableHeight } = getResponsiveDimensions(insets);
 
   const { 
     capturedImageUri, 
@@ -303,6 +310,26 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
     canvasHeight,
     isSubscribed = false // Default to false if not provided
   } = route.params;
+
+  // Memoized captured image source to prevent reload flashing during re-renders
+  const previewImageSource = useMemo(() => {
+    if (!capturedImageUri) return null;
+    return {
+      uri: capturedImageUri,
+      width: 2400,
+      height: 2400
+    };
+  }, [capturedImageUri]);
+
+  // Memoized fallback image source
+  const fallbackImageSource = useMemo(() => {
+    if (!selectedImage?.uri) return null;
+    return {
+      uri: selectedImage.uri,
+      width: 2400,
+      height: 2400
+    };
+  }, [selectedImage?.uri]);
 
   const [isUploading, setIsUploading] = useState(false);
   const [imageLoadError, setImageLoadError] = useState(false);
@@ -831,58 +858,83 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
         
         {/* Direct Image Display without Container */}
         {!capturedImageUri ? (
-          <View style={styles.errorContainer}>
-            <Icon name="error" size={getIconSize(32)} color="#ff6b6b" />
-            <Text style={themeStyles.errorText}>No poster image captured</Text>
-            <Text style={themeStyles.errorSubtext}>Using original image</Text>
+          <View style={{
+            width: imageWidth,
+            height: imageHeight,
+            borderRadius: 8,
+            overflow: 'hidden',
+            alignSelf: 'center',
+            marginTop: responsiveSpacing.sm,
+            backgroundColor: '#eaeaea',
+          }}>
             <Image
-              source={{ uri: selectedImage.uri }}
-              style={[styles.directPosterImage, { 
-                width: imageWidth, 
-                height: imageHeight,
-                alignSelf: 'center',
-                marginTop: responsiveSpacing.sm,
-              }]}
+              source={fallbackImageSource || undefined}
+              style={{
+                position: 'absolute',
+                width: Math.round(imageWidth * PixelRatio.get()),
+                height: Math.round(imageHeight * PixelRatio.get()),
+                left: (imageWidth - Math.round(imageWidth * PixelRatio.get())) / 2,
+                top: (imageHeight - Math.round(imageHeight * PixelRatio.get())) / 2,
+                transform: [{ scale: 1 / PixelRatio.get() }],
+              }}
               resizeMode="contain"
             />
           </View>
         ) : imageLoadError ? (
-          <View style={styles.errorContainer}>
-            <Icon name="error" size={getIconSize(32)} color="#ff6b6b" />
-            <Text style={styles.errorText}>Failed to load poster image</Text>
-            <Text style={styles.errorSubtext}>Using fallback image</Text>
+          <View style={{
+            width: imageWidth,
+            height: imageHeight,
+            borderRadius: 8,
+            overflow: 'hidden',
+            alignSelf: 'center',
+            marginTop: responsiveSpacing.sm,
+            backgroundColor: '#eaeaea',
+          }}>
             <Image
-              source={{ uri: selectedImage.uri }}
-              style={[styles.directPosterImage, { 
-                width: imageWidth, 
-                height: imageHeight,
-                alignSelf: 'center',
-                marginTop: responsiveSpacing.sm,
-              }]}
+              source={fallbackImageSource || undefined}
+              style={{
+                position: 'absolute',
+                width: Math.round(imageWidth * PixelRatio.get()),
+                height: Math.round(imageHeight * PixelRatio.get()),
+                left: (imageWidth - Math.round(imageWidth * PixelRatio.get())) / 2,
+                top: (imageHeight - Math.round(imageHeight * PixelRatio.get())) / 2,
+                transform: [{ scale: 1 / PixelRatio.get() }],
+              }}
               resizeMode="contain"
             />
           </View>
         ) : (
-          <>
+          <View style={{
+            width: posterSquareSize,
+            height: posterSquareSize,
+            borderRadius: 8,
+            overflow: 'hidden',
+            alignSelf: 'center',
+            marginTop: responsiveSpacing.sm,
+            backgroundColor: '#eaeaea',
+            position: 'relative',
+          }}>
             {imageLoading && (
               <View style={[styles.loadingOverlay, { 
-                width: imageWidth, 
-                height: imageHeight,
-                alignSelf: 'center',
-                marginTop: responsiveSpacing.sm,
+                width: posterSquareSize, 
+                height: posterSquareSize,
+                zIndex: 2,
               }]}>
                 <Text style={styles.loadingText}>Loading poster...</Text>
               </View>
             )}
             <Image
-              source={{ uri: capturedImageUri }}
-              style={[styles.directPosterImage, { 
-                width: imageWidth, 
-                height: imageHeight,
-                alignSelf: 'center',
-                marginTop: responsiveSpacing.sm,
-              }]}
-              resizeMode="contain"
+              source={previewImageSource || undefined}
+              style={{
+                position: 'absolute',
+                width: Math.round(posterSquareSize * PixelRatio.get()),
+                height: Math.round(posterSquareSize * PixelRatio.get()),
+                left: (posterSquareSize - Math.round(posterSquareSize * PixelRatio.get())) / 2,
+                top: (posterSquareSize - Math.round(posterSquareSize * PixelRatio.get())) / 2,
+                transform: [{ scale: 1 / PixelRatio.get() }],
+              }}
+              resizeMode="cover"
+              resizeMethod="scale"
               onError={(error) => {
                 console.log('Image load error:', error);
                 console.log('Error details:', error.nativeEvent);
@@ -896,7 +948,7 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
                 setImageLoading(false);
               }}
             />
-          </>
+          </View>
         )}
       </View>
 
