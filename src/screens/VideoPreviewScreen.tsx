@@ -18,7 +18,7 @@ import Share from 'react-native-share';
 import Video from 'react-native-video';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useIsFocused } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { MainStackParamList } from '../navigation/types';
 import { getAccessState, isAccessGranted, getAccessStateMessage, isTransitionalState } from '../utils/subscriptionAccess';
@@ -198,6 +198,7 @@ interface VideoPreviewScreenProps {
 
 const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
   const navigation = useNavigation<StackNavigationProp<MainStackParamList>>();
+  const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
   const [dimensions, setDimensions] = useState(() => {
     const { width, height } = Dimensions.get('window');
@@ -293,10 +294,13 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
   };
 
   // Helper function to ensure we only use local video URIs
-  // Preview always plays the ORIGINAL video with React Native overlays on top.
-  // The processedVideoPath (Media3 output) is only used for download/share.
-  // This ensures overlay positions in the preview exactly match the editor canvas.
+  // If processedVideoPath is available, we play the fully rendered final video.
+  // Otherwise, we play the ORIGINAL video with React Native overlays on top.
   const getSafeVideoUri = useCallback(() => {
+    if (processedVideoPath) {
+      return processedVideoPath.startsWith('file://') ? processedVideoPath : `file://${processedVideoPath}`;
+    }
+
     const uri = selectedVideo?.uri || '';
     if (!uri) {
       console.warn('⚠️ Empty URI detected, using fallback');
@@ -317,7 +321,7 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
     }
 
     return uri;
-  }, [selectedVideo?.uri]);
+  }, [selectedVideo?.uri, processedVideoPath]);
 
   React.useEffect(() => {
     console.log('VideoPreviewScreen - Debug Info:');
@@ -392,6 +396,15 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
   const handleShare = async () => {
     setIsSharing(true);
     try {
+      if (!processedVideoPath) {
+        await new Promise((resolve) => {
+          Alert.alert(
+            'Share Notice',
+            'Due to device hardware limitations, text/logo overlays could not be embedded into the video file. The original video will be shared instead.',
+            [{ text: 'Share Original', onPress: () => resolve(true) }]
+          );
+        });
+      }
       // Use the processed video path if available, otherwise use original
       let videoPath = processedVideoPath || selectedVideo.uri;
 
@@ -403,8 +416,13 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
       // Check if it's a remote URL
       const isRemoteUrl = videoPath.startsWith('http://') || videoPath.startsWith('https://');
 
-      // Ensure local file paths are properly prefixed with file://
-      if (videoPath && !videoPath.startsWith('http://') && !videoPath.startsWith('https://') && !videoPath.startsWith('file://')) {
+      // Ensure local file paths are properly prefixed with file:// (skip remote and content/ph schemes)
+      if (videoPath && 
+          !videoPath.startsWith('http://') && 
+          !videoPath.startsWith('https://') && 
+          !videoPath.startsWith('file://') &&
+          !videoPath.startsWith('content://') &&
+          !videoPath.startsWith('ph://')) {
         videoPath = `file://${videoPath}`;
       }
 
@@ -442,6 +460,23 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
     try {
       setIsDownloading(true);
       setDownloadProgress(0);
+
+      if (!processedVideoPath) {
+        const proceed = await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            'Download Notice',
+            'Due to device hardware limitations, text/logo overlays could not be embedded into the video file. Save the original video instead?',
+            [
+              { text: 'Cancel', onPress: () => resolve(false), style: 'cancel' },
+              { text: 'Save Original', onPress: () => resolve(true) }
+            ]
+          );
+        });
+        if (!proceed) {
+          setIsDownloading(false);
+          return;
+        }
+      }
 
       // Request storage permission first (but don't block if it fails)
       const hasPermission = await requestStoragePermission();
@@ -726,22 +761,14 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
         )}
         {layer.type === 'image' && (
           <Image
-            source={{ 
-              uri: layer.content,
-              width: Math.round(explicitWidth * PixelRatio.get()),
-              height: Math.round(explicitHeight * PixelRatio.get())
-            }}
+            source={{ uri: layer.content }}
             style={[styles.layerImage, { borderRadius: imageRadius }]}
             resizeMode="cover"
           />
         )}
         {layer.type === 'logo' && (
           <Image
-            source={{ 
-              uri: layer.content,
-              width: Math.round(explicitWidth * PixelRatio.get()),
-              height: Math.round(explicitHeight * PixelRatio.get())
-            }}
+            source={{ uri: layer.content }}
             style={[styles.layerLogo, { borderRadius: imageRadius }]}
             resizeMode="contain"
           />
@@ -765,22 +792,26 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
             { width: renderedVideoSize.width, height: renderedVideoSize.height },
           ]}
         >
-          <Video
-            ref={videoRef}
-            source={{ uri: getSafeVideoUri() }}
-            style={styles.video}
-            resizeMode="contain"
-            paused={!isVideoPlaying}
-            onLoad={onVideoLoad}
-            onProgress={onVideoProgress}
-            onError={onVideoError}
-            repeat
-            controls
-          />
+          {isFocused && (
+            <Video
+              ref={videoRef}
+              source={{ uri: getSafeVideoUri() }}
+              style={styles.video}
+              resizeMode="contain"
+              paused={!isVideoPlaying}
+              onLoad={onVideoLoad}
+              onProgress={onVideoProgress}
+              onError={onVideoError}
+              repeat
+              controls
+            />
+          )}
 
-          {/* Overlay layers always rendered on top of the video at canvas-relative positions.
-              This ensures positions match the editor canvas exactly, including bar areas. */}
-          {layers && layers.length > 0 && (
+          {/* Overlay layers always rendered on top of the video.
+              Even when a processed video is playing, we render the RN overlays so the
+              user can see all selected fields (text, logos, gradients) in the preview.
+              The processed video path is only used for download/share quality. */}
+          {layers && layers.length > 0 && !processedVideoPath && (
             <View style={styles.overlayContainer}>
               {layers.map((layer, idx) => renderLayer(layer, idx, selectedTemplateId))}
             </View>

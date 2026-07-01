@@ -364,6 +364,15 @@ const HorizontalFestivalCalendar: React.FC<HorizontalFestivalCalendarProps> = ({
   const scrollViewRef = useRef<ScrollView>(null);
   const borderAnimation = useRef(new Animated.Value(0)).current;
 
+  const postersFlatListRef = useRef<FlatList<Template>>(null);
+
+  // State for posters scrolling
+  const [postersScrollOffset, setPostersScrollOffset] = useState(0);
+  const [postersContentWidth, setPostersContentWidth] = useState(0);
+  const [postersLayoutWidth, setPostersLayoutWidth] = useState(0);
+
+
+
   // Animation control for View More modal
   const [disableViewMoreModalAnimation, setDisableViewMoreModalAnimation] = useState(false);
   const previousViewMoreModalVisibleRef = useRef(isViewMoreModalVisible);
@@ -417,6 +426,33 @@ const HorizontalFestivalCalendar: React.FC<HorizontalFestivalCalendarProps> = ({
   const [currentDateState, setCurrentDateState] = useState(() => new Date());
   const autoSelectRef = useRef<string | null>(null);
   const generalCategoryCardWidth = useMemo(() => getGeneralCategoryCardWidth(), []);
+
+  // Scroll handlers for posters list
+  const scrollPostersLeft = useCallback(() => {
+    if (postersFlatListRef.current) {
+      const scrollAmount = generalCategoryCardWidth * 2;
+      const newOffset = Math.max(0, postersScrollOffset - scrollAmount);
+      postersFlatListRef.current.scrollToOffset({ offset: newOffset, animated: true });
+    }
+  }, [generalCategoryCardWidth, postersScrollOffset]);
+
+  const scrollPostersRight = useCallback(() => {
+    if (postersFlatListRef.current) {
+      const scrollAmount = generalCategoryCardWidth * 2;
+      const newOffset = Math.min(postersContentWidth - postersLayoutWidth, postersScrollOffset + scrollAmount);
+      postersFlatListRef.current.scrollToOffset({ offset: newOffset, animated: true });
+    }
+  }, [generalCategoryCardWidth, postersContentWidth, postersLayoutWidth, postersScrollOffset]);
+
+
+
+  // Reset posters scroll position when selected date changes
+  useEffect(() => {
+    if (postersFlatListRef.current) {
+      postersFlatListRef.current.scrollToOffset({ offset: 0, animated: false });
+    }
+    setPostersScrollOffset(0);
+  }, [selectedDate]);
   
   // Memoized optimized URL function for thumbnail cards
   const getThumbnailUrl = useCallback((thumbnailUrl: string) => {
@@ -874,14 +910,39 @@ const HorizontalFestivalCalendar: React.FC<HorizontalFestivalCalendarProps> = ({
       {/* Selected Date Posters Section */}
       {selectedDate && selectedDatePosters.length > 0 && (
         <View style={styles.postersSection}>
-          <FlatList
-            data={selectedDatePosters}
-            renderItem={renderPosterCard}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.postersList}
-          />
+          <View style={styles.listContainer}>
+            <FlatList
+              ref={postersFlatListRef}
+              data={selectedDatePosters}
+              renderItem={renderPosterCard}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.postersList}
+              onScroll={(e) => setPostersScrollOffset(e.nativeEvent.contentOffset.x)}
+              scrollEventThrottle={16}
+              onContentSizeChange={(w) => setPostersContentWidth(w)}
+              onLayout={(e) => setPostersLayoutWidth(e.nativeEvent.layout.width)}
+            />
+            {postersScrollOffset > 10 && (
+              <TouchableOpacity
+                style={[styles.arrowButton, styles.leftArrowButton]}
+                onPress={scrollPostersLeft}
+                activeOpacity={0.8}
+              >
+                <Icon name="chevron-left" size={moderateScale(22)} color="#ffffff" />
+              </TouchableOpacity>
+            )}
+            {postersContentWidth > postersLayoutWidth && postersScrollOffset < postersContentWidth - postersLayoutWidth - 10 && (
+              <TouchableOpacity
+                style={[styles.arrowButton, styles.rightArrowButton]}
+                onPress={scrollPostersRight}
+                activeOpacity={0.8}
+              >
+                <Icon name="chevron-right" size={moderateScale(22)} color="#ffffff" />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       )}
 
@@ -1249,6 +1310,34 @@ const styles = StyleSheet.create({
     fontSize: SCREEN_WIDTH < 360 ? moderateScale(10) : moderateScale(9),
     fontWeight: '600',
     color: '#ffffff',
+  },
+  listContainer: {
+    position: 'relative',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  arrowButton: {
+    position: 'absolute',
+    top: '50%',
+    marginTop: -moderateScale(16),
+    width: moderateScale(32),
+    height: moderateScale(32),
+    borderRadius: moderateScale(16),
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  leftArrowButton: {
+    left: moderateScale(5),
+  },
+  rightArrowButton: {
+    right: moderateScale(5),
   },
 });
 

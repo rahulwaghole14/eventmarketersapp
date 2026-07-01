@@ -1891,8 +1891,8 @@ const GreetingTemplatesScreen: React.FC = () => {
                   onBlur={() => setIsSearchInputFocused(false)}
                   autoFocus
                 />
-                {searchQuery.length > 0 && (
-                  <TouchableOpacity onPress={() => setSearchQuery('')}>
+                {searchQuery.length > 0 ? (
+                  <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7}>
                     <Icon
                       name="clear"
                       size={moderateScale(14)}
@@ -1904,19 +1904,20 @@ const GreetingTemplatesScreen: React.FC = () => {
                       }}
                     />
                   </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity onPress={toggleSearchBar} activeOpacity={0.7}>
+                    <Icon
+                      name="close"
+                      size={moderateScale(16)}
+                      color={theme.colors.textSecondary}
+                      style={{
+                        marginLeft: moderateScale(4),
+                        marginRight: moderateScale(4),
+                        padding: moderateScale(2),
+                      }}
+                    />
+                  </TouchableOpacity>
                 )}
-                <TouchableOpacity onPress={toggleSearchBar} activeOpacity={0.7}>
-                  <Icon
-                    name="close"
-                    size={moderateScale(16)}
-                    color={theme.colors.textSecondary}
-                    style={{
-                      marginLeft: moderateScale(4),
-                      marginRight: moderateScale(4),
-                      padding: moderateScale(2),
-                    }}
-                  />
-                </TouchableOpacity>
               </View>
 
               {/* Floating Recent Searches Dropdown */}

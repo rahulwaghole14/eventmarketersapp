@@ -129,3 +129,8 @@
 -keepattributes *Annotation*
 -keepattributes EnclosingMethod
 -keepattributes InnerClasses
+
+# Fix for NoClassDefFoundError: Failed resolution of: Landroid/media/metrics/LogSessionId; on older Android versions (pre-API 31)
+-keep class android.media.metrics.LogSessionId { *; }
+-dontwarn android.media.metrics.**
+

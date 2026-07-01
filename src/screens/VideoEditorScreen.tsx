@@ -559,11 +559,7 @@ const DraggableLayer = React.memo(({
 
   const renderImageContent = () => (
     <Image
-      source={{ 
-        uri: layer.content,
-        width: Math.round(explicitWidth),
-        height: Math.round(explicitHeight)
-      }}
+      source={{ uri: layer.content }}
       style={[
         styles.layerImage,
         { borderRadius: imageRadius },
@@ -574,11 +570,7 @@ const DraggableLayer = React.memo(({
 
   const renderLogoContent = () => (
     <Image
-      source={{ 
-        uri: layer.content,
-        width: Math.round(explicitWidth),
-        height: Math.round(explicitHeight)
-      }}
+      source={{ uri: layer.content }}
       style={[
         styles.layerLogo,
         {
@@ -2739,7 +2731,11 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
       const outputPath = await VideoOverlayProcessor.applyOverlays(
         inputVideoUri,
         overlayPayload,
-        { fileName: `overlay_${Date.now()}.mp4` }
+        {
+          fileName: `overlay_${Date.now()}.mp4`,
+          canvasWidth: currentCanvasWidth > 0 ? currentCanvasWidth : 1,
+          canvasHeight: currentCanvasHeight > 0 ? currentCanvasHeight : 1,
+        }
       );
 
       // Force progress bar to 100% and wait for the animation to finish
@@ -2770,12 +2766,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
       });
     } catch (error) {
       console.error('Media3 overlay processing failed', error);
-      const message =
-        error instanceof Error ? error.message : 'An unexpected error occurred.';
-      Alert.alert(
-        'Processing Failed',
-        `${message}\n\nThe original video will be used instead.`
-      );
+      // Silently continue to preview. Overlays will render dynamically in React Native preview.
 
       navigation.navigate('VideoPreview', {
         selectedVideo: { uri: selectedVideo.uri },

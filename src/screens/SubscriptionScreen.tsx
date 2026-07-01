@@ -1163,8 +1163,12 @@ const SubscriptionScreen: React.FC = () => {
           await cacheService.clear(`subscription_status_${currentUser.id}`);
         }
 
-        // Explicitly set subscription to false on payment failure
-        setIsSubscribed(false);
+        // Sync subscription status with backend to reflect the true active state
+        if (isBusinessProfileMode) {
+          fetchBusinessSubscriptionStatus().catch(() => {});
+        } else {
+          refreshSubscription(true).catch(() => {});
+        }
 
         // Show user-friendly error
         if (error.message === "Razorpay module not loaded") {

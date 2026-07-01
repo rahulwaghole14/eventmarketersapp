@@ -12,7 +12,7 @@ import {
 import Video from 'react-native-video';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, useIsFocused } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MainStackParamList } from '../navigation/types';
@@ -68,6 +68,7 @@ const VideoPlayerScreen: React.FC = () => {
   const { theme, isDarkMode } = useTheme();
   const navigation = useNavigation<VideoPlayerScreenNavigationProp>();
   const route = useRoute<VideoPlayerScreenRouteProp>();
+  const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
 
   const { selectedVideo, relatedVideos } = route.params;
@@ -213,14 +214,16 @@ const VideoPlayerScreen: React.FC = () => {
         <View style={styles.videoContainer}>
           {selectedVideo.videoUrl ? (
             <>
-              <Video
-                source={{ uri: selectedVideo.videoUrl }}
-                style={styles.videoPlayer}
-                resizeMode="contain"
-                repeat
-                muted
-                paused={!isPlaying}
-              />
+              {isFocused && (
+                <Video
+                  source={{ uri: selectedVideo.videoUrl }}
+                  style={styles.videoPlayer}
+                  resizeMode="contain"
+                  repeat
+                  muted
+                  paused={!isPlaying}
+                />
+              )}
               <TouchableOpacity
                 style={styles.playPause}
                 activeOpacity={0.8}

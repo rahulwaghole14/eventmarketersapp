@@ -10,13 +10,14 @@ import android.graphics.Typeface
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.Clock
 import androidx.media3.effect.BitmapOverlay
 import androidx.media3.effect.OverlayEffect
 import androidx.media3.effect.TextureOverlay
 import androidx.media3.effect.Presentation
+import androidx.media3.effect.StaticOverlaySettings
+import androidx.media3.common.OverlaySettings
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.DefaultAssetLoaderFactory
 import androidx.media3.transformer.DefaultDecoderFactory
@@ -39,6 +40,25 @@ import java.io.File
 import java.io.IOException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+
+// Local Log shadowing utility to redirect Log.d to Log.e so debug outputs are captured on strict devices.
+object Log {
+  fun d(tag: String, msg: String) {
+    android.util.Log.e(tag, msg)
+  }
+  fun w(tag: String, msg: String) {
+    android.util.Log.w(tag, msg)
+  }
+  fun e(tag: String, msg: String) {
+    android.util.Log.e(tag, msg)
+  }
+  fun e(tag: String, msg: String, tr: Throwable) {
+    android.util.Log.e(tag, msg, tr)
+  }
+  fun w(tag: String, msg: String, tr: Throwable) {
+    android.util.Log.w(tag, msg, tr)
+  }
+}
 
 /**
  * Native module that uses AndroidX Media3 Transformer to apply bitmap/text overlays to an input video.
@@ -69,33 +89,71 @@ class Media3VideoProcessorModule(private val reactContext: ReactApplicationConte
         val cacheDir = appContext.cacheDir ?: throw IOException("Cache directory unavailable")
         val outputFile = createOutputFile(cacheDir, options)
 
-        Log.d(TAG, "Preparing overlays: $overlaysArray")
-        val layers = parseOverlayLayers(overlaysArray)
-        val (originalWidth, originalHeight) = getVideoDimensions(appContext, inputUri)
-
-        // Step 1: Downscale the video dimensions to max 1920px on the longest side.
-        val maxDimension = 1920
-        var videoWidth = originalWidth
-        var videoHeight = originalHeight
-        if (videoWidth > maxDimension || videoHeight > maxDimension) {
-          val scale = maxDimension.toFloat() / Math.max(videoWidth, videoHeight)
-          videoWidth = (videoWidth * scale).toInt()
-          videoHeight = (videoHeight * scale).toInt()
-          Log.d(TAG, "Downscaling from ${originalWidth}x${originalHeight} to ${videoWidth}x${videoHeight}")
+        Log.d(TAG, "=== applyOverlays called ===")
+        Log.d(TAG, "  inputUri: $inputUriString")
+        Log.d(TAG, "  overlaysArray count: ${overlaysArray.size()}")
+        for (i in 0 until overlaysArray.size()) {
+          Log.d(TAG, "  overlay[$i]: ${overlaysArray.getMap(i)}")
         }
 
-        // Step 2: Compute the square output side.
-        // The output is always a SQUARE canvas (same as the editor), with the video
-        // letterboxed inside using LAYOUT_SCALE_TO_FIT (black bars on the narrow sides).
-        // The overlay PNG from JS is also square so it maps 1:1 — no stretching, correct positions.
-        val squareSide = Math.max(videoWidth, videoHeight).coerceAtLeast(1)
-        Log.d(TAG, "Square output side: $squareSide (from ${videoWidth}x${videoHeight})")
+        val layers = parseOverlayLayers(overlaysArray)
+        Log.d(TAG, "  parsed layers count: ${layers.size}")
 
-        // Step 3: Build overlay bitmap at the SQUARE size so it matches the JS canvas exactly.
-        compositeBitmap = buildCompositeOverlayBitmap(appContext, layers, squareSide, squareSide)
+        val (originalWidth, originalHeight) = getVideoDimensions(appContext, inputUri)
+        Log.d(TAG, "  video dimensions: ${originalWidth}x${originalHeight}")
+
+        // Step 1: Scale the video dimensions so the longest side is exactly 1080px.
+        // This ensures the output square canvas is 1080x1080, providing crisp resolution
+        // for text and logo overlays after H.264 video compression.
+        val targetDimension = 1080
+        val scale = targetDimension.toFloat() / Math.max(originalWidth, originalHeight)
+        var videoWidth = ((originalWidth * scale).toInt() / 2) * 2
+        var videoHeight = ((originalHeight * scale).toInt() / 2) * 2
+        Log.d(TAG, "Rescaling video from ${originalWidth}x${originalHeight} to ${videoWidth}x${videoHeight}")
+
+        // Step 2: Compute the square output side.
+        var squareSide = Math.max(videoWidth, videoHeight).coerceAtLeast(2)
+        squareSide = (squareSide / 2) * 2
+        Log.d(TAG, "Square output side: $squareSide")
+
+        // Step 3: Build overlay bitmap at 2× the square side (supersampling).
+        val oversampleFactor = 2
+        val overlayBitmapSide = squareSide * oversampleFactor
+        val canvasWidth = if (options != null && options.hasKey("canvasWidth")) options.getDouble("canvasWidth") else 360.0
+        val canvasHeight = if (options != null && options.hasKey("canvasHeight")) options.getDouble("canvasHeight") else 360.0
+        Log.d(TAG, "Building composite bitmap at ${overlayBitmapSide}x${overlayBitmapSide} for canvas ${canvasWidth}x${canvasHeight}")
+        compositeBitmap = buildCompositeOverlayBitmap(
+          appContext,
+          layers,
+          overlayBitmapSide,
+          overlayBitmapSide,
+          canvasWidth,
+          canvasHeight
+        )
+        Log.d(TAG, "compositeBitmap built: ${compositeBitmap != null}, size: ${compositeBitmap?.width}x${compositeBitmap?.height}")
 
         val textureOverlays: ImmutableList<TextureOverlay> = if (compositeBitmap != null) {
-          ImmutableList.of<TextureOverlay>(BitmapOverlay.createStaticBitmapOverlay(compositeBitmap))
+          val customOverlay = object : BitmapOverlay() {
+            private var logCount = 0
+            override fun getBitmap(presentationTimeUs: Long): Bitmap {
+              if (logCount < 10) {
+                Log.d(TAG, "getBitmap called for frame at ${presentationTimeUs}us")
+                logCount++
+              }
+              return compositeBitmap
+            }
+
+            override fun getOverlaySettings(presentationTimeUs: Long): OverlaySettings {
+              val scale = 1.0f / oversampleFactor
+              return StaticOverlaySettings.Builder()
+                .setScale(scale, scale)
+                .setBackgroundFrameAnchor(0f, 0f)
+                .setOverlayFrameAnchor(0f, 0f)
+                .setAlphaScale(1.0f)
+                .build()
+            }
+          }
+          ImmutableList.of<TextureOverlay>(customOverlay)
         } else {
           ImmutableList.of()
         }
@@ -153,7 +211,10 @@ class Media3VideoProcessorModule(private val reactContext: ReactApplicationConte
       .setEnableFallback(true)
 
     try {
-      val targetBitrate = if (squareSide >= 1080) 6_000_000 else 3_000_000
+      // Optimize bitrate to 3.5 Mbps for 1080p (or 2 Mbps otherwise). This keeps the file
+      // size small and compression-friendly, preventing messaging apps (like WhatsApp)
+      // from applying aggressive, lossy compression during sharing.
+      val targetBitrate = if (squareSide >= 1080) 3_500_000 else 2_000_000
       val encoderSettings = VideoEncoderSettings.Builder()
         .setBitrate(targetBitrate)
         .build()
@@ -242,6 +303,21 @@ class Media3VideoProcessorModule(private val reactContext: ReactApplicationConte
           )
         }
 
+        "rect" -> {
+          // Solid colour rectangle — used for footer background bars.
+          val color = map.getString("color") ?: "rgba(0,0,0,0.6)"
+          layers.add(
+            OverlayLayer.RectLayer(
+              color = color,
+              normalizedX = x,
+              normalizedY = y,
+              normalizedWidth = width,
+              normalizedHeight = height,
+              opacity = opacity,
+            )
+          )
+        }
+
         else -> Log.w(TAG, "Unsupported overlay type: $type")
       }
     }
@@ -286,6 +362,8 @@ class Media3VideoProcessorModule(private val reactContext: ReactApplicationConte
     layers: List<OverlayLayer>,
     videoWidth: Int,
     videoHeight: Int,
+    canvasW: Double,
+    canvasH: Double,
   ): Bitmap? {
     if (layers.isEmpty()) {
       return null
@@ -297,12 +375,25 @@ class Media3VideoProcessorModule(private val reactContext: ReactApplicationConte
     val canvas = Canvas(bitmap)
     canvas.drawColor(Color.TRANSPARENT)
 
+    // High-quality paint for all blitting — enables bilinear filtering and dithering.
+    val basePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
+
+    // Scale factors from canvas space to video space
+    val scaleFactorX = width.toFloat() / canvasW.toFloat()
+    val scaleFactorY = height.toFloat() / canvasH.toFloat()
+
     layers.forEach { layer ->
       when (layer) {
         is OverlayLayer.ImageLayer -> {
-          val source = loadBitmap(context, layer.uri) ?: return@forEach
+          Log.d(TAG, "  [IMAGE] uri=${layer.uri}, normX=${layer.normalizedX}, normY=${layer.normalizedY}, normW=${layer.normalizedWidth}, normH=${layer.normalizedHeight}")
+          val source = loadBitmap(context, layer.uri)
+          if (source == null) {
+            Log.w(TAG, "  [IMAGE] ⚠️ Failed to load bitmap from: ${layer.uri}")
+            return@forEach
+          }
           val targetWidth = layer.normalizedWidth?.let { (it * width).toInt().coerceAtLeast(1) } ?: source.width
           val targetHeight = layer.normalizedHeight?.let { (it * height).toInt().coerceAtLeast(1) } ?: source.height
+          // createScaledBitmap with filter=true uses bilinear interpolation.
           val scaled = if (targetWidth != source.width || targetHeight != source.height) {
             Bitmap.createScaledBitmap(source, targetWidth, targetHeight, true)
           } else {
@@ -310,36 +401,58 @@ class Media3VideoProcessorModule(private val reactContext: ReactApplicationConte
           }
 
           val (left, top) = computeLayerPosition(layer, targetWidth, targetHeight, width, height)
-          val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+          Log.d(TAG, "  [IMAGE] drawing at left=$left, top=$top, size=${targetWidth}x${targetHeight}")
+          val paint = Paint(basePaint).apply {
             alpha = (layer.opacity.coerceIn(0.0, 1.0) * 255).toInt()
           }
           canvas.drawBitmap(scaled, left, top, paint)
-          if (scaled != source) {
-            scaled.recycle()
-          }
+          if (scaled != source) scaled.recycle()
           source.recycle()
         }
 
         is OverlayLayer.TextLayer -> {
-          val textBitmap = createTextBitmap(layer)
-          val targetWidth = layer.normalizedWidth?.let { (it * width).toInt().coerceAtLeast(1) } ?: textBitmap.width
-          val targetHeight = layer.normalizedHeight?.let { (it * height).toInt().coerceAtLeast(1) } ?: textBitmap.height
-          val scaled = if (targetWidth != textBitmap.width || targetHeight != textBitmap.height) {
-            Bitmap.createScaledBitmap(textBitmap, targetWidth, targetHeight, true)
-          } else {
-            textBitmap
-          }
+          Log.d(TAG, "  [TEXT] text='${layer.text}', normX=${layer.normalizedX}, normY=${layer.normalizedY}, fontSize=${layer.fontSize}, color=${layer.color}")
+          // Render the text at its exact target font size relative to the canvas height scale
+          val textBitmap = createTextBitmap(layer, scaleFactorY)
+          
+          val targetWidth = textBitmap.width
+          val targetHeight = textBitmap.height
 
           val (left, top) = computeLayerPosition(layer, targetWidth, targetHeight, width, height)
-          val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+          Log.d(TAG, "  [TEXT] drawing at left=$left, top=$top, size=${targetWidth}x${targetHeight}")
+          val paint = Paint(basePaint).apply {
             alpha = (layer.opacity.coerceIn(0.0, 1.0) * 255).toInt()
           }
-          canvas.drawBitmap(scaled, left, top, paint)
-          if (scaled != textBitmap) {
-            scaled.recycle()
-          }
+          canvas.drawBitmap(textBitmap, left, top, paint)
           textBitmap.recycle()
         }
+        is OverlayLayer.RectLayer -> {
+          Log.d(TAG, "  [RECT] color=${layer.color}, normX=${layer.normalizedX}, normY=${layer.normalizedY}, normW=${layer.normalizedWidth}, normH=${layer.normalizedHeight}")
+          val rectW = layer.normalizedWidth?.let { (it * width).toInt().coerceAtLeast(1) } ?: width
+          val rectH = layer.normalizedHeight?.let { (it * height).toInt().coerceAtLeast(1) } ?: height
+          val centerX = (layer.normalizedX.coerceIn(0.0, 1.0) * width).toFloat()
+          val centerY = (layer.normalizedY.coerceIn(0.0, 1.0) * height).toFloat()
+          val left = centerX - rectW / 2f
+          val top = centerY - rectH / 2f
+          val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = parseColor(layer.color)
+            alpha = (layer.opacity.coerceIn(0.0, 1.0) * 255).toInt()
+          }
+          canvas.drawRect(left, top, left + rectW, top + rectH, paint)
+          Log.d(TAG, "  [RECT] drawn at left=$left, top=$top, size=${rectW}x${rectH}")
+        }
+      }
+    }
+
+    // Diagnostic: Log pixel colors at logo and text positions to verify canvas blitting
+    if (bitmap != null) {
+      try {
+        val logoPixel = bitmap.getPixel(1205, 132)
+        val textPixel = bitmap.getPixel(338, 1362)
+        Log.d(TAG, "DIAGNOSTIC - compositeBitmap pixel at logo (1205, 132): ${Integer.toHexString(logoPixel)}")
+        Log.d(TAG, "DIAGNOSTIC - compositeBitmap pixel at text (338, 1362): ${Integer.toHexString(textPixel)}")
+      } catch (e: Exception) {
+        Log.w(TAG, "DIAGNOSTIC - Failed to read pixels", e)
       }
     }
 
@@ -357,16 +470,22 @@ class Media3VideoProcessorModule(private val reactContext: ReactApplicationConte
     val centerY = (layer.normalizedY.coerceIn(0.0, 1.0) * videoHeight).toFloat()
     val left = centerX - layerWidth / 2f
     val top = centerY - layerHeight / 2f
-    val maxLeft = (videoWidth - layerWidth).coerceAtLeast(0).toFloat()
-    val maxTop = (videoHeight - layerHeight).coerceAtLeast(0).toFloat()
-    return Pair(left.coerceIn(0f, maxLeft), top.coerceIn(0f, maxTop))
+    // Allow negative positions (layer partially off-canvas) — clamping would shift
+    // layers that extend to the edge inward and distort placement.
+    return Pair(left, top)
   }
 
-  private fun createTextBitmap(layer: OverlayLayer.TextLayer): Bitmap {
-    val fontSizePx = layer.fontSize.coerceAtLeast(12f)
-    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+  private fun createTextBitmap(layer: OverlayLayer.TextLayer, scaleFactor: Float): Bitmap {
+    // Render text at 2× scale then downscale — produces beautifully anti-aliased edges
+    // equivalent to retina / high-DPI rendering, eliminating jagged text in the output video.
+    val superscale = 2f
+    val fontSizePx = layer.fontSize.coerceAtLeast(12f) * scaleFactor * superscale
+
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.LINEAR_TEXT_FLAG).apply {
       color = parseColor(layer.color)
       textSize = fontSizePx
+      isAntiAlias = true
+      isDither = true
       typeface = when {
         layer.fontFamily.isNullOrEmpty() -> Typeface.DEFAULT_BOLD
         else -> Typeface.create(layer.fontFamily, Typeface.BOLD)
@@ -380,40 +499,49 @@ class Media3VideoProcessorModule(private val reactContext: ReactApplicationConte
     val textHeight = fontMetrics.bottom - fontMetrics.top
 
     val padding = fontSizePx / 3
-    val bitmapWidth = (textWidth + padding * 2).toInt().coerceAtLeast(1)
-    val bitmapHeight = (textHeight + padding * 2).toInt().coerceAtLeast(1)
+    val hiW = (textWidth + padding * 2).toInt().coerceAtLeast(2)
+    val hiH = (textHeight + padding * 2).toInt().coerceAtLeast(2)
 
-    val bitmap = Bitmap.createBitmap(bitmapWidth, bitmapHeight, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bitmap)
+    // Draw at 2× size
+    val hiBitmap = Bitmap.createBitmap(hiW, hiH, Bitmap.Config.ARGB_8888)
+    val hiCanvas = Canvas(hiBitmap)
 
     layer.backgroundColor?.let { bgColor ->
       val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = parseColor(bgColor)
+        isDither = true
       }
-      canvas.drawRoundRect(
-        0f,
-        0f,
-        bitmapWidth.toFloat(),
-        bitmapHeight.toFloat(),
-        padding / 2,
-        padding / 2,
-        bgPaint,
+      hiCanvas.drawRoundRect(
+        0f, 0f, hiW.toFloat(), hiH.toFloat(),
+        padding / 2, padding / 2, bgPaint
       )
     }
 
-    canvas.drawText(text, padding, padding - fontMetrics.top, paint)
+    hiCanvas.drawText(text, padding, padding - fontMetrics.top, paint)
 
-    return bitmap
+    // Downscale to 1× with bilinear filtering — anti-aliased result
+    val outW = (hiW / superscale).toInt().coerceAtLeast(1)
+    val outH = (hiH / superscale).toInt().coerceAtLeast(1)
+    val outBitmap = Bitmap.createScaledBitmap(hiBitmap, outW, outH, true)
+    hiBitmap.recycle()
+    return outBitmap
   }
 
   private fun loadBitmap(context: Context, uriString: String): Bitmap? {
+    // Always decode at full quality (inSampleSize=1) and force ARGB_8888 — the highest
+    // possible colour fidelity. This ensures logos and images are pixel-perfect before
+    // being composited onto the overlay canvas.
+    val opts = BitmapFactory.Options().apply {
+      inSampleSize = 1
+      inPreferredConfig = Bitmap.Config.ARGB_8888
+    }
     return try {
       when {
-        uriString.startsWith("file://") -> BitmapFactory.decodeFile(uriString.removePrefix("file://"))
-        uriString.startsWith("/") -> BitmapFactory.decodeFile(uriString)
+        uriString.startsWith("file://") -> BitmapFactory.decodeFile(uriString.removePrefix("file://"), opts)
+        uriString.startsWith("/") -> BitmapFactory.decodeFile(uriString, opts)
         uriString.startsWith("content://") -> {
           context.contentResolver.openInputStream(Uri.parse(uriString)).use { stream ->
-            BitmapFactory.decodeStream(stream)
+            BitmapFactory.decodeStream(stream, null, opts)
           }
         }
 
@@ -421,11 +549,11 @@ class Media3VideoProcessorModule(private val reactContext: ReactApplicationConte
           val connection = java.net.URL(uriString).openConnection()
           connection.connect()
           connection.getInputStream().use { stream ->
-            BitmapFactory.decodeStream(stream)
+            BitmapFactory.decodeStream(stream, null, opts)
           }
         }
 
-        else -> BitmapFactory.decodeFile(uriString)
+        else -> BitmapFactory.decodeFile(uriString, opts)
       }
     } catch (error: Exception) {
       Log.e(TAG, "Failed to load bitmap from $uriString", error)
@@ -524,6 +652,15 @@ class Media3VideoProcessorModule(private val reactContext: ReactApplicationConte
       normalizedHeight: Double?,
       opacity: Float,
     ) : OverlayLayer(normalizedX, normalizedY, normalizedWidth, normalizedHeight, opacity.toDouble())
+
+    class RectLayer(
+      val color: String,
+      normalizedX: Double,
+      normalizedY: Double,
+      normalizedWidth: Double?,
+      normalizedHeight: Double?,
+      opacity: Double,
+    ) : OverlayLayer(normalizedX, normalizedY, normalizedWidth, normalizedHeight, opacity)
   }
 }
 

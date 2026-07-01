@@ -594,6 +594,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   const [showPremiumTemplateModal, setShowPremiumTemplateModal] = useState(false);
   const [showPremiumAlertModal, setShowPremiumAlertModal] = useState(false);
   const [showConnectionErrorModal, setShowConnectionErrorModal] = useState(false);
+  const [showNoProfileModal, setShowNoProfileModal] = useState(false);
   const [showCategoryAccessModal, setShowCategoryAccessModal] = useState(false);
   const [showInfoRequiredModal, setShowInfoRequiredModal] = useState(false);
   const [showEditProfileForm, setShowEditProfileForm] = useState(false);
@@ -1703,7 +1704,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         // No need to manually apply profiles here
       } else {
         console.log('⚠️ No user-specific business profiles found');
-        setShowConnectionErrorModal(true);
+        setShowNoProfileModal(true);
       }
     } catch (error) {
       console.error('Error fetching user-specific business profiles:', error);
@@ -5047,6 +5048,132 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                 ]}
                 onPress={() => {
                   setShowConnectionErrorModal(false);
+                  navigation.goBack();
+                }}
+              >
+                <Text style={[
+                  themeStyles.cancelButtonText,
+                  {
+                    fontSize: isTabletDevice ? 16 : isUltraSmallDevice ? 13 : 15
+                  }
+                ]}>
+                  Go Back
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Create Business Profile Modal */}
+      <Modal
+        visible={showNoProfileModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowNoProfileModal(false);
+          navigation.goBack();
+        }}
+      >
+        <View style={[styles.modalOverlay, { paddingHorizontal: responsiveSpacing.md }]}>
+          <View style={[
+            themeStyles.modalContent,
+            {
+              width: isTabletDevice
+                ? screenWidth * 0.5
+                : isLandscapeMode
+                  ? screenWidth * 0.6
+                  : isUltraSmallDevice
+                    ? screenWidth * 0.92
+                    : isSmallScreen
+                      ? screenWidth * 0.9
+                      : screenWidth * 0.85,
+              maxHeight: screenHeight * 0.4,
+            }
+          ]}>
+            <View style={{ alignItems: 'center', marginBottom: responsiveSpacing.lg }}>
+              <View style={{
+                width: isTabletDevice ? 70 : isUltraSmallScreen ? 50 : 60,
+                height: isTablet ? 70 : isUltraSmallScreen ? 50 : 60,
+                borderRadius: isTablet ? 35 : isUltraSmallScreen ? 25 : 30,
+                backgroundColor: '#e6fffa',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginBottom: responsiveSpacing.md
+              }}>
+                <Icon
+                  name="business"
+                  size={isTabletDevice ? 36 : isUltraSmallDevice ? 24 : 32}
+                  color="#319795"
+                />
+              </View>
+              <Text style={[
+                themeStyles.modalTitle,
+                {
+                  fontSize: isTabletDevice ? 24 : isUltraSmallDevice ? 18 : 20,
+                  marginBottom: responsiveSpacing.sm,
+                  textAlign: 'center'
+                }
+              ]}>
+                Business Profile Required
+              </Text>
+              <Text style={[
+                themeStyles.modalSubtitle,
+                {
+                  fontSize: isTablet ? 15 : isUltraSmallScreen ? 12 : 14,
+                  textAlign: 'center',
+                  lineHeight: isTablet ? 22 : isUltraSmallScreen ? 16 : 20,
+                  paddingHorizontal: responsiveSpacing.sm
+                }
+              ]}>
+                Please create a business profile to edit and customize this poster.
+              </Text>
+            </View>
+            <View style={[
+              styles.modalButtons,
+              {
+                flexDirection: 'row',
+                gap: responsiveSpacing.sm
+              }
+            ]}>
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  {
+                    flex: 1,
+                    backgroundColor: '#319795',
+                    paddingVertical: isTabletDevice ? 16 : isUltraSmallDevice ? 12 : 14,
+                    borderRadius: isTabletDevice ? 12 : isUltraSmallDevice ? 8 : 10,
+                    marginHorizontal: 0
+                  }
+                ]}
+                onPress={() => {
+                  setShowNoProfileModal(false);
+                  navigation.navigate('BusinessProfiles' as any);
+                }}
+              >
+                <Text style={[
+                  styles.addButtonText,
+                  {
+                    fontSize: isTabletDevice ? 16 : isUltraSmallDevice ? 13 : 15
+                  }
+                ]}>
+                  Create Profile
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  themeStyles.cancelButton,
+                  {
+                    flex: 1,
+                    paddingVertical: isTabletDevice ? 16 : isUltraSmallDevice ? 12 : 14,
+                    borderRadius: isTabletDevice ? 12 : isUltraSmallDevice ? 8 : 10,
+                    marginHorizontal: 0
+                  }
+                ]}
+                onPress={() => {
+                  setShowNoProfileModal(false);
                   navigation.goBack();
                 }}
               >

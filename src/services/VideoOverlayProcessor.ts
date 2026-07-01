@@ -39,7 +39,11 @@ type NativeModuleShape = {
   applyOverlays: (
     inputUri: string,
     overlays: OverlayPayload[],
-    options?: { fileName?: string }
+    options?: { 
+      fileName?: string;
+      canvasWidth?: number;
+      canvasHeight?: number;
+    }
   ) => Promise<string>;
 };
 
@@ -53,7 +57,11 @@ const emitter = Media3VideoProcessor
 const applyOverlays = async (
   inputUri: string,
   overlays: OverlayPayload[],
-  options?: { fileName?: string }
+  options?: { 
+    fileName?: string;
+    canvasWidth?: number;
+    canvasHeight?: number;
+  }
 ): Promise<string> => {
   if (Platform.OS !== 'android') {
     throw new Error('Media3 overlays are only supported on Android.');
