@@ -654,6 +654,7 @@ const TodaysPickScreen: React.FC = () => {
     { id: 'all', name: 'All', code: 'ALL' },
     { id: 'english', name: 'English', code: 'EN' },
     { id: 'hindi', name: 'Hindi', code: 'HI' },
+    { id: 'marathi', name: 'Marathi', code: 'MR' },
   ], []);
 
   // Display ALL posters (filtered by language)
@@ -1931,7 +1932,7 @@ const TodaysPickScreen: React.FC = () => {
     const allPosterLanguages = Array.from(new Set([...posterLanguages, ...languagesFromTags.map(l => l.toLowerCase())]));
 
     // Available language IDs that we support
-    const availableLanguageIds = ['english', 'hindi'];
+    const availableLanguageIds = ['english', 'hindi', 'marathi'];
 
     // Find the first matching language from available languages
     const detectedLanguage = availableLanguageIds.find(langId => {
@@ -1999,7 +2000,7 @@ const TodaysPickScreen: React.FC = () => {
     const allDetectedLanguages = Array.from(new Set([...languagesFromTags, ...posterLanguages]));
 
     // Available language IDs that we support (priority order: hindi, english)
-    const availableLanguageIds = ['hindi', 'english'];
+    const availableLanguageIds = ['hindi', 'english', 'marathi'];
 
     // Find the first matching language from available languages (prioritizing hindi/marathi over english)
     const detectedLanguage = availableLanguageIds.find(langId => {
@@ -2159,7 +2160,7 @@ const TodaysPickScreen: React.FC = () => {
       const allPosterLanguages = Array.from(new Set([...posterLanguages, ...languagesFromTags.map(l => l.toLowerCase())]));
 
       // Available language IDs that we support
-      const availableLanguageIds = ['english', 'hindi'];
+      const availableLanguageIds = ['english', 'hindi', 'marathi'];
 
       // Find the first matching language from available languages
       const detectedLanguage = availableLanguageIds.find(langId => {

@@ -31,6 +31,7 @@ export interface BusinessProfile {
   subscriptionStatus?: string; // "ACTIVE", "NONE", "PENDING", "EXPIRED", etc.
   isSubscriptionActive?: boolean; // true/false for quick checking
   businessSubscriptionStatus?: string; // "Active", "Inactive", "Expired" - Business-specific subscription
+  subscriptionEndDate?: string;
 }
 
 export interface CreateBusinessProfileData {
@@ -67,7 +68,7 @@ class BusinessProfileService {
 
   // Get user-specific business profiles (with centralized caching)
   async getUserBusinessProfiles(userId: string): Promise<BusinessProfile[]> {
-    const cacheKey = `business_profiles_user_${userId}`;
+    const cacheKey = `business_profiles_user_v2_${userId}`;
 
     return await cacheService.getOrFetch(
       cacheKey,
@@ -75,10 +76,10 @@ class BusinessProfileService {
         // PERFORMANCE FIX: Removed health check to eliminate 5-second timeout delay
         // Health check was causing unnecessary delay on every fetch
         const response = await api.get(`/api/mobile/business-profile/${userId}`);
-    
-    if (response.data.success) {
+
+        if (response.data.success) {
           const profiles = response.data.data.profiles;
-          
+
           if (profiles && profiles.length > 0) {
             // Convert backend profiles to frontend format
             const businessProfiles: BusinessProfile[] = profiles.map((profile: any) => {
@@ -91,10 +92,10 @@ class BusinessProfileService {
                 image: profile.image,
                 photo: profile.photo,
               };
-              
+
               // Find the first non-empty logo field
               const foundLogo = Object.values(logoMapping).find(url => url && url.trim() !== '') || '';
-              
+
               console.log('🔍 [BUSINESS PROFILE] Profile logo mapping:', {
                 id: profile.id,
                 name: profile.name || profile.businessName,
@@ -126,6 +127,7 @@ class BusinessProfileService {
                 // Include subscription status fields from API response
                 subscriptionStatus: profile.subscriptionStatus,
                 isSubscriptionActive: profile.isSubscriptionActive,
+                subscriptionEndDate: profile.subscriptionEndDate,
               };
 
               // Log the mapped subCategory for debugging
@@ -133,7 +135,7 @@ class BusinessProfileService {
 
               return mappedProfile;
             });
-            
+
             console.log(`✅ [BUSINESS PROFILES] Fetched ${businessProfiles.length} profiles`);
             return businessProfiles;
           }
@@ -160,7 +162,7 @@ class BusinessProfileService {
       async () => {
         console.log('Fetching business profiles from API...');
         const response = await api.get('/api/mobile/business-profile');
-        
+
         if (response.data.success) {
           const profiles = response.data.data.profiles.map((profile: any) => ({
             id: profile.id,
@@ -208,7 +210,7 @@ class BusinessProfileService {
       async () => {
         console.log('Fetching business profile by ID:', id);
         const response = await api.get(`/api/mobile/business-profile/${id}`);
-        
+
         if (response.data.success) {
           const profile = response.data.data;
           const mappedProfile = {
@@ -342,8 +344,8 @@ class BusinessProfileService {
           // Map backend response - prioritize businessLogo field
           const backendProfile = response.data.data;
           const logoUrl = backendProfile.businessLogo || backendProfile.logo ||
-                          backendProfile.companyLogo || backendProfile.profileLogo ||
-                          backendProfile.image || backendProfile.photo || '';
+            backendProfile.companyLogo || backendProfile.profileLogo ||
+            backendProfile.image || backendProfile.photo || '';
 
           console.log('🖼️ Logo URL returned from API:', logoUrl || '(empty)');
 
@@ -412,8 +414,8 @@ class BusinessProfileService {
 
           const backendProfile = response.data.data;
           const logoUrl = backendProfile.businessLogo || backendProfile.logo ||
-                          backendProfile.companyLogo || backendProfile.profileLogo ||
-                          backendProfile.image || backendProfile.photo || '';
+            backendProfile.companyLogo || backendProfile.profileLogo ||
+            backendProfile.image || backendProfile.photo || '';
 
           const newProfile: BusinessProfile = {
             id: backendProfile.id,
@@ -518,8 +520,8 @@ class BusinessProfileService {
           // Map backend response to frontend format
           const backendProfile = response.data.data;
           const logoUrl = backendProfile.businessLogo || backendProfile.logo ||
-                          backendProfile.companyLogo || backendProfile.profileLogo ||
-                          backendProfile.image || backendProfile.photo || '';
+            backendProfile.companyLogo || backendProfile.profileLogo ||
+            backendProfile.image || backendProfile.photo || '';
 
           const updatedProfile: BusinessProfile = {
             id: backendProfile.id,
@@ -649,7 +651,7 @@ class BusinessProfileService {
       console.log('Deleting business profile via API:', id);
       console.log('🔍 Making DELETE request to:', `/api/mobile/business-profile/${id}`);
       const response = await api.delete(`/api/mobile/business-profile/${id}`);
-      
+
       if (response.data.success) {
         console.log('✅ Business profile deleted via API:', id);
         // Clear cache to force refresh
@@ -662,7 +664,7 @@ class BusinessProfileService {
       }
     } catch (error: any) {
       console.error('❌ Error deleting business profile via API:', error);
-      
+
       // If endpoint doesn't exist (404), handle gracefully
       if (error.response?.status === 404) {
         console.log('⚠️ Delete endpoint not implemented on backend (404)');
@@ -672,7 +674,7 @@ class BusinessProfileService {
         // Don't throw - allow the deletion to succeed on frontend only
         return;
       }
-      
+
       console.log('⚠️ Business profile deletion failed due to API error');
       // Throw error for other types of failures
       throw new Error('Failed to delete business profile');
@@ -684,23 +686,23 @@ class BusinessProfileService {
     try {
       console.log('📤 [UPLOAD] Uploading business profile image:', imageType, 'for profile:', profileId);
       console.log('📍 [UPLOAD] Image URI:', imageUri);
-      
+
       // Validate that it's not a local file path
       if (this.isLocalFilePath(imageUri)) {
         console.log('⚠️ [UPLOAD] Local file path detected, will upload to server');
       }
-      
+
       // Extract filename and determine MIME type
       const filename = imageUri.split('/').pop() || `${imageType}.jpg`;
       const fileExtension = filename.split('.').pop()?.toLowerCase() || 'jpg';
-      
+
       let mimeType = 'image/jpeg';
       if (fileExtension === 'png') mimeType = 'image/png';
       else if (fileExtension === 'gif') mimeType = 'image/gif';
       else if (fileExtension === 'webp') mimeType = 'image/webp';
-      
+
       console.log('📋 [UPLOAD] File info:', { filename, fileExtension, mimeType });
-      
+
       const formData = new FormData();
       formData.append('logo', {
         uri: imageUri,
@@ -715,7 +717,7 @@ class BusinessProfileService {
         mimeType,
         profileId,
       });
-      
+
       try {
         const response = await api.post(`/api/mobile/business-profile/${profileId}/upload`, formData, {
           headers: {
@@ -723,9 +725,9 @@ class BusinessProfileService {
           },
           timeout: 30000, // 30 second timeout
         });
-        
+
         console.log('📡 [UPLOAD] Upload response:', response.data);
-        
+
         if (response.data.success) {
           const uploadedUrl = response.data.data?.url || response.data.url;
           console.log('✅ [UPLOAD] Business profile image uploaded successfully:', uploadedUrl);
@@ -744,7 +746,7 @@ class BusinessProfileService {
         const status = uploadError.response?.status;
         const errorMessage = uploadError.response?.data?.message || uploadError.response?.data?.error || uploadError.message;
         const errorData = uploadError.response?.data;
-        
+
         console.error('❌ [UPLOAD] Upload failed:', {
           status,
           errorMessage,
@@ -752,7 +754,7 @@ class BusinessProfileService {
           profileId,
           originalError: uploadError
         });
-        
+
         // If endpoint doesn't exist (404), provide helpful error
         if (status === 404) {
           throw new Error(
@@ -761,7 +763,7 @@ class BusinessProfileService {
             'See BACKEND_LOGO_UPLOAD_FIX_REQUIRED.txt for implementation guide.'
           );
         }
-        
+
         // If server error (500), provide more specific guidance
         if (status === 500) {
           throw new Error(
@@ -770,7 +772,7 @@ class BusinessProfileService {
             'Error: ' + (errorMessage || 'Internal server error')
           );
         }
-        
+
         // Re-throw other errors with more context
         throw new Error(`Upload failed: ${errorMessage || 'Unknown error'}`);
       }
@@ -801,11 +803,11 @@ class BusinessProfileService {
     console.log('🔍 Performing client-side search on query:', query);
     console.log('🔍 User ID:', userId || 'ALL PROFILES');
     console.log('🔍 Search fields: Company Name, Business Category, Mobile Number');
-    
+
     try {
       // Get profiles (user-specific or all)
       let profilesToSearch: BusinessProfile[];
-      
+
       if (userId) {
         console.log('📋 Fetching profiles for user:', userId);
         profilesToSearch = await this.getUserBusinessProfiles(userId);
@@ -813,29 +815,29 @@ class BusinessProfileService {
         console.log('📋 Fetching all profiles (no userId provided)');
         profilesToSearch = await this.getBusinessProfiles();
       }
-      
+
       if (!query || query.trim() === '') {
         console.log('📋 Empty query - returning all fetched profiles:', profilesToSearch.length);
         return profilesToSearch;
       }
-      
+
       const lowercaseQuery = query.toLowerCase().trim();
-      
+
       // Filter profiles by company name, business category, or mobile number
       const filtered = profilesToSearch.filter(profile => {
         const matchesName = profile.name.toLowerCase().includes(lowercaseQuery);
         const matchesCategory = profile.category.toLowerCase().includes(lowercaseQuery);
         const matchesPhone = profile.phone.toLowerCase().includes(lowercaseQuery);
-        
+
         return matchesName || matchesCategory || matchesPhone;
       });
-      
+
       console.log('✅ Client-side search completed:', filtered.length, 'results found');
       console.log('📊 Search breakdown:');
       console.log('   - By Company Name:', filtered.filter(p => p.name.toLowerCase().includes(lowercaseQuery)).length);
       console.log('   - By Category:', filtered.filter(p => p.category.toLowerCase().includes(lowercaseQuery)).length);
       console.log('   - By Mobile:', filtered.filter(p => p.phone.toLowerCase().includes(lowercaseQuery)).length);
-      
+
       return filtered;
     } catch (error) {
       console.error('❌ Error during client-side search:', error);
@@ -848,10 +850,10 @@ class BusinessProfileService {
     try {
       console.log('Fetching business profiles by category via API:', category);
       const response = await api.get(`/api/mobile/business-profile?category=${encodeURIComponent(category)}`);
-      
+
       if (response.data.success) {
         const backendProfiles = response.data.data.profiles;
-        
+
         // Map backend profiles to frontend format
         const profiles = backendProfiles.map((profile: any) => ({
           id: profile.id,
@@ -872,7 +874,7 @@ class BusinessProfileService {
           createdAt: profile.createdAt,
           updatedAt: profile.updatedAt,
         }));
-        
+
         console.log('✅ Business profiles by category loaded via API:', profiles.length, 'profiles');
         return profiles;
       } else {
@@ -904,7 +906,7 @@ class BusinessProfileService {
     try {
       const currentUser = authService.getCurrentUser();
       const userId = currentUser?.id;
-      
+
       if (!userId) {
         throw new Error('User not authenticated');
       }
@@ -945,7 +947,7 @@ class BusinessProfileService {
     try {
       const currentUser = authService.getCurrentUser();
       const userId = currentUser?.id;
-      
+
       if (!userId) {
         throw new Error('User not authenticated');
       }
@@ -954,7 +956,7 @@ class BusinessProfileService {
         orderId: paymentData.orderId,
         paymentId: paymentData.paymentId,
       });
-      
+
       const payload: Record<string, any> = {
         orderId: paymentData.orderId,
         paymentId: paymentData.paymentId,
@@ -985,9 +987,9 @@ class BusinessProfileService {
       console.log('📨 Sending business profile payment verification payload:', payload);
 
       const response = await api.post('/api/mobile/business-profile/verify-payment', payload);
-      
+
       console.log('✅ Business profile payment verified successfully:', response.data);
-      
+
       if (response.data.success) {
         return response.data;
       } else {
@@ -1003,10 +1005,10 @@ class BusinessProfileService {
         data: error.response?.data,
         message: error.message,
       });
-      
+
       // Provide more detailed error message
       let errorMessage = 'Payment verification failed';
-      
+
       if (error.response?.status === 404) {
         errorMessage = 'Payment verification endpoint not found. Please contact support.';
       } else if (error.response?.status === 400) {
@@ -1018,7 +1020,7 @@ class BusinessProfileService {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       throw new Error(errorMessage);
     }
   }
@@ -1029,15 +1031,15 @@ class BusinessProfileService {
     try {
       const currentUser = authService.getCurrentUser();
       const userId = currentUser?.id;
-      
+
       if (!userId) {
         throw new Error('User not authenticated');
       }
 
       console.log('🔍 Checking business profile payment status for user:', userId);
-      
+
       const response = await api.get('/api/mobile/business-profile/payment-status');
-      
+
       if (response.data.success) {
         const hasPaid = response.data.data?.hasPaid || response.data.data?.paymentVerified || false;
         console.log('✅ Payment status checked:', hasPaid ? 'Payment verified' : 'Payment not verified');
@@ -1051,13 +1053,13 @@ class BusinessProfileService {
       }
     } catch (error: any) {
       console.error('❌ Error checking business profile payment status:', error);
-      
+
       // If endpoint doesn't exist (404), assume payment is required
       if (error.response?.status === 404) {
         console.log('⚠️ Payment status endpoint not found, assuming payment required');
         return { hasPaid: false, message: 'Payment verification required' };
       }
-      
+
       // For other errors, assume payment is required for safety
       return { hasPaid: false, message: 'Unable to verify payment status' };
     }

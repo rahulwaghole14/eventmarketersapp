@@ -314,12 +314,17 @@ const SubscriptionScreen: React.FC = () => {
     return purchasablePlans.find(plan => plan.id === selectedPlanId);
   }, [selectedPlanId, purchasablePlans]);
 
+  const isExpiredByDate = useMemo(() => {
+    const expiryDate = effectiveSubscriptionStatus?.expiryDate || effectiveSubscriptionStatus?.endDate;
+    return expiryDate ? new Date(expiryDate) < new Date() : false;
+  }, [effectiveSubscriptionStatus?.expiryDate, effectiveSubscriptionStatus?.endDate]);
+
   const isCurrentPlanActive = useMemo(() => {
-    return status === "ACTIVE" && (
+    return status === "ACTIVE" && !isExpiredByDate && (
       !effectiveSubscriptionStatus?.planId || 
       effectiveSubscriptionStatus?.planId === selectedPlanId
     );
-  }, [status, effectiveSubscriptionStatus?.planId, selectedPlanId]);
+  }, [status, effectiveSubscriptionStatus?.planId, isExpiredByDate, selectedPlanId]);
 
   const defaultPlan = purchasablePlans.length > 0 ? purchasablePlans[0] : null;
 
@@ -416,12 +421,15 @@ const SubscriptionScreen: React.FC = () => {
     }, [isBusinessProfileMode, businessProfileId, fetchBusinessSubscriptionStatus, refreshPlans, contextPlans.length, paymentInProgress, isReturningFromPayment])
   );
 
-  // Set default selected plan when plans load
+  // Set default selected plan when plans load or selectedPlanId is passed via route params
   useEffect(() => {
-    if (!selectedPlanId && purchasablePlans.length > 0) {
+    const routePlanId = (route.params as any)?.selectedPlanId;
+    if (routePlanId && purchasablePlans.some(p => p.id === routePlanId)) {
+      setSelectedPlanId(routePlanId);
+    } else if (!selectedPlanId && purchasablePlans.length > 0) {
       setSelectedPlanId(purchasablePlans[0].id);
     }
-  }, [selectedPlanId, purchasablePlans]);
+  }, [selectedPlanId, purchasablePlans, route.params]);
 
   // Helper function to show error modal - OPTIMIZED with useCallback
   const showErrorModal = useCallback((title: string, message: string) => {
@@ -1392,7 +1400,7 @@ const SubscriptionScreen: React.FC = () => {
             )}
 
 
-          {/* Current Subscription Status (if subscribed) */}
+          {/* Current Subscription Status (if subscribed or database status is laggy ACTIVE) */}
           {effectiveSubscriptionStatus?.status?.toUpperCase() === 'ACTIVE' && (
             <View style={[styles.currentSubscriptionCard, {
               backgroundColor: theme.colors.cardBackground,
@@ -1400,15 +1408,15 @@ const SubscriptionScreen: React.FC = () => {
               padding: isTabletDevice ? dynamicModerateScale(16) : dynamicModerateScale(12),
               borderRadius: dynamicModerateScale(12),
               borderWidth: 1.5,
-              borderColor: isCurrentPlanActive ? '#28a745' : '#2196f3',
+              borderColor: isExpiredByDate ? '#dc3545' : (isCurrentPlanActive ? '#28a745' : '#2196f3'),
             }]}>
               <View style={[styles.currentSubscriptionHeader, {
                 marginBottom: isTabletDevice ? dynamicModerateScale(8) : dynamicModerateScale(6),
               }]}>
                 <Icon 
-                  name={isCurrentPlanActive ? "check-circle" : "info"} 
+                  name={isExpiredByDate ? "cancel" : (isCurrentPlanActive ? "check-circle" : "info")} 
                   size={isTabletDevice ? getIconSize(28) : getIconSize(24)} 
-                  color={isCurrentPlanActive ? "#28a745" : "#2196f3"} 
+                  color={isExpiredByDate ? "#dc3545" : (isCurrentPlanActive ? "#28a745" : "#2196f3")} 
                 />
                 <View style={[styles.currentSubscriptionInfo, {
                   marginLeft: dynamicModerateScale(10),
@@ -1418,9 +1426,11 @@ const SubscriptionScreen: React.FC = () => {
                     fontSize: dynamicModerateScale(12),
                     marginBottom: dynamicModerateScale(2),
                   }]}>
-                    {isCurrentPlanActive 
-                      ? (selectedPlan?.name || effectiveSubscriptionStatus?.planName || 'Active Plan')
-                      : `${selectedPlan?.name || 'Selected Plan'} (Not Active)`
+                    {isExpiredByDate 
+                      ? `${effectiveSubscriptionStatus?.planName || selectedPlan?.name || 'Current Plan'} (Expired)`
+                      : (isCurrentPlanActive 
+                        ? (effectiveSubscriptionStatus?.planName || selectedPlan?.name || 'Active Plan')
+                        : `${selectedPlan?.name || 'Selected Plan'} (Not Active)`)
                     }
                   </Text>
                   <Text style={[styles.currentSubscriptionSubtitle, {
@@ -1428,21 +1438,27 @@ const SubscriptionScreen: React.FC = () => {
                     fontSize: dynamicModerateScale(9),
                     lineHeight: dynamicModerateScale(14),
                   }]}>
-                    {isCurrentPlanActive ? (() => {
+                    {(() => {
                       const expiryDate = effectiveSubscriptionStatus?.expiryDate || effectiveSubscriptionStatus?.endDate;
                       if (expiryDate) {
-                        const daysRemaining = Math.ceil((new Date(expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
                         const expiryDateFormatted = new Date(expiryDate).toLocaleDateString('en-IN', {
                           day: 'numeric',
                           month: 'short',
                           year: 'numeric'
                         });
-                        return `${daysRemaining} days remaining • Expires ${expiryDateFormatted}`;
+
+                        if (isExpiredByDate) {
+                          return `Expired on ${expiryDateFormatted}`;
+                        }
+
+                        if (isCurrentPlanActive) {
+                          const daysRemaining = Math.ceil((new Date(expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                          return `${daysRemaining} days remaining • Expires ${expiryDateFormatted}`;
+                        }
                       }
-                      return 'Active subscription';
-                    })() : (
-                      `You currently have an active subscription to ${effectiveSubscriptionStatus?.planName || 'another plan'}.`
-                    )}
+                      
+                      return `You currently have an active subscription to ${effectiveSubscriptionStatus?.planName || 'another plan'}.`;
+                    })()}
                   </Text>
                 </View>
               </View>
@@ -1519,15 +1535,21 @@ const SubscriptionScreen: React.FC = () => {
               marginBottom: dynamicModerateScale(16),
             }
           ]}>
-            {purchasablePlans.map((plan: any) => (
-              <PlanCard
-                key={plan.id}
-                plan={plan}
-                isSelected={selectedPlanId === plan.id}
-                onSelect={() => setSelectedPlanId(plan.id)}
-                isSinglePlan={isSinglePlan}
-              />
-            ))}
+            {purchasablePlans.map((plan: any) => {
+              const isPlanActive = status === 'ACTIVE' && !isExpiredByDate && effectiveSubscriptionStatus?.planId === plan.id;
+              const isPlanPending = (status === 'PENDING' || status === 'PROCESSING') && effectiveSubscriptionStatus?.planId === plan.id;
+              return (
+                <PlanCard
+                  key={plan.id}
+                  plan={plan}
+                  isSelected={selectedPlanId === plan.id}
+                  isActive={isPlanActive}
+                  isPending={isPlanPending}
+                  onSelect={() => setSelectedPlanId(plan.id)}
+                  isSinglePlan={isSinglePlan}
+                />
+              );
+            })}
           </View>
 
           {/* Benefits Section */}

@@ -10,6 +10,7 @@ import {
   Animated,
   Image,
   PanResponder,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -363,7 +364,7 @@ const MyBusinessPosterPlayerScreen: React.FC = () => {
   const [posters, setPosters] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPoster, setSelectedPoster] = useState<Template | null>(null);
-  const [selectedLanguage, setSelectedLanguage] = useState<'all' | 'english' | 'hindi'>('all');
+  const [selectedLanguage, setSelectedLanguage] = useState<'all' | 'english' | 'hindi' | 'marathi'>('all');
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
   const [selectedServiceFilter, setSelectedServiceFilter] = useState<string | null>(null);
   const [serviceFilterTemplates, setServiceFilterTemplates] = useState<Record<string, Template[]>>({});
@@ -648,6 +649,7 @@ const MyBusinessPosterPlayerScreen: React.FC = () => {
     { id: 'all', name: 'All' },
     { id: 'english', name: 'English' },
     { id: 'hindi', name: 'Hindi' },
+    { id: 'marathi', name: 'Marathi' },
   ];
 
   // Filter posters by language and service filter
@@ -685,6 +687,11 @@ const MyBusinessPosterPlayerScreen: React.FC = () => {
       if (selectedLanguage === 'hindi') {
         return posterLanguages.includes('hindi') || 
                posterTags.some(tag => tag.toLowerCase().includes('hindi'));
+      }
+
+      if (selectedLanguage === 'marathi') {
+        return posterLanguages.includes('marathi') || 
+               posterTags.some(tag => tag.toLowerCase().includes('marathi'));
       }
       
       return false;
@@ -1014,52 +1021,65 @@ const MyBusinessPosterPlayerScreen: React.FC = () => {
         {/* Service filter buttons for Event Planners */}
         {isEventPlannerCategory && (
           <View style={styles.serviceFilterContainer}>
-            {['generator', 'decorators', 'sound', 'mandap'].map(filterKey => {
-              const isFilterActive = selectedServiceFilter === filterKey;
-              const labelMap: Record<string, string> = {
-                generator: 'Generator',
-                decorators: 'Decorators',
-                sound: 'Sound',
-                mandap: 'Mandap'
-              };
-              
-              return (
-                <TouchableOpacity
-                  key={filterKey}
-                  style={[
-                    styles.serviceFilterButton,
-                    isFilterActive && styles.serviceFilterButtonActive
-                  ]}
-                  onPress={() => {
-                    const newFilter = selectedServiceFilter === filterKey ? null : filterKey;
-                    setSelectedServiceFilter(newFilter);
-                    
-                    if (newFilter) {
-                      console.log(`🎯 [EVENT PLANNER] Service filter selected: ${newFilter}`);
-                    }
-                  }}
-                  activeOpacity={0.9}
-                >
-                  <LinearGradient
-                    colors={[theme.colors.secondary, theme.colors.primary]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoryButtonsScrollContent}
+              nestedScrollEnabled={true}
+            >
+              {['all', 'generator', 'decorators', 'sound', 'mandap'].map(filterKey => {
+                const isFilterActive = selectedServiceFilter === filterKey || (filterKey === 'all' && !selectedServiceFilter);
+                const labelMap: Record<string, string> = {
+                  all: 'All',
+                  generator: 'Generator',
+                  decorators: 'Decorators',
+                  sound: 'Sound',
+                  mandap: 'Mandap'
+                };
+                
+                return (
+                  <TouchableOpacity
+                    key={filterKey}
                     style={[
-                      styles.serviceFilterButtonGradient,
-                      !isFilterActive && styles.serviceFilterButtonGradientInactive
+                      styles.softwareCategoryButton,
+                      isFilterActive && styles.serviceFilterButtonActive
                     ]}
+                    onPress={() => {
+                      const newFilter = filterKey === 'all' ? null : (selectedServiceFilter === filterKey ? null : filterKey);
+                      setSelectedServiceFilter(newFilter);
+                      
+                      if (newFilter) {
+                        console.log(`🎯 [EVENT PLANNER] Service filter selected: ${newFilter}`);
+                      }
+                    }}
+                    activeOpacity={0.9}
                   >
-                    <Text style={[
-                      styles.serviceFilterButtonText,
-                      isFilterActive && styles.serviceFilterButtonTextActive,
-                      !isFilterActive && styles.serviceFilterButtonTextInactive
+                    <View style={[
+                      styles.serviceFilterButtonBorderWrapper,
+                      isFilterActive && styles.serviceFilterButtonBorderWrapperActive
                     ]}>
-                      {isLoadingServiceFilter[filterKey] ? 'Loading...' : labelMap[filterKey]}
-                    </Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              );
-            })}
+                      <LinearGradient
+                        colors={isFilterActive
+                          ? [theme.colors.secondary, theme.colors.primary]
+                          : ['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.05)']
+                        }
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.serviceFilterButtonGradient}
+                      >
+                        <Text style={[
+                          styles.serviceFilterButtonText,
+                          isFilterActive && styles.serviceFilterButtonTextActive,
+                          !isFilterActive && styles.serviceFilterButtonTextInactive
+                        ]}>
+                          {isLoadingServiceFilter[filterKey] ? 'Loading...' : labelMap[filterKey]}
+                        </Text>
+                      </LinearGradient>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
         )}
 
@@ -1365,8 +1385,9 @@ const styles = StyleSheet.create({
   },
   serviceFilterButton: {
     flex: 1,
-    borderRadius: moderateScale(8),
-    overflow: 'hidden',
+  },
+  softwareCategoryButton: {
+    alignSelf: 'flex-start',
   },
   serviceFilterButtonActive: {
     shadowColor: '#000',
@@ -1375,18 +1396,27 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
   },
+  serviceFilterButtonBorderWrapper: {
+    borderRadius: moderateScale(8),
+    borderWidth: moderateScale(2),
+    borderColor: 'transparent',
+    overflow: 'hidden',
+  },
+  serviceFilterButtonBorderWrapperActive: {
+    borderColor: '#ffd166',
+  },
   serviceFilterButtonGradient: {
     paddingVertical: moderateScale(6),
-    borderRadius: moderateScale(8),
+    paddingHorizontal: moderateScale(12),
+    borderRadius: moderateScale(6),
     justifyContent: 'center',
     alignItems: 'center',
   },
   serviceFilterButtonGradientInactive: {
-    opacity: 0.75,
   },
   serviceFilterButtonText: {
     textAlign: 'center',
-    color: '#ffffff',
+    color: '#666666',
     fontSize: moderateScale(9),
     fontWeight: '600',
   },
@@ -1394,7 +1424,15 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   serviceFilterButtonTextInactive: {
-    color: 'rgba(255,255,255,0.7)',
+    color: '#666666',
+  },
+  categoryButtonsScrollContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: moderateScale(8),
+    paddingVertical: moderateScale(4),
+    gap: moderateScale(10),
+    flexGrow: 1,
   },
   // Skeleton Loading Styles
   skeletonShimmer: {

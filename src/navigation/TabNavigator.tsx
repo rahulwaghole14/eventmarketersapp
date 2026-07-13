@@ -22,6 +22,7 @@ import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 import HelpSupportScreen from '../screens/HelpSupportScreen';
 import FeedbackScreen from '../screens/FeedbackScreen';
 import TodaysPickScreen from '../screens/TodaysPickScreen';
+import NotificationScreen from '../screens/NotificationScreen';
 import { useTheme } from '../context/ThemeContext';
 
 const MainStack = createStackNavigator<MainStackParamList>();
@@ -59,6 +60,7 @@ const TabNavigator = () => {
       <MainStack.Screen name="HelpSupport" component={HelpSupportScreen} options={{ headerShown: false }} />
       <MainStack.Screen name="FeedbackScreen" component={FeedbackScreen} options={{ headerShown: false }} />
       <MainStack.Screen name="TodaysPick" component={TodaysPickScreen} options={{ headerShown: false }} />
+      <MainStack.Screen name="Notifications" component={NotificationScreen} options={{ headerShown: false }} />
     </MainStack.Navigator>
   );
 };

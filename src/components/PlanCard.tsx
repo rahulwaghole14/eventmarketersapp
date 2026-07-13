@@ -19,12 +19,34 @@ interface PlanCardProps {
     popular?: boolean;
   };
   isSelected: boolean;
+  isActive?: boolean;
+  isPending?: boolean;
   onSelect: () => void;
   isSinglePlan?: boolean;
 }
 
-const PlanCard: React.FC<PlanCardProps> = ({ plan, isSelected, onSelect, isSinglePlan = false }) => {
+const PlanCard: React.FC<PlanCardProps> = ({
+  plan,
+  isSelected,
+  isActive = false,
+  isPending = false,
+  onSelect,
+  isSinglePlan = false,
+}) => {
   const { theme } = useTheme();
+
+  // Pick border and shadow colors based on status
+  const cardBorderColor = isActive
+    ? theme.colors.success
+    : isSelected
+      ? theme.colors.primary
+      : theme.colors.border;
+
+  const cardShadowColor = isActive
+    ? theme.colors.success
+    : isSelected
+      ? theme.colors.primary
+      : '#000000';
 
   return (
     <TouchableOpacity
@@ -33,25 +55,64 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, isSelected, onSelect, isSingl
         isSinglePlan && styles.singlePlanCard,
         {
           backgroundColor: theme.colors.cardBackground,
-          borderColor: isSelected ? '#667eea' : theme.colors.border,
-          borderWidth: isSelected ? 2 : 1,
+          borderColor: cardBorderColor,
+          borderWidth: (isActive || isSelected) ? 2 : 1,
+          shadowColor: cardShadowColor,
+          shadowOpacity: (isActive || isSelected) ? 0.15 : 0.08,
+          shadowRadius: (isActive || isSelected) ? 12 : 6,
+          elevation: (isActive || isSelected) ? 8 : 4,
         },
       ]}
       onPress={onSelect}
       activeOpacity={0.8}
     >
-      {plan.popular && (
-        <View style={[styles.popularBadge, { backgroundColor: '#667eea' }]}>
-          <Text style={styles.popularBadgeText}>POPULAR</Text>
-        </View>
-      )}
-      
       <View style={styles.planHeader}>
-        <Text style={[styles.planName, { color: theme.colors.text }]}>
-          {plan.name}
-        </Text>
+        <View style={styles.headerTopRow}>
+          <Text style={[styles.planName, { color: theme.colors.text }]}>
+            {plan.name}
+          </Text>
+          
+          <View style={styles.badgeContainer}>
+            {isActive && (
+              <LinearGradient
+                colors={['#10B981', '#059669']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.badgeGradient}
+              >
+                <Icon name="check" size={11} color="#ffffff" style={styles.badgeIcon} />
+                <Text style={styles.badgeText}>ACTIVE</Text>
+              </LinearGradient>
+            )}
+            
+            {isPending && (
+              <LinearGradient
+                colors={['#F59E0B', '#D97706']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.badgeGradient}
+              >
+                <Icon name="hourglass-empty" size={11} color="#ffffff" style={styles.badgeIcon} />
+                <Text style={styles.badgeText}>PENDING</Text>
+              </LinearGradient>
+            )}
+            
+            {plan.popular && !isActive && !isPending && (
+              <LinearGradient
+                colors={['#8B5CF6', '#6366F1']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.popularBadge}
+              >
+                <Icon name="star" size={11} color="#ffffff" style={styles.badgeIcon} />
+                <Text style={styles.popularBadgeText}>POPULAR</Text>
+              </LinearGradient>
+            )}
+          </View>
+        </View>
+
         <View style={styles.priceContainer}>
-          <Text style={[styles.price, { color: '#667eea' }]}>
+          <Text style={[styles.price, { color: theme.colors.primary }]}>
             ₹{plan.price}
           </Text>
           {plan.duration && (
@@ -62,27 +123,76 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, isSelected, onSelect, isSingl
         </View>
       </View>
 
-      {plan.features && plan.features.length > 0 && (
-        <View style={styles.featuresList}>
-          {plan.features.map((feature, index) => (
-            <View key={index} style={styles.featureItem}>
-              <Icon 
-                name="check-circle" 
-                size={18} 
-                color="#22C55E" 
-                style={styles.checkIcon}
-              />
-              <Text style={[styles.featureText, { color: theme.colors.textSecondary }]}>
-                {feature}
-              </Text>
-            </View>
-          ))}
-        </View>
-      )}
+      <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
 
-      {isSelected && (
-        <View style={[styles.selectedIndicator, { backgroundColor: '#667eea' }]}>
-          <Icon name="check" size={16} color="#ffffff" />
+      {(() => {
+        // Robust parser for features list to handle JSON arrays, strings, newlines, and commas
+        const parsedFeatures: string[] = [];
+        const rawFeatures = plan.features;
+
+        if (Array.isArray(rawFeatures)) {
+          rawFeatures.forEach(feat => {
+            if (typeof feat === 'string') {
+              const trimmed = feat.trim();
+              if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+                try {
+                  const parsed = JSON.parse(trimmed);
+                  if (Array.isArray(parsed)) {
+                    parsed.forEach(x => parsedFeatures.push(String(x).trim()));
+                    return;
+                  }
+                } catch (e) {}
+              }
+              // Split by newline if present, otherwise push
+              const lines = trimmed.split('\n').map(l => l.trim()).filter(Boolean);
+              parsedFeatures.push(...lines);
+            } else if (feat) {
+              parsedFeatures.push(String(feat).trim());
+            }
+          });
+        } else if (typeof rawFeatures === 'string') {
+          const trimmed = rawFeatures.trim();
+          if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+            try {
+              const parsed = JSON.parse(trimmed);
+              if (Array.isArray(parsed)) {
+                parsed.forEach(x => parsedFeatures.push(String(x).trim()));
+              }
+            } catch (e) {
+              // Fallback if not valid JSON array
+              const lines = trimmed.replace(/[\[\]"]/g, '').split(/[\n,]/).map(l => l.trim()).filter(Boolean);
+              parsedFeatures.push(...lines);
+            }
+          } else {
+            const lines = trimmed.split(/[\n,]/).map(l => l.trim()).filter(Boolean);
+            parsedFeatures.push(...lines);
+          }
+        }
+
+        if (parsedFeatures.length === 0) return null;
+
+        return (
+          <View style={styles.featuresList}>
+            {parsedFeatures.map((feature, index) => (
+              <View key={index} style={styles.featureItem}>
+                <Icon 
+                  name="check" 
+                  size={16} 
+                  color={isActive ? '#10B981' : theme.colors.primary} 
+                  style={styles.checkIcon}
+                />
+                <Text style={[styles.featureText, { color: theme.colors.textSecondary }]}>
+                  {feature}
+                </Text>
+              </View>
+            ))}
+          </View>
+        );
+      })()}
+
+      {isSelected && !isActive && (
+        <View style={[styles.selectedIndicator, { backgroundColor: theme.colors.primary }]}>
+          <Icon name="check" size={14} color="#ffffff" />
         </View>
       )}
     </TouchableOpacity>
@@ -91,82 +201,109 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, isSelected, onSelect, isSingl
 
 const styles = StyleSheet.create({
   planCard: {
-    borderRadius: 12,
-    padding: 16,
-    marginVertical: 4,
-    shadowColor: '#000',
+    borderRadius: 16,
+    padding: 20,
+    marginVertical: 8,
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
     position: 'relative',
-    minHeight: 120,
   },
   singlePlanCard: {
-    maxWidth: '90%',
-    width: '90%',
+    maxWidth: '95%',
+    width: '95%',
     alignSelf: 'center',
   },
-  popularBadge: {
-    position: 'absolute',
-    top: -1,
-    right: -1,
-    paddingHorizontal: 8,
+  planHeader: {
+    marginBottom: 4,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  planName: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  badgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  badgeGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderTopRightRadius: 12,
-    borderBottomLeftRadius: 8,
+    borderRadius: 20,
+  },
+  badgeIcon: {
+    marginRight: 4,
+  },
+  badgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  popularBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
   },
   popularBadgeText: {
     color: '#ffffff',
     fontSize: 10,
-    fontWeight: 'bold',
-  },
-  planHeader: {
-    marginBottom: 12,
-  },
-  planName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 4,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   priceContainer: {
     flexDirection: 'row',
     alignItems: 'baseline',
+    marginTop: 4,
   },
   price: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '800',
   },
   duration: {
     fontSize: 14,
-    marginLeft: 2,
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  divider: {
+    height: 1,
+    marginVertical: 14,
+    opacity: 0.3,
   },
   featuresList: {
-    flex: 1,
+    marginTop: 2,
   },
   featureItem: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    marginVertical: 5,
   },
   checkIcon: {
-    marginRight: 10,
+    marginRight: 8,
+    marginTop: 1,
   },
   featureText: {
-    fontSize: 14,
-    marginLeft: 0, // Removed since checkIcon has marginRight
+    fontSize: 13,
+    lineHeight: 18,
     flex: 1,
   },
   selectedIndicator: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    bottom: 16,
+    right: 16,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     justifyContent: 'center',
     alignItems: 'center',
   },

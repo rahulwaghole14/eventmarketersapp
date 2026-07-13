@@ -57,7 +57,7 @@ const normalizeTags = (tags: string[]): string[] => {
 
   // Create cache key from sorted tags
   const cacheKey = tags.slice().sort().join('|');
-  
+
   // Return cached result if available
   if (normalizeTagsCache.has(cacheKey)) {
     return normalizeTagsCache.get(cacheKey)!;
@@ -70,17 +70,17 @@ const normalizeTags = (tags: string[]): string[] => {
 
     // Convert to lowercase and trim
     const cleanTag = tag.toLowerCase().trim();
-    
+
     if (!cleanTag) return;
 
     // Remove special characters but keep spaces for splitting
     const sanitizedTag = cleanTag.replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
-    
+
     if (!sanitizedTag) return;
 
     // Split combined words using common patterns
     let words: string[] = [];
-    
+
     // Check if it's a combined word (no spaces)
     if (!sanitizedTag.includes(' ')) {
       // Try to split combined words using common delimiters and patterns
@@ -126,10 +126,10 @@ const normalizeTags = (tags: string[]): string[] => {
 
   // Remove duplicates while preserving order
   const uniqueTags = Array.from(new Set(normalizedTags));
-  
+
   // Cache the result
   normalizeTagsCache.set(cacheKey, uniqueTags);
-  
+
   return uniqueTags;
 };
 
@@ -143,7 +143,7 @@ const tagsMatchCategory = (templateTags: string[], categoryTags: string[]): bool
   const normalizedCategoryTags = normalizeTags(categoryTags);
 
   // STRICT EXACT MATCHING ONLY - no substring matching
-  const matchedTags = normalizedTemplateTags.filter(templateTag => 
+  const matchedTags = normalizedTemplateTags.filter(templateTag =>
     normalizedCategoryTags.includes(templateTag)
   );
 
@@ -190,7 +190,7 @@ const mergeTemplateLanguagesCache = new Map<string, Template>();
 const mergeTemplateLanguages = (template: Template): Template => {
   // Create cache key from template id and relevant properties
   const cacheKey = `${template.id}|${template.languages?.join(',') || ''}|${template.tags?.join(',') || ''}`;
-  
+
   // Return cached result if available
   if (mergeTemplateLanguagesCache.has(cacheKey)) {
     return mergeTemplateLanguagesCache.get(cacheKey)!;
@@ -213,7 +213,7 @@ const mergeTemplateLanguages = (template: Template): Template => {
 
   // Cache the result
   mergeTemplateLanguagesCache.set(cacheKey, result);
-  
+
   return result;
 };
 
@@ -372,9 +372,9 @@ const deduplicateTemplates = (templates: Template[]): Template[] => {
         const existingTemplate = thumbnailMap.get(thumbnailKey);
         if (existingTemplate) {
           // Prefer the template with a real ID over 'loading' or empty ID
-          const shouldReplace = (!existingTemplate.id || existingTemplate.id === 'loading') && 
-                               (template.id && template.id !== 'loading');
-          
+          const shouldReplace = (!existingTemplate.id || existingTemplate.id === 'loading') &&
+            (template.id && template.id !== 'loading');
+
           if (shouldReplace) {
             // Replace the loading placeholder with the real template
             thumbnailMap.set(thumbnailKey, template);
@@ -403,13 +403,13 @@ const deduplicateTemplates = (templates: Template[]): Template[] => {
 
   // Combine unique templates, preferring thumbnail map results (real templates over loading)
   const uniqueTemplates = new Map<string, Template>();
-  
+
   // Add all templates from thumbnail map (these are the preferred versions)
   thumbnailMap.forEach(template => {
     const key = template.id || `${template.name}-${template.category}`;
     uniqueTemplates.set(key, template);
   });
-  
+
   // Add any remaining templates from idMap that weren't in thumbnailMap
   idMap.forEach(template => {
     const key = template.id || `${template.name}-${template.category}`;
@@ -574,13 +574,13 @@ const PosterPlayerScreen: React.FC = () => {
 
   // ✅ SEARCH FLOW LOCK: Highest priority lock to isolate search flow
   const isSearchFlow = route.params?.templateSource === 'search';
-  
+
   // ✅ BUSINESS FROM SEARCH DETECTION: Detect business category from search flow
   const isBusinessFromSearch = route.params?.isBusinessCategoryFromSearch === true;
-  
+
   // ✅ GENERAL FROM SEARCH DETECTION: Detect general category from search flow
   const isGeneralFromSearch = route.params?.isGeneralCategoryFromSearch === true;
-  
+
   // ✅ GREETING CATEGORY FROM SEARCH DETECTION: Detect greeting category from view more modal
   const isGreetingCategoryFromSearch = route.params?.templateSource === 'greeting-category';
 
@@ -613,7 +613,7 @@ const PosterPlayerScreen: React.FC = () => {
   }, [hasNavigationTemplates, initialPoster, initialRelatedPosters]);
 
   // Use global state for business data instead of route parameters
-  const { 
+  const {
     selectedBusinessCategory: globalBusinessCategory,
     selectedBusinessProfile: globalBusinessProfile,
     selectedBusinessId: globalBusinessId,
@@ -720,10 +720,10 @@ const PosterPlayerScreen: React.FC = () => {
   const setAllTemplates = useCallback((templates: Template[] | ((prev: Template[]) => Template[])) => {
     const previousTemplates = allTemplatesRef.current;
     const newTemplates = typeof templates === 'function' ? templates(previousTemplates) : templates;
-    
+
     // Apply deduplication before updating state
     const uniqueTemplates = deduplicateTemplates(newTemplates);
-    
+
     allTemplatesRef.current = uniqueTemplates;
 
     console.log('🔴 [SET ALL TEMPLATES] Called:', {
@@ -762,12 +762,12 @@ const PosterPlayerScreen: React.FC = () => {
     // Priority order: Template > Subcategory > Profile > Business
     const templateCategory = (currentPoster?.category || initialPoster?.category || '').trim();
     const profileCategory = globalBusinessProfile?.category || globalBusinessProfile?.subCategory || globalBusinessProfile?.subcategory;
-    
+
     // ✅ GENERAL FROM SEARCH: Force template source for general search
     if (isGeneralFromSearch) {
       return 'template';
     }
-    
+
     if (templateSource === 'professional' && templateCategory && templateCategory !== 'General') {
       return 'template';
     }
@@ -858,10 +858,10 @@ const PosterPlayerScreen: React.FC = () => {
 
     if (isSourceChanged) {
       console.log('SINGLE SOURCE: Render source changed from', prevSourceRef.current, 'to', activeRenderSource, '→ clearing conflicting states');
-      
+
       // PROTECTION: Don't clear templates if we have navigation templates AND source is 'template'
       const shouldProtectTemplates = hasNavigationTemplates && activeRenderSource === 'template';
-      
+
       if (shouldProtectTemplates) {
         console.log('SINGLE SOURCE: PROTECTING navigation templates from being cleared');
       } else {
@@ -872,20 +872,20 @@ const PosterPlayerScreen: React.FC = () => {
           // allTemplatesRef.current = [];
         }
       }
-      
+
       setServiceFilterTemplates({});
-      
+
       // IMPORTANT: Clear conflicting sources safely (don't clear root business category)
       if (activeRenderSource !== 'subcategory' && selectedSoftwareCategory) {
         console.log('SINGLE SOURCE: Clearing conflicting subcategory');
         setSelectedSoftwareCategory(null);
       }
-      
+
       if (activeRenderSource !== 'profile' && globalBusinessProfile && !globalBusinessCategory) {
         console.log('SINGLE SOURCE: Clearing conflicting profile state');
         // Profile state is managed by context, don't clear directly
       }
-      
+
       console.log('SINGLE SOURCE: State isolation completed, templates count:', allTemplatesRef.current.length);
     }
 
@@ -913,7 +913,7 @@ const PosterPlayerScreen: React.FC = () => {
     if (selectedServiceFilter && activeRenderSource !== 'profile') {
       conflictingStates.push('selectedServiceFilter');
     }
-    
+
     if (conflictingStates.length > 0) {
       console.warn('SINGLE SOURCE: Conflicting states detected:', conflictingStates, 'active source:', activeRenderSource);
     }
@@ -944,13 +944,13 @@ const PosterPlayerScreen: React.FC = () => {
     // Only handle search flow with relatedPosters - FINAL SOURCE
     if (isSearchFlow && route.params?.relatedPosters?.length > 0) {
       console.log('SEARCH FLOW: Setting templates from relatedPosters:', route.params.relatedPosters.length);
-      
+
       // 🎯 BUSINESS FROM SEARCH: Apply 6-image limit for business categories
       if (isBusinessFromSearch) {
         console.log('BUSINESS FROM SEARCH: Applying 6-image limit');
         setAllTemplates(route.params.relatedPosters.slice(0, 6));
         allTemplatesRef.current = route.params.relatedPosters.slice(0, 6);
-        
+
         // Set current category properly using activeCategoryRef
         if (route.params?.categoryName) {
           activeCategoryRef.current = { type: 'business', value: route.params.categoryName };
@@ -958,7 +958,7 @@ const PosterPlayerScreen: React.FC = () => {
         }
         return; // Skip other template loading logic
       }
-      
+
       // 🎯 GENERAL FROM SEARCH: Ignore relatedPosters and fetch full category data
       if (isGeneralFromSearch) {
         console.log('GENERAL FROM SEARCH: Ignoring relatedPosters, will fetch full category data');
@@ -969,11 +969,11 @@ const PosterPlayerScreen: React.FC = () => {
         }
         return; // Skip other template loading logic - will fetch full data
       }
-      
+
       // 🎯 OTHER SEARCH FLOWS: Use relatedPosters as-is
       setAllTemplates(route.params.relatedPosters);
       allTemplatesRef.current = route.params.relatedPosters;
-      
+
       // Set current category properly using activeCategoryRef
       if (route.params?.categoryName) {
         activeCategoryRef.current = { type: 'business', value: route.params.categoryName };
@@ -994,19 +994,19 @@ const PosterPlayerScreen: React.FC = () => {
     // Only handle general category from search
     if (isGeneralFromSearch && route.params?.categoryName && !hasFetchedGeneralRef.current) {
       console.log('GENERAL FROM SEARCH: Using existing fetchGreetingCategoryTemplates for:', route.params.categoryName);
-      
+
       // Prevent multiple fetches
       hasFetchedGeneralRef.current = true;
-      
+
       // ✅ 1. SET CATEGORY FOR EXISTING FLOW
       const category = route.params.categoryName;
-      
+
       // ✅ 2. SET ACTIVE CATEGORY REF (IMPORTANT)
       activeCategoryRef.current = {
         type: 'greeting',
         value: category,
       };
-      
+
       // ✅ 3. RESET BUSINESS STATE FOR GENERAL SEARCH (PRESERVE BUSINESS PROFILE)
       console.log('🔍 [GENERAL SEARCH] Preserving business profile:', {
         currentProfile: globalBusinessProfile?.name,
@@ -1017,14 +1017,14 @@ const PosterPlayerScreen: React.FC = () => {
       // ❌ DO NOT RESET BUSINESS PROFILE - Preserve for PosterEditorScreen
       // setSelectedBusinessProfile(null);
       setSelectedSoftwareCategory(null);
-      
+
       // ✅ 4. TRIGGER EXISTING WORKING FUNCTION
       // Call the same comprehensive fetch logic as HomeScreen flow
       const fetchFullCategoryData = async () => {
         try {
           setIsPosterLoading(true);
           setIsGreetingCategoryLoading(true);
-          
+
           // Use the same logic as the working greeting category fetch
           const posterToMatch = convertedInitialPoster;
           if (!posterToMatch) {
@@ -1119,7 +1119,7 @@ const PosterPlayerScreen: React.FC = () => {
             : allTemplates.slice(0, initialLimit);
 
           console.log('GENERAL FROM SEARCH: Fetched', templatesToUse.length, 'templates from comprehensive API');
-          
+
           // Set templates if we have valid data
           if (templatesToUse.length > 0) {
             setAllTemplates(templatesToUse);
@@ -1128,7 +1128,7 @@ const PosterPlayerScreen: React.FC = () => {
           } else {
             console.warn('GENERAL FROM SEARCH: No templates found, preserving existing data');
           }
-          
+
         } catch (error) {
           console.error('GENERAL FROM SEARCH: Error in comprehensive fetch:', error);
         } finally {
@@ -1136,7 +1136,7 @@ const PosterPlayerScreen: React.FC = () => {
           setIsGreetingCategoryLoading(false);
         }
       };
-      
+
       fetchFullCategoryData();
     }
   }, [isGeneralFromSearch, route.params?.categoryName, convertedInitialPoster]);
@@ -1146,22 +1146,22 @@ const PosterPlayerScreen: React.FC = () => {
     // Only handle greeting category from search
     if (isGreetingCategoryFromSearch && route.params?.categoryName && !hasFetchedGreetingCategoryRef.current) {
       console.log('GREETING CATEGORY FROM SEARCH: Fetching full category data for:', route.params.categoryName);
-      
+
       // Prevent multiple fetches
       hasFetchedGreetingCategoryRef.current = true;
-      
+
       // Set active category to prevent other useEffects from interfering
       activeCategoryRef.current = { type: 'greeting', value: route.params.categoryName };
-      
+
       const fetchFullGreetingCategoryData = async () => {
         try {
           setIsPosterLoading(true);
           setIsGreetingCategoryLoading(true);
-          
+
           // Use the same comprehensive API approach as the working greeting category fetch
           const category = route.params.categoryName;
           const posterToMatch = convertedInitialPoster;
-          
+
           if (!posterToMatch) {
             console.warn('⚠️ [GREETING CATEGORY FROM SEARCH] No poster to match, using category only');
             // Continue with category-only fetch
@@ -1223,9 +1223,9 @@ const PosterPlayerScreen: React.FC = () => {
 
             // Strict matching for current category
             if (templateCategoryLower === categoryLower ||
-                templateCategoryLower === normalizedCategoryLower ||
-                templateCategoryLower.startsWith(categoryLower + ' ') ||
-                templateCategoryLower.startsWith(normalizedCategoryLower + ' ')) {
+              templateCategoryLower === normalizedCategoryLower ||
+              templateCategoryLower.startsWith(categoryLower + ' ') ||
+              templateCategoryLower.startsWith(normalizedCategoryLower + ' ')) {
               return true;
             }
 
@@ -1233,7 +1233,7 @@ const PosterPlayerScreen: React.FC = () => {
             if (template.tags && Array.isArray(template.tags)) {
               const templateTags = template.tags.map((tag: any) => String(tag).toLowerCase());
               if (templateTags.some(tag => tag === categoryLower || tag === normalizedCategoryLower ||
-                  tag.startsWith(categoryLower + ' ') || tag.startsWith(normalizedCategoryLower + ' '))) {
+                tag.startsWith(categoryLower + ' ') || tag.startsWith(normalizedCategoryLower + ' '))) {
                 return true;
               }
             }
@@ -1263,9 +1263,9 @@ const PosterPlayerScreen: React.FC = () => {
 
   // Helper to detect placeholder posters
   const isPlaceholderPoster = useCallback((poster: any): boolean => {
-    return !poster || 
-           poster.id === 'loading' || 
-           (typeof poster.id === 'string' && poster.id.startsWith('category_'));
+    return !poster ||
+      poster.id === 'loading' ||
+      (typeof poster.id === 'string' && poster.id.startsWith('category_'));
   }, []);
 
   // SAFE INITIALIZATION: Initialize poster state from route params
@@ -1370,7 +1370,7 @@ const PosterPlayerScreen: React.FC = () => {
     });
 
     // Available language IDs that we support
-    const availableLanguageIds = ['english', 'hindi'];
+    const availableLanguageIds = ['english', 'hindi', 'marathi'];
 
     // Find the first matching language from available languages
     const detectedLanguage = availableLanguageIds.find(langId => {
@@ -1452,7 +1452,7 @@ const PosterPlayerScreen: React.FC = () => {
   const [isLoadingServiceFilter, setIsLoadingServiceFilter] = useState<Record<string, boolean>>({});
 
   // Business profile logic is handled by useBusinessProfile context
-  
+
   // CRITICAL FIX: Add effect to handle profile changes and trigger UI updates
   useEffect(() => {
     console.log('🔄 [POSTER PLAYER] Business profile changed:', {
@@ -1460,29 +1460,29 @@ const PosterPlayerScreen: React.FC = () => {
       profileName: globalBusinessProfile?.name,
       previousProfileId: prevProfileRef.current?.id
     });
-    
+
     // Force refresh templates when profile changes
     if (globalBusinessProfile?.id !== prevProfileRef.current?.id) {
       console.log('🔄 [POSTER PLAYER] Profile changed, forcing template refresh...');
-      
+
       // Reset template state to trigger re-fetch - PROTECT SEARCH FLOW, GENERAL FROM SEARCH, AND GREETING MODALS
       const isGreetingModalFlow = templateSource === 'greeting' && type === 'greeting' && !isSearchFlow && !isGeneralFromSearch;
       if (!isSearchFlow && !isGeneralFromSearch && !isGreetingModalFlow) {
         setAllTemplatesState([]);
         allTemplatesRef.current = [];
       } else {
-        console.log('🔄 [POSTER PLAYER] SKIPPING template reset - protected flow detected:', { 
-          isSearchFlow, 
-          isGeneralFromSearch, 
+        console.log('🔄 [POSTER PLAYER] SKIPPING template reset - protected flow detected:', {
+          isSearchFlow,
+          isGeneralFromSearch,
           isGreetingModalFlow,
           templateSource,
-          type 
+          type
         });
       }
-      
+
       // Update previous profile reference
       prevProfileRef.current = globalBusinessProfile;
-      
+
       // Re-trigger template loading based on current category - ONLY FOR NON-PROTECTED FLOWS
       if (activeCategoryRef.current?.type === 'business' && activeCategoryRef.current?.value && !isGreetingModalFlow) {
         console.log('🔄 [POSTER PLAYER] Re-loading business templates for new profile');
@@ -1571,7 +1571,7 @@ const PosterPlayerScreen: React.FC = () => {
       if (url.includes('images.unsplash.com')) {
         const urlWithoutParams = url.split('?')[0];
         const existingParams = url.includes('?') ? url.split('?')[1] : '';
-        
+
         let params: Record<string, string> = {};
         if (existingParams) {
           existingParams.split('&').forEach(param => {
@@ -1579,14 +1579,14 @@ const PosterPlayerScreen: React.FC = () => {
             if (key) params[key] = val || '';
           });
         }
-        
+
         params['w'] = '2400';
         params['q'] = '90';
-        
+
         const paramString = Object.keys(params)
           .map(key => `${key}=${params[key]}`)
           .join('&');
-          
+
         return paramString ? `${urlWithoutParams}?${paramString}` : urlWithoutParams;
       }
 
@@ -1597,7 +1597,7 @@ const PosterPlayerScreen: React.FC = () => {
 
       const urlWithoutParams = url.split('?')[0];
       const existingParams = url.includes('?') ? url.split('?')[1] : '';
-      
+
       let params: Record<string, string> = {};
       if (existingParams) {
         existingParams.split('&').forEach(param => {
@@ -1645,6 +1645,7 @@ const PosterPlayerScreen: React.FC = () => {
     { id: 'all', name: 'All', code: 'ALL' },
     { id: 'english', name: 'English', code: 'EN' },
     { id: 'hindi', name: 'Hindi', code: 'HI' },
+    { id: 'marathi', name: 'Marathi', code: 'MR' },
   ], []);
 
   // Display ALL posters (filtered by language)
@@ -1657,8 +1658,9 @@ const PosterPlayerScreen: React.FC = () => {
 
   // Software Company category buttons configuration - UPDATED FOR SPECIFICITY
   const softwareCategoryButtons = useMemo(() => [
+    { id: 'all', name: 'All', tags: [] },
     { id: 'website-dev', name: 'Website Development', tags: ['website'] },
-    { id: 'mobile-app-dev', name: 'Mobile App Development', tags: [ 'mobile'] },
+    { id: 'mobile-app-dev', name: 'Mobile App Development', tags: ['mobile'] },
     { id: 'custom-software', name: 'Custom Software Solutions', tags: ['software'] },
     { id: 'ai-automation', name: 'AI & Automation', tags: ['ai'] },
     { id: 'it-consulting', name: 'IT Consulting', tags: ['consulting'] },
@@ -1698,10 +1700,10 @@ const PosterPlayerScreen: React.FC = () => {
   const isSoftwareCompanyCategory = useMemo(() => {
     const category = (currentPoster?.category || initialPoster?.category || '').trim().toLowerCase();
     const globalCategory = (globalBusinessCategory || '').trim().toLowerCase();
-    
-    
+
+
     if (!category && !globalCategory) {
-            return false;
+      return false;
     }
 
     // Check for multiple variations of "software company"
@@ -1719,7 +1721,7 @@ const PosterPlayerScreen: React.FC = () => {
     const globalMatches = globalCategory ? softwareCompanyVariations.some(variation => globalCategory.includes(variation)) : false;
     const result = posterMatches || globalMatches;
 
-    
+
     return result;
   }, [currentPoster, initialPoster, globalBusinessCategory]);
 
@@ -1789,7 +1791,7 @@ const PosterPlayerScreen: React.FC = () => {
     globalBusinessCategory
   ]);
 
-  
+
   // Function to fetch templates for a specific service filter
   const fetchEventPlannerTemplates = useCallback(async () => {
     if (!isEventPlannerCategory) return;
@@ -1981,7 +1983,7 @@ const PosterPlayerScreen: React.FC = () => {
     if (isEventPlannerCategory && selectedServiceFilter && serviceFilterTemplates['eventplanner']) {
       const eventPlannerTemplates = serviceFilterTemplates['eventplanner'];
       const keywords = serviceFilterKeywords[selectedServiceFilter] || [];
-      
+
       // Filter first, then process only matching templates
       const filteredByTags = eventPlannerTemplates.filter(template => {
         const templateTags = Array.isArray(template.tags) ? template.tags : [];
@@ -2032,11 +2034,11 @@ const PosterPlayerScreen: React.FC = () => {
 
       // CATEGORY FILTERING: Filter by selected category
       const selectedCategoryButton = softwareCategoryButtons.find(btn => btn.id === selectedSoftwareCategory);
-      
+
       if (!selectedCategoryButton || !selectedCategoryButton.tags.length) {
         return [];
       }
-      
+
       // Filter first, then process only matching templates
       const filteredByCategory = softwareTemplates.filter(template => {
         const templateTags = Array.isArray(template.tags) ? template.tags : [];
@@ -2215,7 +2217,7 @@ const PosterPlayerScreen: React.FC = () => {
         console.log(' [ROUTE PARAMS] Skipping override - real poster already loaded:', currentPoster.id);
         return;
       }
-      
+
       // Only update if user hasn't manually selected a poster, OR if navigating from different screen
       // (When navigating from different screen, prevId !== initialPosterId means new navigation)
       if (userSelectedPosterRef.current === true && currentPoster?.id !== initialPosterId) {
@@ -2234,7 +2236,7 @@ const PosterPlayerScreen: React.FC = () => {
           console.log(' [ROUTE PARAMS] Skipping override - real poster already set:', currentPoster.id);
           return;
         }
-        
+
         // Update poster immediately
         console.log(' [ROUTE PARAMS] Attempting to override poster:', newPoster.id);
         setCurrentPoster(newPoster);
@@ -2285,7 +2287,7 @@ const PosterPlayerScreen: React.FC = () => {
           console.log(' [ROUTE PARAMS] Skipping override - real poster already set:', currentPoster.id);
           return;
         }
-        
+
         console.log(' [ROUTE PARAMS] Attempting to override poster:', newPoster.id);
         setCurrentPoster(newPoster);
         setCurrentId(initialPosterId);
@@ -2341,7 +2343,7 @@ const PosterPlayerScreen: React.FC = () => {
 
     if (isCategoryChanged) {
       console.log('PRODUCTION FIX: Category changed from', prevCategoryRef.current, 'to', globalBusinessCategory, '-> resetting state');
-      
+
       // SAFE RESET (only internal state, no UI changes) - PROTECT SEARCH FLOW AND GENERAL FROM SEARCH
       if (!isSearchFlow && !isGeneralFromSearch) {
         console.log('[SAFE GUARD] Prevented empty template overwrite - using safe reset');
@@ -2349,7 +2351,7 @@ const PosterPlayerScreen: React.FC = () => {
         // allTemplatesRef.current = [];
       }
       setServiceFilterTemplates({});
-      
+
       // Optional safe resets (only if functions exist)
       if (typeof setSelectedServiceFilter === "function") {
         setSelectedServiceFilter(null);
@@ -2357,7 +2359,7 @@ const PosterPlayerScreen: React.FC = () => {
       if (typeof setSelectedSoftwareCategory === "function") {
         setSelectedSoftwareCategory(null);
       }
-      
+
       console.log('PRODUCTION FIX: State reset completed, templates count:', allTemplatesRef.current.length);
     }
 
@@ -2378,7 +2380,7 @@ const PosterPlayerScreen: React.FC = () => {
       console.log('SINGLE SOURCE: Skipping business fetch - active source:', activeRenderSource, 'templates:', allTemplates.length);
       return;
     }
-    
+
     if (activeRenderSource !== 'business' && allTemplates.length === 0) {
       console.log('SINGLE SOURCE: Allowing business fetch as fallback - active source:', activeRenderSource, 'templates empty');
     }
@@ -2521,13 +2523,13 @@ const PosterPlayerScreen: React.FC = () => {
     };
 
     fetchBusinessCategoryPosters();
-  // FIX #2: selectedLanguage intentionally removed from deps.
-  // Language filtering is done in-memory by the filteredPosters useMemo and
-  // does NOT require a new API call. Having selectedLanguage here caused the
-  // business-category API to re-fire every time the user pressed a language
-  // button, overwriting the date-scoped allTemplates with business posters.
-  // SINGLE SOURCE: Include activeRenderSource to ensure proper re-triggering
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // FIX #2: selectedLanguage intentionally removed from deps.
+    // Language filtering is done in-memory by the filteredPosters useMemo and
+    // does NOT require a new API call. Having selectedLanguage here caused the
+    // business-category API to re-fire every time the user pressed a language
+    // button, overwriting the date-scoped allTemplates with business posters.
+    // SINGLE SOURCE: Include activeRenderSource to ensure proper re-triggering
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [globalBusinessCategory, posterLimit, initialPoster, setAllTemplates, calendarDate, activeRenderSource]);
 
   // Fetch greeting category templates when greetingCategory is provided
@@ -2539,7 +2541,7 @@ const PosterPlayerScreen: React.FC = () => {
     // ✅ BLOCK GREETING CATEGORY FETCH FOR GREETING MODAL FLOWS (Success Mindset, Social Media Growth, etc.)
     const isGreetingModalFlow = templateSource === 'greeting' && type === 'greeting' && !isSearchFlow && !isGeneralFromSearch;
     const isGreetingCategoryFlow = greetingCategory && !isSearchFlow && !isGeneralFromSearch && !isGreetingCategoryFromSearch;
-    
+
     if (isGreetingModalFlow || isGreetingCategoryFromSearch) {
       console.log('🚫 [GREETING CATEGORY FETCH] Skipped — greeting modal flow or greeting category from search is active');
       return;
@@ -2570,7 +2572,7 @@ const PosterPlayerScreen: React.FC = () => {
     const fetchGreetingCategoryTemplates = async () => {
       // ✅ CONTROLLED API FETCH: Start loading state
       setIsPosterLoading(true);
-      
+
       // Use convertedInitialPoster which has thumbnail properly set for GreetingTemplates
       const posterToMatch = convertedInitialPoster;
 
@@ -3047,11 +3049,11 @@ const PosterPlayerScreen: React.FC = () => {
                 if (initialPosterWithLanguages.category !== currentCategory) {
                   initialPosterWithLanguages.category = currentCategory;
                 }
-                
+
                 // Check if initial poster should be added (only once per category)
                 const existingIndex = categoryFilteredFinal.findIndex(t => t.id === initialPosterWithLanguages.id);
                 let nextTemplates = categoryFilteredFinal;
-                
+
                 // Only add initial poster if it hasn't been added yet and doesn't exist in templates
                 if (existingIndex === -1 && initialPosterWithLanguages.thumbnail && !initialPosterAddedRef.current) {
                   nextTemplates = [initialPosterWithLanguages, ...categoryFilteredFinal];
@@ -3389,10 +3391,10 @@ const PosterPlayerScreen: React.FC = () => {
             if (posterToSet && !isPlaceholderPoster(posterToSet)) {
               setCurrentPoster(finalPoster);
               setCurrentId(finalPoster.id);
-              
+
               // Store the last fetched real poster ID for protection
               lastFetchedRealPosterIdRef.current = finalPoster.id;
-              
+
               console.log('[POSTER STATE UPDATE]', {
                 source: 'GREETING_FETCH',
                 posterId: finalPoster.id,
@@ -3612,7 +3614,7 @@ const PosterPlayerScreen: React.FC = () => {
             // Ensure the selected poster has languages properly merged
             const finalPoster = mergeTemplateLanguages(posterToSet);
             setCurrentPoster(finalPoster);
-            
+
             // ✅ CRITICAL: Update currentId to real template ID when available
             if (finalPoster.id !== 'loading' && !finalPoster.id.startsWith('category_')) {
               setCurrentId(finalPoster.id);
@@ -3716,13 +3718,13 @@ const PosterPlayerScreen: React.FC = () => {
         if (prevInitialPosterIdRef.current !== initialPoster.id) {
           prevInitialPosterIdRef.current = initialPoster.id;
         }
-        
+
         // ✅ CRITICAL: Update currentId to real template ID when available
         if (ensuredInitialPoster.id !== 'loading' && !ensuredInitialPoster.id.startsWith('category_')) {
           setCurrentId(ensuredInitialPoster.id);
           console.log('🔍 [INITIAL POSTER CHANGE] Updated currentId to real template ID:', ensuredInitialPoster.id);
         }
-        
+
         return ensuredInitialPoster;
       }
 
@@ -3781,7 +3783,7 @@ const PosterPlayerScreen: React.FC = () => {
     });
 
     // Available language IDs that we support
-    const availableLanguageIds = ['english', 'hindi'];
+    const availableLanguageIds = ['english', 'hindi', 'marathi'];
 
     // Find the first matching language from available languages
     const detectedLanguage = availableLanguageIds.find(langId => {
@@ -3891,7 +3893,7 @@ const PosterPlayerScreen: React.FC = () => {
     });
 
     // Available language IDs that we support (priority order: hindi, english)
-    const availableLanguageIds = ['hindi', 'english'];
+    const availableLanguageIds = ['hindi', 'english', 'marathi'];
 
     // Find the first matching language from available languages (prioritizing hindi/marathi over english)
     const detectedLanguage = availableLanguageIds.find(langId => {
@@ -4099,7 +4101,7 @@ const PosterPlayerScreen: React.FC = () => {
     ) {
       // Auto-select if no current poster OR if current poster is not in filtered results
       const currentPosterInFiltered = currentPoster && filteredPosters.some(p => p.id === currentPoster.id);
-      
+
       if (!currentPoster || !currentPosterInFiltered) {
         const firstFilteredPoster = filteredPosters[0];
         const selectionType = selectedSoftwareCategory ? `category ${selectedSoftwareCategory}` : 'initial display';
@@ -4219,7 +4221,7 @@ const PosterPlayerScreen: React.FC = () => {
 
   const handleLanguageChange = useCallback((languageId: string) => {
     console.log('[LANG CHANGE] Language selected:', languageId);
-    
+
     // Mark that user manually selected a language (including "All")
     // This prevents auto-detection from overriding user's choice
     userManuallySelectedLanguageRef.current = true;
@@ -4441,29 +4443,29 @@ const PosterPlayerScreen: React.FC = () => {
     console.log(" Navigating to PosterEditorScreen with type:", type);
 
     const posterInfo = safeGetPosterInfo();
-    
+
     // SAFE GUARD: Always use real poster ID when available
     let finalTemplateId = currentPoster?.id || currentId;
-    
+
     // If we're still using a category ID but have a real poster stored, use the real one
     if (finalTemplateId?.startsWith('greeting_category_') && lastFetchedRealPosterIdRef.current) {
       console.warn(' SAFETY: Category ID detected but real poster available, using fetched ID:', lastFetchedRealPosterIdRef.current);
       finalTemplateId = lastFetchedRealPosterIdRef.current;
     }
-    
+
     // Additional safety check
     if (finalTemplateId?.startsWith('greeting_category_') && currentPoster && !currentPoster.id.startsWith('greeting_category_')) {
       console.warn(' SAFETY: Category ID detected but real poster available, fixing...');
       finalTemplateId = currentPoster.id;
     }
-    
+
     // VALIDATION LOGGING: Ensure we're using real ID
     console.log(' FINAL POSTER ID USED FOR NAVIGATION:', finalTemplateId);
     console.log(' Is category template:', finalTemplateId?.startsWith('greeting_category_'));
     console.log(' Is real backend poster:', finalTemplateId?.startsWith('cmmt'));
     console.log(' Current poster ID:', currentPoster?.id);
     console.log(' Current ID state:', currentId);
-    
+
     // ✅ Safe fallback values
     const finalCategoryName =
       route.params?.categoryName ||
@@ -4536,7 +4538,7 @@ const PosterPlayerScreen: React.FC = () => {
       console.log('❌ Cannot navigate - invalid template ID or still loading');
       return;
     }
-    
+
     navigateToPosterEditor();
   }, [navigateToPosterEditor, isPosterLoading, currentPoster, currentId]);
 
@@ -4834,8 +4836,8 @@ const PosterPlayerScreen: React.FC = () => {
               nestedScrollEnabled={true}
             >
               {softwareCategoryButtons.map((category) => {
-                const isCategoryActive = selectedSoftwareCategory === category.id;
-                
+                const isCategoryActive = selectedSoftwareCategory === category.id || (category.id === 'all' && !selectedSoftwareCategory);
+
                 return (
                   <TouchableOpacity
                     key={category.id}
@@ -4845,15 +4847,15 @@ const PosterPlayerScreen: React.FC = () => {
                     ]}
                     onPress={() => {
                       // Original logic for all flows (following My Business pattern)
-                      const newCategory = selectedSoftwareCategory === category.id ? null : category.id;
-                      
+                      const newCategory = category.id === 'all' ? null : (selectedSoftwareCategory === category.id ? null : category.id);
+
                       // Log button click details
                       console.log(`\n\u{1F518} [BUTTON CLICK - POSTER PLAYER] ${category.name} button clicked`);
                       console.log(`\u{1F3F7}\uFE0F [BUTTON DETAILS] Category ID: ${category.id}`);
                       console.log(`\u{1F3F7}\uFE0F [BUTTON DETAILS] Category tags: [${category.tags.join(', ')}]`);
                       console.log(`\u{1F504} [BUTTON DETAILS] Previous selected category: ${selectedSoftwareCategory}`);
                       console.log(`\u{1F504} [BUTTON DETAILS] New selected category: ${newCategory || 'none (deselected)'}`);
-                      
+
                       if (newCategory) {
                         console.log(`\u2705 [CATEGORY SELECTION] Activating category: ${category.name}`);
                         console.log(`\ud83c\udfaf [CATEGORY SELECTION] Will filter posters with tags: [${category.tags.join(', ')}]`);
@@ -4861,7 +4863,7 @@ const PosterPlayerScreen: React.FC = () => {
                         console.log(`\u274C [CATEGORY SELECTION] Deactivating category: ${category.name}`);
                         console.log(`\u{1F504} [CATEGORY SELECTION] Will show all posters (no category filter)`);
                       }
-                      
+
                       // 🚫 DO NOT RESET USER SELECTION BLINDLY
                       // Only reset this flag IF there is no poster currently selected
                       if (!currentPoster || currentPoster.id === 'loading' || currentPoster.id.startsWith('category_')) {
@@ -4874,23 +4876,28 @@ const PosterPlayerScreen: React.FC = () => {
                     }}
                     activeOpacity={0.85}
                   >
-                    <LinearGradient
-                      colors={[theme.colors.secondary, theme.colors.primary]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={[
-                        styles.serviceFilterButtonGradient,
-                        !isCategoryActive && styles.serviceFilterButtonGradientInactive
-                      ]}
-                    >
-                      <Text style={[
-                        styles.serviceFilterButtonText,
-                        isCategoryActive && styles.serviceFilterButtonTextActive,
-                        !isCategoryActive && styles.serviceFilterButtonTextInactive
-                      ]} numberOfLines={2} ellipsizeMode="tail">
-                        {category.name}
-                      </Text>
-                    </LinearGradient>
+                    <View style={[
+                      styles.serviceFilterButtonBorderWrapper,
+                      isCategoryActive && styles.serviceFilterButtonBorderWrapperActive
+                    ]}>
+                      <LinearGradient
+                        colors={isCategoryActive
+                          ? [theme.colors.secondary, theme.colors.primary]
+                          : ['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.05)']
+                        }
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.serviceFilterButtonGradient}
+                      >
+                        <Text style={[
+                          styles.serviceFilterButtonText,
+                          isCategoryActive && styles.serviceFilterButtonTextActive,
+                          !isCategoryActive && styles.serviceFilterButtonTextInactive
+                        ]} numberOfLines={2} ellipsizeMode="tail">
+                          {category.name}
+                        </Text>
+                      </LinearGradient>
+                    </View>
                   </TouchableOpacity>
                 );
               })}
@@ -4901,51 +4908,64 @@ const PosterPlayerScreen: React.FC = () => {
         {/* SINGLE SOURCE: Event Planner buttons based on activeRenderSource */}
         {(activeRenderSource === 'profile' || activeRenderSource === 'template') && isEventPlannerCategory && (
           <View style={styles.serviceFilterContainer}>
-            {['generator', 'decorators', 'sound', 'mandap'].map(filterKey => {
-              const isActive = selectedServiceFilter === filterKey;
-              const labelMap: Record<string, string> = {
-                generator: 'Generator',
-                decorators: 'Decorators',
-                sound: 'Sound',
-                mandap: 'Mandap'
-              };
-              return (
-                <TouchableOpacity
-                  key={filterKey}
-                  style={[
-                    styles.serviceFilterButton,
-                    isActive && styles.serviceFilterButtonActive
-                  ]}
-                  onPress={() => {
-                    const newFilter = selectedServiceFilter === filterKey ? null : filterKey;
-                    setSelectedServiceFilter(newFilter);
-
-                    // Fetch templates if a filter is selected (no need to call API, templates are already fetched)
-                    if (newFilter) {
-                      console.log(`🎯 [EVENT PLANNER] Service filter selected: ${newFilter}`);
-                    }
-                  }}
-                  activeOpacity={0.9}
-                >
-                  <LinearGradient
-                    colors={[theme.colors.secondary, theme.colors.primary]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoryButtonsScrollContent}
+              nestedScrollEnabled={true}
+            >
+              {['all', 'generator', 'decorators', 'sound', 'mandap'].map(filterKey => {
+                const isActive = selectedServiceFilter === filterKey || (filterKey === 'all' && !selectedServiceFilter);
+                const labelMap: Record<string, string> = {
+                  all: 'All',
+                  generator: 'Generator',
+                  decorators: 'Decorators',
+                  sound: 'Sound',
+                  mandap: 'Mandap'
+                };
+                return (
+                  <TouchableOpacity
+                    key={filterKey}
                     style={[
-                      styles.serviceFilterButtonGradient,
-                      !isActive && styles.serviceFilterButtonGradientInactive
+                      styles.softwareCategoryButton,
+                      isActive && styles.serviceFilterButtonActive
                     ]}
+                    onPress={() => {
+                      const newFilter = filterKey === 'all' ? null : (selectedServiceFilter === filterKey ? null : filterKey);
+                      setSelectedServiceFilter(newFilter);
+
+                      // Fetch templates if a filter is selected (no need to call API, templates are already fetched)
+                      if (newFilter) {
+                        console.log(`🎯 [EVENT PLANNER] Service filter selected: ${newFilter}`);
+                      }
+                    }}
+                    activeOpacity={0.9}
                   >
-                    <Text style={[
-                      styles.serviceFilterButtonText,
-                      isActive && styles.serviceFilterButtonTextActive
+                    <View style={[
+                      styles.serviceFilterButtonBorderWrapper,
+                      isActive && styles.serviceFilterButtonBorderWrapperActive
                     ]}>
-                      {isLoadingServiceFilter[filterKey] ? 'Loading...' : labelMap[filterKey]}
-                    </Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              );
-            })}
+                      <LinearGradient
+                        colors={isActive
+                          ? [theme.colors.secondary, theme.colors.primary]
+                          : ['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.05)']
+                        }
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.serviceFilterButtonGradient}
+                      >
+                        <Text style={[
+                          styles.serviceFilterButtonText,
+                          isActive && styles.serviceFilterButtonTextActive
+                        ]}>
+                          {isLoadingServiceFilter[filterKey] ? 'Loading...' : labelMap[filterKey]}
+                        </Text>
+                      </LinearGradient>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
         )}
 
@@ -5471,13 +5491,9 @@ const styles = StyleSheet.create({
   },
   serviceFilterButton: {
     flex: 1,
-    borderRadius: moderateScale(8),
-    overflow: 'hidden',
   },
   softwareCategoryButton: {
     alignSelf: 'flex-start',
-    borderRadius: moderateScale(8),
-    overflow: 'hidden',
   },
   serviceFilterButtonActive: {
     shadowColor: '#000',
@@ -5486,19 +5502,27 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
   },
+  serviceFilterButtonBorderWrapper: {
+    borderRadius: moderateScale(8),
+    borderWidth: moderateScale(2),
+    borderColor: 'transparent',
+    overflow: 'hidden',
+  },
+  serviceFilterButtonBorderWrapperActive: {
+    borderColor: '#ffd166',
+  },
   serviceFilterButtonGradient: {
     paddingVertical: moderateScale(6),
     paddingHorizontal: moderateScale(12),
-    borderRadius: moderateScale(8),
+    borderRadius: moderateScale(6),
     justifyContent: 'center',
     alignItems: 'center',
   },
   serviceFilterButtonGradientInactive: {
-    opacity: 0.75,
   },
   serviceFilterButtonText: {
     textAlign: 'center',
-    color: '#ffffff',
+    color: '#666666',
     fontSize: moderateScale(9),
     fontWeight: '600',
   },
@@ -5506,7 +5530,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   serviceFilterButtonTextInactive: {
-    color: 'rgba(255,255,255,0.7)',
+    color: '#666666',
   },
   categoryButtonsScrollContent: {
     flexDirection: 'row',

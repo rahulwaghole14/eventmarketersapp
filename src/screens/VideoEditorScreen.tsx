@@ -2172,6 +2172,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
     setSelectedFrame(null);
 
     setSelectedTemplate(template);
+    setSelectedLayer(null); // Clear selected layer to hide delete and other element-specific buttons
     console.log('Applying template:', template); // Debug log
 
     const canvasWidth = currentCanvasWidth || videoCanvasWidth;
@@ -2475,15 +2476,20 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
       // Ensure text is truncated to 100 characters (safety measure)
       const truncatedText = newText.slice(0, 100);
 
-      // Calculate dynamic width based on text content (approximate)
-      const estimatedWidth = Math.max(truncatedText.length * 10, 50); // Minimum 50px width
+      // Calculate dynamic width and height based on multiline content
+      const lines = truncatedText.split('\n');
+      const numLines = lines.length;
+      const longestLineLength = Math.max(...lines.map(l => l.length), 1);
+
+      const estimatedWidth = Math.max(longestLineLength * 10, 50); // Minimum 50px width
+      const estimatedHeight = Math.max(numLines * 28, 40); // Estimate 28px per line, minimum 40px
 
       const newLayer: ComposerVideoLayer = {
         id: generateId(),
         type: 'text',
         content: truncatedText,
-        position: { x: currentCanvasWidth / 2 - estimatedWidth / 2, y: currentCanvasHeight / 2 - 20 },
-        size: { width: estimatedWidth, height: 40 },
+        position: { x: currentCanvasWidth / 2 - estimatedWidth / 2, y: currentCanvasHeight / 2 - estimatedHeight / 2 },
+        size: { width: estimatedWidth, height: estimatedHeight },
         zIndex: layers.length,
         style: {
           fontSize: 20,

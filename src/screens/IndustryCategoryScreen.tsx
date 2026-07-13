@@ -141,8 +141,8 @@ const IndustryCategoryScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedPoster, setSelectedPoster] = useState<Template | null>(null);
   const [selectedIndustry, _setSelectedIndustry] = useState<string>('Software Company');
-  const [selectedLanguage, setSelectedLanguage] = useState<'all' | 'english' | 'hindi'>('all');
-  const [selectedCategory, setSelectedCategory] = useState<string>('website-dev');
+  const [selectedLanguage, setSelectedLanguage] = useState<'all' | 'english' | 'hindi' | 'marathi'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
 
   const shimmerAnim = useRef(new Animated.Value(0)).current;
@@ -331,7 +331,7 @@ const IndustryCategoryScreen: React.FC = () => {
 
 
   const categoryButtons = useMemo(() => [
-    // { id: 'all', name: 'All', tags: [] },
+    { id: 'all', name: 'All', tags: [] },
     { id: 'website-dev', name: 'Website Development', tags: ['website'] },
     { id: 'mobile-app-dev', name: 'Mobile App Development', tags: [ 'mobile'] },
     { id: 'custom-software', name: 'Custom Software Solutions', tags: ['software'] },
@@ -524,6 +524,7 @@ const IndustryCategoryScreen: React.FC = () => {
     { id: 'all', name: 'All' },
     { id: 'english', name: 'English' },
     { id: 'hindi', name: 'Hindi' },
+    { id: 'marathi', name: 'Marathi' },
   ];
 
   const filteredPosters = useMemo(() => {
@@ -591,6 +592,8 @@ const IndustryCategoryScreen: React.FC = () => {
         matchesLanguage = posterTags.some(tag => tag.toLowerCase() === 'english');
       } else if (selectedLanguage === 'hindi') {
         matchesLanguage = posterTags.some(tag => tag.toLowerCase() === 'hindi');
+      } else if (selectedLanguage === 'marathi') {
+        matchesLanguage = posterTags.some(tag => tag.toLowerCase() === 'marathi');
       }
       
       if (matchesLanguage) {
@@ -898,7 +901,7 @@ const IndustryCategoryScreen: React.FC = () => {
                     isCategoryActive && styles.serviceFilterButtonActive
                   ]}
                   onPress={() => {
-                    const newCategory = selectedCategory === category.id ? null : category.id;
+                    const newCategory = category.id === 'all' ? 'all' : (selectedCategory === category.id ? 'all' : category.id);
                     
                     // Log button click details
                     console.log(`🔘 [BUTTON CLICK] ${category.name} button clicked`);
@@ -919,23 +922,28 @@ const IndustryCategoryScreen: React.FC = () => {
                   }}
                   activeOpacity={0.85}
                 >
-                  <LinearGradient
-                    colors={[theme.colors.secondary, theme.colors.primary]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[
-                      styles.serviceFilterButtonGradient,
-                      !isCategoryActive && styles.serviceFilterButtonGradientInactive
-                    ]}
-                  >
-                    <Text style={[
-                      styles.serviceFilterButtonText,
-                      isCategoryActive && styles.serviceFilterButtonTextActive,
-                      !isCategoryActive && styles.serviceFilterButtonTextInactive
-                    ]} numberOfLines={2} ellipsizeMode="tail">
-                      {category.name}
-                    </Text>
-                  </LinearGradient>
+                  <View style={[
+                    styles.serviceFilterButtonBorderWrapper,
+                    isCategoryActive && styles.serviceFilterButtonBorderWrapperActive
+                  ]}>
+                    <LinearGradient
+                      colors={isCategoryActive
+                        ? [theme.colors.secondary, theme.colors.primary]
+                        : ['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.05)']
+                      }
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.serviceFilterButtonGradient}
+                    >
+                      <Text style={[
+                        styles.serviceFilterButtonText,
+                        isCategoryActive && styles.serviceFilterButtonTextActive,
+                        !isCategoryActive && styles.serviceFilterButtonTextInactive
+                      ]} numberOfLines={2} ellipsizeMode="tail">
+                        {category.name}
+                      </Text>
+                    </LinearGradient>
+                  </View>
                 </TouchableOpacity>
               );
             })}
@@ -1078,8 +1086,6 @@ const styles = StyleSheet.create({
   },
   softwareCategoryButton: {
     alignSelf: 'flex-start',
-    borderRadius: moderateScale(8),
-    overflow: 'hidden',
   },
   serviceFilterButtonActive: {
     shadowColor: '#000',
@@ -1088,19 +1094,27 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
   },
+  serviceFilterButtonBorderWrapper: {
+    borderRadius: moderateScale(8),
+    borderWidth: moderateScale(2),
+    borderColor: 'transparent',
+    overflow: 'hidden',
+  },
+  serviceFilterButtonBorderWrapperActive: {
+    borderColor: '#ffd166',
+  },
   serviceFilterButtonGradient: {
     paddingVertical: moderateScale(6),
     paddingHorizontal: moderateScale(12),
-    borderRadius: moderateScale(8),
+    borderRadius: moderateScale(6),
     justifyContent: 'center',
     alignItems: 'center',
   },
   serviceFilterButtonGradientInactive: {
-    opacity: 0.75,
   },
   serviceFilterButtonText: {
     textAlign: 'center',
-    color: '#ffffff',
+    color: '#666666',
     fontSize: moderateScale(9),
     fontWeight: '600',
   },
@@ -1108,7 +1122,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   serviceFilterButtonTextInactive: {
-    color: 'rgba(255,255,255,0.7)',
+    color: '#666666',
   },
   posterContainer: {
     position: 'relative',

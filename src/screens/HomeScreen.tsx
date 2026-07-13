@@ -819,13 +819,173 @@ const RecentSearchList: React.FC<RecentSearchListProps> = React.memo(({
 });
 // Track if we've already checked for updates in this app session (global to persist across remounts)
 let hasCheckedForUpdate = false;
+let hasShownPromoModal = false;
 
 const HomeScreen: React.FC = React.memo(() => {
   const { isDarkMode, theme } = useTheme();
-  const { isSubscriptionActive, refreshSubscription, isSubscribed } = useSubscription();
+  const { isSubscriptionActive, refreshSubscription, isSubscribed, plans, subscriptionStatus } = useSubscription();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<StackNavigationProp<MainStackParamList>>();
   const isFocused = useIsFocused();
+
+  const [isPromoModalVisible, setIsPromoModalVisible] = useState(false);
+  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
+
+  useEffect(() => {
+    // Only show the pop-up if the user is not active, screen is focused, we haven't shown it yet,
+    // and the discount plan (pro_unlimited_offer_20) is actively returned by the plans list!
+    const isPromoPlanAvailable = plans && plans.some(plan => plan.id === 'pro_unlimited_offer_20');
+
+    if (!isSubscriptionActive && isFocused && !hasShownPromoModal && isPromoPlanAvailable) {
+      const timer = setTimeout(() => {
+        setIsPromoModalVisible(true);
+        hasShownPromoModal = true;
+      }, 2000); // 2 seconds delay for premium entry feel
+      return () => clearTimeout(timer);
+    }
+  }, [isSubscriptionActive, isFocused, plans]);
+
+  useEffect(() => {
+    const checkSubscriptionExpiryAndNotify = async () => {
+      try {
+        let list = [];
+        try {
+          const stored = await AsyncStorage.getItem('@in_app_notifications');
+          list = stored ? JSON.parse(stored) : [];
+          if (!Array.isArray(list)) list = [];
+        } catch (parseError) {
+          list = [];
+        }
+        let newNotificationsAdded = false;
+
+        // 1. Check User Personal Subscription Expiration & Expired Status
+        if (subscriptionStatus) {
+          const userExpiryDate = subscriptionStatus.expiryDate || subscriptionStatus.endDate;
+          if (userExpiryDate) {
+            const userExpiryTime = new Date(userExpiryDate).getTime();
+            const now = Date.now();
+            const diffMs = userExpiryTime - now;
+            const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+            const isUserExpired = !isSubscriptionActive || subscriptionStatus.status?.toUpperCase() === 'EXPIRED' || diffDays <= 0;
+
+            if (diffDays > 0 && diffDays <= 7 && isSubscriptionActive) {
+              const alertId = `expiry_alert_user_${userExpiryTime}`;
+              const alreadyExists = list.some((n: any) => n.id === alertId);
+
+              if (!alreadyExists) {
+                list.push({
+                  id: alertId,
+                  title: 'Subscription Expiring Soon',
+                  message: `Your Pro Unlimited Plan is expiring in ${diffDays} day${diffDays > 1 ? 's' : ''}. Tap here to renew and keep unlimited access.`,
+                  date: new Date().toISOString(),
+                  read: false,
+                  type: 'expiry',
+                });
+                newNotificationsAdded = true;
+              }
+            } else if (isUserExpired) {
+              const alertId = `expired_alert_user_${userExpiryTime}`;
+              const alreadyExists = list.some((n: any) => n.id === alertId);
+
+              if (!alreadyExists) {
+                list.push({
+                  id: alertId,
+                  title: 'Subscription Expired',
+                  message: `Your Pro Unlimited Plan has expired. Tap here to renew and restore unlimited access.`,
+                  date: new Date().toISOString(),
+                  read: false,
+                  type: 'expiry',
+                });
+                newNotificationsAdded = true;
+              }
+            }
+          }
+        }
+
+        // 2. Check Each Business Profile Subscription Expiration & Expired Status
+        if (userBusinessProfiles && userBusinessProfiles.length > 0) {
+          const now = Date.now();
+          userBusinessProfiles.forEach((profile: any) => {
+            const profileExpiryDate = profile.subscriptionEndDate || profile.endDate;
+
+            if (profileExpiryDate) {
+              const profileExpiryTime = new Date(profileExpiryDate).getTime();
+              const diffMs = profileExpiryTime - now;
+              const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+              const isProfileSubActive = profile.isSubscriptionActive || profile.subscriptionStatus?.toUpperCase() === 'ACTIVE';
+              const isProfileExpired = profile.subscriptionStatus?.toUpperCase() === 'EXPIRED' || diffDays <= 0;
+
+              if (isProfileSubActive && diffDays > 0 && diffDays <= 7) {
+                const alertId = `expiry_alert_profile_${profile.id}_${profileExpiryTime}`;
+                const alreadyExists = list.some((n: any) => n.id === alertId);
+
+                if (!alreadyExists) {
+                  list.push({
+                    id: alertId,
+                    title: `${profile.name} Expiring Soon`,
+                    message: `The plan for "${profile.name}" is expiring in ${diffDays} day${diffDays > 1 ? 's' : ''}. Tap here to renew.`,
+                    date: new Date().toISOString(),
+                    read: false,
+                    type: 'expiry',
+                    businessProfileId: profile.id,
+                  });
+                  newNotificationsAdded = true;
+                }
+              } else if (isProfileExpired) {
+                const alertId = `expired_alert_profile_${profile.id}_${profileExpiryTime}`;
+                const alreadyExists = list.some((n: any) => n.id === alertId);
+
+                if (!alreadyExists) {
+                  list.push({
+                    id: alertId,
+                    title: `${profile.name} Expired`,
+                    message: `The plan for "${profile.name}" has expired. Tap here to renew.`,
+                    date: new Date().toISOString(),
+                    read: false,
+                    type: 'expiry',
+                    businessProfileId: profile.id,
+                  });
+                  newNotificationsAdded = true;
+                }
+              }
+            }
+          });
+        }
+
+        if (newNotificationsAdded) {
+          await AsyncStorage.setItem('@in_app_notifications', JSON.stringify(list));
+        }
+      } catch (error) {
+        console.error('❌ Error handling expiry notification:', error);
+      }
+    };
+
+    const checkUnreadNotifications = async () => {
+      try {
+        let parsed = [];
+        try {
+          const stored = await AsyncStorage.getItem('@in_app_notifications');
+          parsed = stored ? JSON.parse(stored) : [];
+          if (!Array.isArray(parsed)) parsed = [];
+        } catch (parseError) {
+          parsed = [];
+        }
+        const hasUnread = parsed.some((n: any) => !n.read);
+        setHasUnreadNotifications(hasUnread);
+      } catch (error) {
+        console.error('❌ Error checking unread notifications:', error);
+      }
+    };
+
+    if (isFocused) {
+      const runChecks = async () => {
+        await checkSubscriptionExpiryAndNotify();
+        await checkUnreadNotifications();
+      };
+      runChecks();
+    }
+  }, [isFocused, subscriptionStatus, isSubscriptionActive, userBusinessProfiles]);
 
 
   // Get current user info
@@ -2234,7 +2394,7 @@ const HomeScreen: React.FC = React.memo(() => {
     };
 
     // Load cached data immediately (non-blocking)
-loadCachedData();
+    loadCachedData();
 
     // Now fetch fresh data in background
     return performanceMonitor.measureAsync('loadApiData', async () => {
@@ -6755,6 +6915,18 @@ loadCachedData();
                   />
                 </TouchableOpacity>
 
+                {/* Notification Button */}
+                <TouchableOpacity
+                  style={[styles.headerActionButton, { backgroundColor: theme.colors.cardBackground }]}
+                  onPress={() => navigation.navigate('Notifications' as any)}
+                  activeOpacity={0.7}
+                >
+                  <Icon name="notifications" size={moderateScale(20)} color={theme.colors.text} />
+                  {hasUnreadNotifications && (
+                    <View style={[styles.notificationBadge, { backgroundColor: theme.colors.error || '#ff3b30' }]} />
+                  )}
+                </TouchableOpacity>
+
                 {/* Customer Support Button */}
                 <TouchableOpacity
                   style={[styles.headerActionButton, { backgroundColor: theme.colors.cardBackground }]}
@@ -8355,6 +8527,80 @@ loadCachedData();
         forceUpdate={isForceUpdate}
       />
 
+      {/* Promo Offer Modal */}
+      <Modal
+        visible={isPromoModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsPromoModalVisible(false)}
+      >
+        <View style={styles.promoModalOverlay}>
+          <View style={styles.promoModalContainer}>
+            <LinearGradient
+              colors={['#4e1d91', '#1f0d3d']}
+              style={styles.promoModalGradient}
+            >
+              {/* Close Button */}
+              <TouchableOpacity
+                style={styles.promoCloseButton}
+                onPress={() => setIsPromoModalVisible(false)}
+                activeOpacity={0.7}
+              >
+                <Icon name="close" size={24} color="#ffffff" />
+              </TouchableOpacity>
+
+              {/* Tag/Header */}
+              <View style={styles.promoBadgeContainer}>
+                <Text style={styles.promoBadgeText}>LIMITED TIME OFFER</Text>
+              </View>
+
+              {/* Title */}
+              <Text style={styles.promoTitle}>Unlock Pro Unlimited</Text>
+              <Text style={styles.promoSubtitle}>Get 20% OFF access to all premium templates, images, and videos.</Text>
+
+              {/* Price Display */}
+              <View style={styles.promoPriceContainer}>
+                <Text style={styles.promoOriginalPrice}>₹1,999</Text>
+                <Text style={styles.promoDiscountPrice}>₹1,599<Text style={styles.promoPricePeriod}> / year</Text></Text>
+              </View>
+
+              {/* Savings callout */}
+              <Text style={styles.promoSavingsText}>You Save ₹400 instantly!</Text>
+
+              {/* CTA Button */}
+              <TouchableOpacity
+                style={styles.promoCTAButton}
+                activeOpacity={0.9}
+                onPress={() => {
+                  setIsPromoModalVisible(false);
+                  navigation.navigate('Subscription' as any, {
+                    source: 'PROMO_POPUP',
+                    selectedPlanId: 'pro_unlimited_offer_20' // Auto-selects the 20% discount offer plan in Subscription screen
+                  });
+                }}
+              >
+                <LinearGradient
+                  colors={['#ffd700', '#ffa500']}
+                  style={styles.promoCTAButtonGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Text style={styles.promoCTAButtonText}>CLAIM 20% DISCOUNT</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              {/* Secondary Close Text */}
+              <TouchableOpacity
+                onPress={() => setIsPromoModalVisible(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.promoSkipText}>No thanks, I'll pay full price later</Text>
+              </TouchableOpacity>
+            </LinearGradient>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 });
@@ -9740,6 +9986,125 @@ const styles = StyleSheet.create({
   recentSearchRemoveButton: {
     padding: moderateScale(4),
     marginLeft: moderateScale(8),
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: moderateScale(8),
+    right: moderateScale(8),
+    width: moderateScale(8),
+    height: moderateScale(8),
+    borderRadius: moderateScale(4),
+    backgroundColor: '#ff3b30',
+  },
+  promoModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: moderateScale(20),
+  },
+  promoModalContainer: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 24,
+    overflow: 'hidden',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+  },
+  promoModalGradient: {
+    padding: moderateScale(24),
+    alignItems: 'center',
+  },
+  promoCloseButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 20,
+    padding: 6,
+  },
+  promoBadgeContainer: {
+    backgroundColor: '#ffd700',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  promoBadgeText: {
+    color: '#1f0d3d',
+    fontSize: moderateScale(10),
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  promoTitle: {
+    color: '#ffffff',
+    fontSize: moderateScale(24),
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  promoSubtitle: {
+    color: '#dcd6f7',
+    fontSize: moderateScale(14),
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+    paddingHorizontal: 8,
+  },
+  promoPriceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  promoOriginalPrice: {
+    color: '#a594f9',
+    fontSize: moderateScale(20),
+    textDecorationLine: 'line-through',
+    marginRight: 10,
+  },
+  promoDiscountPrice: {
+    color: '#ffd700',
+    fontSize: moderateScale(32),
+    fontWeight: 'bold',
+  },
+  promoPricePeriod: {
+    color: '#ffffff',
+    fontSize: moderateScale(14),
+    fontWeight: 'normal',
+  },
+  promoSavingsText: {
+    color: '#4ecdc4',
+    fontSize: moderateScale(13),
+    fontWeight: '600',
+    marginBottom: 24,
+  },
+  promoCTAButton: {
+    width: '100%',
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  promoCTAButtonGradient: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  promoCTAButtonText: {
+    color: '#1f0d3d',
+    fontSize: moderateScale(14),
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  promoSkipText: {
+    color: '#a594f9',
+    fontSize: moderateScale(12),
+    textDecorationLine: 'underline',
   },
 
 });

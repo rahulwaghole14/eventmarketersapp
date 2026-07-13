@@ -4,6 +4,8 @@ import { useBusinessProfile } from '../context/BusinessProfileContext';
 import { downloadService, DownloadContentParams } from '../services/downloadService';
 import { isDailyDownloadLimitError } from '../utils/errorHandler';
 import { emitShowDownloadLimitModal } from '../utils/downloadLimitEvents';
+import { useSubscription } from '../contexts/SubscriptionContext';
+
 
 interface UseCentralizedDownloadReturn {
   downloadContent: (
@@ -25,7 +27,8 @@ interface UseCentralizedDownloadReturn {
  * 4. UI state is managed properly
  */
 export const useCentralizedDownload = (): UseCentralizedDownloadReturn => {
-  const { selectedBusinessProfileId } = useBusinessProfile();
+  const { selectedBusinessProfileId, selectedBusinessProfile, firstRealProfileId } = useBusinessProfile();
+  const { getBusinessProfileSubscription } = useSubscription();
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadCount, setDownloadCount] = useState(0);
   const [isLimitReached, setIsLimitReached] = useState(false);
@@ -38,6 +41,32 @@ export const useCentralizedDownload = (): UseCentralizedDownloadReturn => {
       Alert.alert('Error', 'Please select a business profile first');
       return false;
     }
+
+    const sub = selectedBusinessProfileId ? getBusinessProfileSubscription(selectedBusinessProfileId) : null;
+
+    const hasPassedDate = (dateStr: any) => {
+      if (!dateStr) return false;
+      try {
+        const date = new Date(dateStr);
+        return !isNaN(date.getTime()) && date < new Date();
+      } catch (e) {
+        return false;
+      }
+    };
+
+    const isExpiredByDate = hasPassedDate(sub?.expiryDate) || hasPassedDate(selectedBusinessProfile?.subscriptionEndDate);
+    const isSubActive = !isExpiredByDate && (
+      sub ? sub.isActive : (selectedBusinessProfile?.subscriptionStatus?.toUpperCase() === "ACTIVE")
+    );
+
+    if (!isSubActive) {
+      Alert.alert('Subscription Expired or Required', 'Please activate your business profile subscription to download posters/videos.');
+      return false;
+    }
+
+    const effectiveProfileId = (selectedBusinessProfileId.startsWith('mock_profile_') && firstRealProfileId)
+      ? firstRealProfileId
+      : selectedBusinessProfileId;
 
     // FRONTEND VALIDATION DISABLED - Now fully dependent on backend
     // Frontend guard: Check if limit is already reached
@@ -55,11 +84,11 @@ export const useCentralizedDownload = (): UseCentralizedDownloadReturn => {
     setIsDownloading(true);
 
     try {
-      console.log('🔥 [CENTRALIZED DOWNLOAD] Starting download with businessProfileId:', selectedBusinessProfileId);
+      console.log('🔥 [CENTRALIZED DOWNLOAD] Starting download with effectiveProfileId:', effectiveProfileId, '(selected:', selectedBusinessProfileId, ')');
 
       const response = await downloadService.downloadContent({
         ...params,
-        businessProfileId: selectedBusinessProfileId
+        businessProfileId: effectiveProfileId
       });
 
       // Check if backend returned daily limit reached response
@@ -91,16 +120,16 @@ export const useCentralizedDownload = (): UseCentralizedDownloadReturn => {
       if (isDailyDownloadLimitError(error)) {
         console.log('🚫 [CENTRALIZED DOWNLOAD] Daily download limit reached');
         setIsLimitReached(true);
-        
+
         emitShowDownloadLimitModal();
-        
+
         return false;
       }
 
       // Handle other errors
       const errorMessage = error.response?.data?.message || error.message || 'Download failed';
       Alert.alert('Download Error', errorMessage);
-      
+
       return false;
 
     } finally {

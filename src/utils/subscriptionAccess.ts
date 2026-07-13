@@ -8,7 +8,7 @@
 
 export type AccessState =
   | "ACTIVE"
-  | "PROCESSING" 
+  | "PROCESSING"
   | "PENDING"
   | "PAYMENT_FAILED"
   | "INACTIVE";
@@ -33,9 +33,9 @@ export function getAccessState({
   if (businessProfile) {
     const status = businessProfile.subscriptionStatus;
     const normalizedStatus = status?.toString().toUpperCase().trim();
-    
+
     console.log("[AccessState] Business profile detected, using subscriptionStatus:", normalizedStatus);
-    
+
     switch (normalizedStatus) {
       case "ACTIVE":
         return "ACTIVE";

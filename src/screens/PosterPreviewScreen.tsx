@@ -28,6 +28,9 @@ import { useBusinessProfile } from '../context/BusinessProfileContext';
 import { useCentralizedDownload } from '../hooks/useCentralizedDownload';
 import { subscribeToShowDownloadLimitModal } from '../utils/downloadLimitEvents';
 import DownloadLimitMessage from '../components/DownloadLimitMessage';
+import { useSubscription } from '../contexts/SubscriptionContext';
+import { showDownloadNotification } from '../utils/notification';
+
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -253,7 +256,8 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { isDarkMode, theme } = useTheme();
-  const { selectedBusinessProfileId } = useBusinessProfile();
+  const { selectedBusinessProfileId, selectedBusinessProfile: contextBusinessProfile } = useBusinessProfile();
+  const { getBusinessProfileSubscription } = useSubscription();
   const { downloadContent, isDownloading: isDownloadProcessing, isLimitReached } = useCentralizedDownload();
   
   // State for dynamic dimensions to handle orientation changes
@@ -485,6 +489,37 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
       return;
     }
 
+    const sub = selectedBusinessProfileId ? getBusinessProfileSubscription(selectedBusinessProfileId) : null;
+    const hasPassedDate = (dateStr: any) => {
+      if (!dateStr) return false;
+      try {
+        const date = new Date(dateStr);
+        return !isNaN(date.getTime()) && date < new Date();
+      } catch (e) {
+        return false;
+      }
+    };
+    const isExpiredByDate = hasPassedDate(sub?.expiryDate) || hasPassedDate(contextBusinessProfile?.subscriptionEndDate);
+    const isSubActive = !isExpiredByDate && (
+      sub ? sub.isActive : (contextBusinessProfile?.subscriptionStatus?.toUpperCase() === "ACTIVE")
+    );
+
+    console.log('🔍 [DEBUG SHARE] Subscription Status Analysis:', {
+      profileId: selectedBusinessProfileId,
+      subExists: !!sub,
+      subIsActive: sub?.isActive,
+      subExpiryDate: sub?.expiryDate,
+      profileExpiryDate: contextBusinessProfile?.subscriptionEndDate,
+      isExpiredByDate,
+      isSubActive,
+      profileStatus: contextBusinessProfile?.subscriptionStatus
+    });
+
+    if (!isSubActive) {
+      Alert.alert('Subscription Expired or Required', 'Please activate your business profile subscription to download/share posters.');
+      return;
+    }
+
     try {
       setIsSharing(true);
       const shareableUri = await getShareablePosterUri();
@@ -516,6 +551,37 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
      const downloadPoster = async () => {
       if (!capturedImageUri) {
         Alert.alert('Error', 'No poster image available to download');
+        return;
+      }
+
+      const sub = selectedBusinessProfileId ? getBusinessProfileSubscription(selectedBusinessProfileId) : null;
+      const hasPassedDate = (dateStr: any) => {
+        if (!dateStr) return false;
+        try {
+          const date = new Date(dateStr);
+          return !isNaN(date.getTime()) && date < new Date();
+        } catch (e) {
+          return false;
+        }
+      };
+      const isExpiredByDate = hasPassedDate(sub?.expiryDate) || hasPassedDate(contextBusinessProfile?.subscriptionEndDate);
+      const isSubActive = !isExpiredByDate && (
+        sub ? sub.isActive : (contextBusinessProfile?.subscriptionStatus?.toUpperCase() === "ACTIVE")
+      );
+
+      console.log('🔍 [DEBUG DOWNLOAD] Subscription Status Analysis:', {
+        profileId: selectedBusinessProfileId,
+        subExists: !!sub,
+        subIsActive: sub?.isActive,
+        subExpiryDate: sub?.expiryDate,
+        profileExpiryDate: contextBusinessProfile?.subscriptionEndDate,
+        isExpiredByDate,
+        isSubActive,
+        profileStatus: contextBusinessProfile?.subscriptionStatus
+      });
+
+      if (!isSubActive) {
+        Alert.alert('Subscription Expired or Required', 'Please activate your business profile subscription to download/share posters.');
         return;
       }
 
@@ -613,6 +679,12 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
              '✅ Poster saved to gallery!', 
              ToastAndroid.LONG
            );
+           showDownloadNotification(
+             'Download completed',
+             'Your poster has been saved to your Photos app.',
+             capturedImageUri,
+             'image/*'
+           );
          } else {
            Alert.alert(
              'Success!', 
@@ -701,19 +773,25 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
        
        console.log('=== CENTRALIZED DOWNLOAD COMPLETE ===');
 
-       // Show success message
-       if (Platform.OS === 'android') {
-         ToastAndroid.show(
-           '✅ Poster saved to gallery!', 
-           ToastAndroid.LONG
-         );
-       } else {
-         Alert.alert(
-           'Success!', 
-           'Your poster has been saved to your Photos app.',
-           [{ text: 'OK' }]
-         );
-       }
+        // Show success message
+        if (Platform.OS === 'android') {
+          ToastAndroid.show(
+            '✅ Poster saved to gallery!', 
+            ToastAndroid.LONG
+          );
+          showDownloadNotification(
+            'Download completed',
+            'Your poster has been saved to your Photos app.',
+            capturedImageUri,
+            'image/*'
+          );
+        } else {
+          Alert.alert(
+            'Success!', 
+            'Your poster has been saved to your Photos app.',
+            [{ text: 'OK' }]
+          );
+        }
        
      } catch (error) {
        console.error('❌ Download failed:', error);

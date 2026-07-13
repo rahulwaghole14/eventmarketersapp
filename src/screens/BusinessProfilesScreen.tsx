@@ -624,14 +624,26 @@ const BusinessProfilesScreen: React.FC = () => {
     }
   }, []);
 
+  const hasPassedDate = (dateStr: any) => {
+    if (!dateStr) return false;
+    try {
+      const date = new Date(dateStr);
+      return !isNaN(date.getTime()) && date < new Date();
+    } catch (e) {
+      return false;
+    }
+  };
+
   const SubscriptionStatusBadge = React.memo<{
     status: any;
     theme: any;
     profileData?: any;
   }>(({ status, theme, profileData }) => {
-    // Use only subscriptionStatus for logic as per requirements
-    const backendStatus = profileData?.subscriptionStatus;
-    const isActive = backendStatus?.toUpperCase() === "ACTIVE";
+    const isExpiredByDate = hasPassedDate(status?.expiryDate) || hasPassedDate(profileData?.subscriptionEndDate);
+    
+    // Use context subscription status if available, fallback to backend status
+    const backendStatus = isExpiredByDate ? 'expired' : (status ? status.status : profileData?.subscriptionStatus);
+    const isActive = isExpiredByDate ? false : (status ? status.isActive : (profileData?.subscriptionStatus?.toUpperCase() === "ACTIVE"));
 
     if (!backendStatus) return null;
 
@@ -770,8 +782,10 @@ const BusinessProfilesScreen: React.FC = () => {
       subscriptionContext: subscription?.status
     });
 
-    const isActive = item?.subscriptionStatus?.toUpperCase() === "ACTIVE";
-    const isProcessing = item?.subscriptionStatus?.toUpperCase() === "PROCESSING";
+    const isExpiredByDate = hasPassedDate(subscription?.expiryDate) || hasPassedDate(item?.subscriptionEndDate);
+    const isActive = isExpiredByDate ? false : (subscription ? subscription.isActive : (item?.subscriptionStatus?.toUpperCase() === "ACTIVE"));
+    const isProcessing = subscription ? (subscription.status === 'pending' || subscription.status === 'processing') : (item?.subscriptionStatus?.toUpperCase() === "PROCESSING");
+    const isExpired = isExpiredByDate || (subscription ? (subscription.status === 'expired') : (item?.subscriptionStatus?.toUpperCase() === "EXPIRED"));
 
     // CRITICAL FIX: Check activation pending state from context with enhanced debugging
     const isPendingActivation = isActivationPending(item.id);
@@ -879,7 +893,9 @@ const BusinessProfilesScreen: React.FC = () => {
                     )}
                   </Text>
                   <Icon name="lock" size={20} color={theme.colors.error} />
-                  <Text style={[styles.lockText, { color: theme.colors.text }]}>Subscription Required</Text>
+                  <Text style={[styles.lockText, { color: theme.colors.text }]}>
+                    {isExpired ? 'Subscription Expired' : 'Subscription Required'}
+                  </Text>
                   <TouchableOpacity
                     style={[styles.activateButton, { backgroundColor: theme.colors.primary, opacity: 0.9 }]}
                     onPress={() => onPay(item)}

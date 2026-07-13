@@ -101,6 +101,7 @@ export type MainStackParamList = {
   Templates: undefined;
   Greetings: undefined;
   Profile: undefined;
+  Notifications: undefined;
 };
 
 export type TabParamList = {

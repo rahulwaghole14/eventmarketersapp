@@ -29,6 +29,7 @@ import { CameraRoll } from '@react-native-camera-roll/camera-roll';
 import RNFS from 'react-native-fs';
 import LinearGradient from 'react-native-linear-gradient';
 // import videoProcessingService from '../services/videoProcessingService'; // Removed - service deleted
+import { showDownloadNotification } from '../utils/notification';
 
 const OMBRE_GRADIENTS: Record<string, string[]> = {
   'ombre-sunset': ['#FF6B6B', '#FFA500', '#FFD700'],
@@ -214,8 +215,14 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
 
   const { videoWidth, videoHeight, availableWidth, availableHeight } = getResponsiveDimensions(insets);
   const { selectedVideo, selectedLanguage, selectedTemplateId, layers, selectedProfile, processedVideoPath: initialProcessedVideoPath, canvasData } = route.params;
-  const { isSubscribed } = useSubscription();
+  const { isSubscribed, getBusinessProfileSubscription, refreshBusinessProfileSubscription } = useSubscription();
   const { selectedBusinessProfile } = useBusinessProfile();
+
+  useEffect(() => {
+    if (selectedBusinessProfile?.id) {
+      refreshBusinessProfileSubscription(selectedBusinessProfile.id);
+    }
+  }, [selectedBusinessProfile?.id, refreshBusinessProfileSubscription]);
 
   // Unified access state based on business profile or global subscription
   const accessState = getAccessState({
@@ -394,6 +401,27 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
 
   // Share functionality
   const handleShare = async () => {
+    const profileId = selectedBusinessProfile?.id;
+    const sub = profileId ? getBusinessProfileSubscription(profileId) : null;
+    const hasPassedDate = (dateStr: any) => {
+      if (!dateStr) return false;
+      try {
+        const date = new Date(dateStr);
+        return !isNaN(date.getTime()) && date < new Date();
+      } catch (e) {
+        return false;
+      }
+    };
+    const isExpiredByDate = hasPassedDate(sub?.expiryDate) || hasPassedDate(selectedBusinessProfile?.subscriptionEndDate);
+    const isSubActive = !isExpiredByDate && (
+      sub ? sub.isActive : (selectedBusinessProfile?.subscriptionStatus?.toUpperCase() === "ACTIVE")
+    );
+
+    if (!isSubActive) {
+      Alert.alert('Subscription Expired or Required', 'Please activate your business profile subscription to download/share videos.');
+      return;
+    }
+
     setIsSharing(true);
     try {
       if (!processedVideoPath) {
@@ -457,6 +485,27 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
 
   // Download functionality - save video to gallery
   const handleDownload = async () => {
+    const profileId = selectedBusinessProfile?.id;
+    const sub = profileId ? getBusinessProfileSubscription(profileId) : null;
+    const hasPassedDate = (dateStr: any) => {
+      if (!dateStr) return false;
+      try {
+        const date = new Date(dateStr);
+        return !isNaN(date.getTime()) && date < new Date();
+      } catch (e) {
+        return false;
+      }
+    };
+    const isExpiredByDate = hasPassedDate(sub?.expiryDate) || hasPassedDate(selectedBusinessProfile?.subscriptionEndDate);
+    const isSubActive = !isExpiredByDate && (
+      sub ? sub.isActive : (selectedBusinessProfile?.subscriptionStatus?.toUpperCase() === "ACTIVE")
+    );
+
+    if (!isSubActive) {
+      Alert.alert('Subscription Expired or Required', 'Please activate your business profile subscription to download/share videos.');
+      return;
+    }
+
     try {
       setIsDownloading(true);
       setDownloadProgress(0);
@@ -580,6 +629,14 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
 
       // Show success message
       setShowDownloadSuccess(true);
+
+      // Trigger local heads-up notification
+      showDownloadNotification(
+        'Download completed',
+        'Your video has been saved to your gallery.',
+        finalVideoPath,
+        'video/*'
+      );
 
       // Hide success message after 3 seconds
       setTimeout(() => {

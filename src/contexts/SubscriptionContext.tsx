@@ -69,13 +69,13 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
     quarterlySubscriptions: 0,
     yearlySubscriptions: 0,
   });
-  
+
   // CRITICAL: Payment lock to prevent subscription updates during payment
   const [paymentInProgress, setPaymentInProgress] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const lastRefreshTimeRef = useRef<number>(0);
   const isRefreshingRef = useRef<boolean>(false);
-  
+
   // Autopay state
   const [autopayState, setAutopayState] = useState<AutopayState>({
     isAutopayActive: false,
@@ -87,17 +87,17 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
   useEffect(() => {
     const currentUser = authService.getCurrentUser();
     const newUserId = currentUser?.id || null;
-    
+
     console.log('👤 SubscriptionContext - User check:', {
       previousUserId: currentUserId,
       newUserId: newUserId,
       userChanged: currentUserId !== newUserId
     });
-    
+
     // If user changed (login, logout, or switch user), reset all state
     if (currentUserId !== newUserId) {
       console.log('🔄 User changed, resetting subscription state...');
-      
+
       // Clear all subscription state
       setIsSubscribed(false);
       setSubscriptionStatus(null);
@@ -112,7 +112,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
         quarterlySubscriptions: 0,
         yearlySubscriptions: 0,
       });
-      
+
       // Clear Autopay state
       setAutopayState({
         isAutopayActive: false,
@@ -122,10 +122,10 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
 
       // Clear Business Profile Subscriptions
       setBusinessProfileSubscriptions({});
-      
+
       // Update current user ID
       setCurrentUserId(newUserId);
-      
+
       // If there's a new user, fetch their subscription data
       if (newUserId) {
         console.log('✅ New user detected, fetching subscription data for:', newUserId);
@@ -143,7 +143,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
   useEffect(() => {
     const currentUser = authService.getCurrentUser();
     setCurrentUserId(currentUser?.id || null);
-    
+
     if (currentUser?.id) {
       refreshSubscription();
       refreshPlans(); // Fetch plans
@@ -157,12 +157,12 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
     const handleAuthStateChange = (user: any) => {
       const newUserId = user?.id || null;
       console.log('🔔 Auth state changed, updating subscription context. User:', newUserId, 'Status:', user?.subscriptionStatus);
-      
+
       // Update our isSubscribed and subscriptionStatus states from the profile API source
       if (user) {
         const isCurrentlyActive = authService.isSubscriptionActive();
         setIsSubscribed(isCurrentlyActive);
-        
+
         // Only update subscriptionStatus if we don't have one or if the source changed
         if (user.subscriptionStatus) {
           // If we have a fuller object from subscriptionApi, we might want to keep it,
@@ -174,14 +174,14 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
           } as any));
         }
       }
-      
+
       // Trigger user change detection
       setCurrentUserId(newUserId);
     };
-    
+
     // Subscribe to auth state changes
     authService.onAuthStateChanged(handleAuthStateChange);
-    
+
     // Cleanup subscription on unmount
     return () => {
       // authService doesn't have an unsubscribe method, but that's okay
@@ -197,30 +197,30 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
         console.log('🚫 PAYMENT LOCK: Subscription refresh blocked - payment in progress');
         return;
       }
-      
+
       // Prevent duplicate API calls - use cached data if refreshed within last 5 seconds
       const now = Date.now();
       const cacheValidityMs = 5000; // 5 seconds
-      
+
       if (isRefreshingRef.current) {
         console.log('⏭️ Subscription refresh already in progress, skipping...');
         return;
       }
-      
+
       if (!force && now - lastRefreshTimeRef.current < cacheValidityMs) {
         console.log('📦 Using cached subscription data (refreshed', Math.round((now - lastRefreshTimeRef.current) / 1000), 'seconds ago)');
         return;
       }
-      
+
       isRefreshingRef.current = true;
       setIsLoading(true);
       console.log('🔄 SUBSCRIPTION_STATUS_FETCH - Refreshing subscription status...');
-      
+
       const currentUser = authService.getCurrentUser();
       const userId = currentUser?.id;
-      
+
       console.log('🔍 Current user for subscription check:', userId);
-      
+
       if (!userId) {
         console.log('⚠️ No user ID available, clearing subscription state');
         setIsSubscribed(false);
@@ -241,12 +241,12 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
       }
 
       const response = await subscriptionApi.getStatus();
-      
+
       if (response.success) {
         const status = response.data ?? response;
         console.log("SUBSCRIPTION_CONTEXT_INPUT", status);
         console.log('✅ Subscription status fetched:', JSON.stringify(status, null, 2));
-        
+
         console.log("SUBSCRIPTION_CONTEXT_STATUS", status);
         console.log("SUBSCRIPTION_CONTEXT_FIELDS", {
           isActive: status?.isActive,
@@ -254,13 +254,13 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
           planName: status?.planName,
           expiryDate: status?.expiryDate
         });
-        
+
         // Check if subscription is active and not expired
         // Make status check case-insensitive
         const normalizedStatus = status.status?.toLowerCase();
-        const isNotExpired = status.expiryDate ? new Date(status.expiryDate) > new Date() : 
-                            status.endDate ? new Date(status.endDate) > new Date() : true;
-        
+        const isNotExpired = status.expiryDate ? new Date(status.expiryDate) > new Date() :
+          status.endDate ? new Date(status.endDate) > new Date() : true;
+
         console.log('SUBSCRIPTION_CONTEXT_PARSING:', {
           'status.isActive': status.isActive,
           'status.status': status.status,
@@ -273,11 +273,11 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
           'status.razorpaySubscriptionId': status?.razorpaySubscriptionId,
           'status.paymentId': status?.paymentId
         });
-        
+
         // Evaluate access based on backend isActive flag or explicit active status.
         // For Autopay and webhooks, paymentId may not always be populated side-by-side with isActive.
         const accessGranted = status?.isActive === true || normalizedStatus === 'active';
-        
+
         console.log('🔍 CRITICAL ACCESS CHECK - Payment Verified:', {
           'status.status': status?.status,
           'razorpaySubscriptionId': status?.razorpaySubscriptionId,
@@ -285,11 +285,11 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
           'accessGranted': accessGranted,
           'REASON': accessGranted ? 'PAYMENT VERIFIED' : 'PAYMENT NOT VERIFIED'
         });
-        
+
         setIsSubscribed(Boolean(accessGranted));
         setSubscriptionStatus(status);
         lastRefreshTimeRef.current = now;
-        
+
         // CRITICAL: Update authService.currentUser to maintain consistency
         const currentUser = authService.getCurrentUser();
         if (currentUser) {
@@ -297,7 +297,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
           authService.setCurrentUser(currentUser);
           console.log('🔄 Updated authService.currentUser.subscriptionStatus to:', status.status);
         }
-        
+
         console.log('✅ SUBSCRIPTION_UPDATED - Subscription status updated:', {
           isActive: Boolean(accessGranted),
           normalizedStatus,
@@ -307,7 +307,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
           expiryDate: status.expiryDate,
           endDate: status.endDate
         });
-        
+
         console.log('🔐 Subscription access:', accessGranted ? 'GRANTED ✅' : 'DENIED ❌');
         console.log('🔍 Status details:', {
           isActive: status.isActive,
@@ -342,10 +342,10 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
   // Polling mechanism for pending subscriptions
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
-    
+
     // Check if the current subscription status is literally 'pending'
     const isPending = subscriptionStatus?.status?.toLowerCase() === 'pending';
-    
+
     if (isPending && currentUserId && !paymentInProgress) {
       console.log('⏳ Subscription is PENDING. Starting active polling every 5 seconds...');
       intervalId = setInterval(() => {
@@ -353,7 +353,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
         refreshSubscription(true); // Force bypass cache
       }, 5000); // Poll every 5 seconds
     }
-    
+
     return () => {
       if (intervalId) {
         clearInterval(intervalId);
@@ -367,7 +367,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
     try {
       console.log('🔄 Refreshing subscription plans...');
       const response = await subscriptionApi.getPlans();
-      
+
       if (response.success) {
         setPlans(response.data || []);
         console.log('✅ Plans refreshed successfully:', response.data?.length || 0, 'plans');
@@ -390,12 +390,12 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
       console.log('🔄 About to call API endpoints...');
       console.log('🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦');
       console.log('');
-      
+
       const [transactionsData, statsData] = await Promise.all([
         transactionHistoryService.getTransactions(),
         transactionHistoryService.getTransactionStats(),
       ]);
-      
+
       console.log('');
       console.log('🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦');
       console.log('📊 SubscriptionContext - API CALLS COMPLETED');
@@ -404,10 +404,10 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
       console.log('📊 SubscriptionContext - Stats fetched:', statsData);
       console.log('🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦');
       console.log('');
-      
+
       setTransactions(transactionsData);
       setTransactionStats(statsData);
-      
+
       console.log('✅ SubscriptionContext - State updated with transactions');
     } catch (error) {
       console.error('❌ SubscriptionContext - Error refreshing transactions:', error);
@@ -421,12 +421,12 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
   useEffect(() => {
     const currentNormalizedStatus = subscriptionStatus?.status?.toLowerCase() || null;
     const previousStatus = previousStatusRef.current;
-    
+
     if (previousStatus === 'pending' && currentNormalizedStatus === 'active') {
       console.log('🔄 Subscription transitioned from PENDING to ACTIVE. Automatically refreshing transactions...');
       refreshTransactions();
     }
-    
+
     // Update the ref for next render
     previousStatusRef.current = currentNormalizedStatus;
   }, [subscriptionStatus?.status, refreshTransactions]);
@@ -470,7 +470,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
       quarterlySubscriptions: 0,
       yearlySubscriptions: 0,
     });
-    
+
     // Clear Autopay state
     setAutopayState({
       isAutopayActive: false,
@@ -480,7 +480,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
 
     // Clear Business Profile Subscriptions
     setBusinessProfileSubscriptions({});
-    
+
     setCurrentUserId(null);
     console.log('✅ All subscription data cleared');
   }, []);
@@ -501,7 +501,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
     // Check if subscription is expired (check both expiryDate and endDate)
     const expiryDate = subscriptionStatus.expiryDate || subscriptionStatus.endDate;
     const isExpired = expiryDate && new Date(expiryDate) <= new Date();
-    
+
     console.log(`PREMIUM_ACCESS_EXPIRY_CHECK - Feature: ${feature}`, {
       'expiryDate': expiryDate,
       'currentDate': new Date(),
@@ -516,7 +516,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
 
     // Check if subscription status is active (case-insensitive)
     const normalizedStatus = subscriptionStatus.status?.toLowerCase();
-    
+
     console.log(`PREMIUM_ACCESS_STATUS_CHECK - Feature: ${feature}`, {
       'subscriptionStatus.isActive': subscriptionStatus.isActive,
       'subscriptionStatus.status': subscriptionStatus.status,
@@ -524,7 +524,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
       'isActiveCheck': subscriptionStatus.isActive === true,
       'statusCheck': normalizedStatus === 'active'
     });
-    
+
     // Ensure isActive === true OR status === 'active'
     if (subscriptionStatus.isActive !== true && normalizedStatus !== 'active') {
       console.log(`🔒 Premium access denied for feature: ${feature} (subscription status: isActive=${subscriptionStatus.isActive}, status=${normalizedStatus})`);
@@ -539,14 +539,14 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
   const enableAutopay = useCallback(async (planId: string) => {
     try {
       setAutopayState(prev => ({ ...prev, autopayLoading: true }));
-      
+
       console.log('🔄 Enabling Autopay for plan:', planId);
-      
+
       // ONLY call API and return response - NO state updates
       const autopayDetails = await subscriptionApi.createAutopay(planId);
-      
+
       console.log('✅ Autopay setup created:', autopayDetails);
-      
+
       return autopayDetails;
     } catch (error) {
       console.error('❌ Error enabling Autopay:', error);
@@ -559,18 +559,18 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
   const disableAutopay = useCallback(async () => {
     try {
       setAutopayState(prev => ({ ...prev, autopayLoading: true }));
-      
+
       console.log('🔄 Disabling Autopay');
-      
+
       await subscriptionApi.cancelAutopay();
-      
+
       // Update local state
       setAutopayState({
         isAutopayActive: false,
         nextBillingDate: null,
         autopayLoading: false,
       });
-      
+
       console.log('✅ Autopay disabled successfully');
     } catch (error) {
       console.error('❌ Error disabling Autopay:', error);
@@ -583,15 +583,15 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
   const refreshAutopayStatus = useCallback(async () => {
     try {
       console.log('🔄 Refreshing Autopay status');
-      
+
       const autopayStatus = await subscriptionApi.getAutopayStatus();
-      
+
       setAutopayState({
         isAutopayActive: autopayStatus.isActive || false,
         nextBillingDate: autopayStatus.nextBillingDate || null,
         autopayLoading: false,
       });
-      
+
       console.log('✅ Autopay status refreshed:', autopayStatus);
     } catch (error) {
       console.error('❌ Error refreshing Autopay status:', error);
@@ -615,7 +615,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
     try {
       console.log('🔄 Refreshing subscription for business profile:', profileId);
       const response = await subscriptionApi.getBusinessProfileSubscriptionStatus(profileId);
-      
+
       if (response.success) {
         setBusinessProfileSubscriptions(prev => ({
           ...prev,
@@ -629,8 +629,8 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
   }, []);
 
   return (
-    <SubscriptionContext.Provider value={{ 
-      isSubscribed, 
+    <SubscriptionContext.Provider value={{
+      isSubscribed,
       setIsSubscribed,
       subscriptionStatus,
       isLoading,

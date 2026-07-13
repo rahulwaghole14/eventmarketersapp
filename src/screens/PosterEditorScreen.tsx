@@ -2361,7 +2361,9 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   const getLayerEffectiveSize = useCallback((layer: Layer) => {
     if (layer.type === 'text') {
       const fontSize = layer.style?.fontSize ?? 16;
-      const contentLength = layer.content?.length ?? 1;
+      const lines = (layer.content ?? '').split('\n');
+      const numLines = lines.length;
+      const longestLineLength = Math.max(...lines.map(line => line.length), 1);
 
       // Tablet/Foldable adjustment factor - fonts render slightly differently on larger screens
       const deviceAdjust = (isTabletDevice || isFoldableExpanded) ? 1.15 : 1.0;
@@ -2383,7 +2385,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         buffer = 8;
       }
 
-      const contentWidthEstimate = (contentLength * fontSize * multiplier) + buffer;
+      const contentWidthEstimate = (longestLineLength * fontSize * multiplier) + buffer;
       const containerWidth = layer.size?.width || canvasWidth;
 
       const estimatedWidth = Math.min(
@@ -2391,7 +2393,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         Math.max(fontSize, Math.min(contentWidthEstimate, containerWidth))
       );
 
-      const estimatedHeight = Math.min(layer.size?.height || canvasHeight, fontSize * 1.3);
+      const estimatedHeight = Math.min(layer.size?.height || canvasHeight, fontSize * 1.3 * numLines);
 
       return {
         width: estimatedWidth,
@@ -2671,15 +2673,20 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
       // Ensure text is truncated to 100 characters (safety measure)
       const truncatedText = newText.slice(0, 100);
 
-      // Calculate dynamic width based on text content (approximate)
-      const estimatedWidth = Math.max(truncatedText.length * 10, 50); // Minimum 50px width
+      // Calculate dynamic width and height based on multiline content
+      const lines = truncatedText.split('\n');
+      const numLines = lines.length;
+      const longestLineLength = Math.max(...lines.map(l => l.length), 1);
+
+      const estimatedWidth = Math.max(longestLineLength * 10, 50); // Minimum 50px width
+      const estimatedHeight = Math.max(numLines * 24, 40); // Estimate 24px per line, minimum 40px
 
       const newLayer: Layer = {
         id: generateId(),
         type: 'text',
         content: truncatedText,
-        position: { x: canvasWidth / 2 - estimatedWidth / 2, y: canvasHeight / 2 - 20 },
-        size: { width: estimatedWidth, height: 40 },
+        position: { x: canvasWidth / 2 - estimatedWidth / 2, y: canvasHeight / 2 - estimatedHeight / 2 },
+        size: { width: estimatedWidth, height: estimatedHeight },
         rotation: 0,
         zIndex: layers.length,
         style: {
@@ -3272,8 +3279,8 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                     alignSelf: 'flex-start',
                     includeFontPadding: false,
                   }}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit={true}
+                  numberOfLines={layer.content.split('\n').length}
+                  adjustsFontSizeToFit={layer.content.split('\n').length === 1}
                   minimumFontScale={0.4}
                 >
                   {layer.content}
