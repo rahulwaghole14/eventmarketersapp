@@ -11,6 +11,7 @@ import {
   Dimensions,
   Image,
   Modal,
+  ScrollView,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,10 +35,28 @@ import responsiveUtils, {
   isLandscape
 } from '../utils/responsiveUtils';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-
 const LoginScreen: React.FC = ({ navigation }: any) => {
   const { isDarkMode, theme } = useTheme();
+
+  // Dynamic dimensions hook
+  const [dimensions, setDimensions] = useState(() => {
+    const { width, height } = Dimensions.get('window');
+    return { width, height };
+  });
+
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setDimensions({ width: window.width, height: window.height });
+    });
+    return () => subscription?.remove();
+  }, []);
+
+  const screenWidth = dimensions.width;
+  const screenHeight = dimensions.height;
+
+  const styles = useMemo(() => {
+    return getStyles(screenWidth, screenHeight, theme);
+  }, [screenWidth, screenHeight, theme]);
   const [phone, setPhone] = useState('');
   const [phoneFocused, setPhoneFocused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -162,93 +181,99 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
           style={styles.keyboardAvoidingView}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View style={styles.content}>
-            {/* Header */}
-            <View style={styles.header}>
-              <Image
-                source={require('../assets/MainLogo/main_logo.png')}
-                style={styles.logo}
-                resizeMode="contain"
-              />
-              <Text style={[styles.title, { color: theme.colors.text }]}>Welcome Back</Text>
-              <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Sign in to continue your journey</Text>
-            </View>
-
-            {/* Form */}
-            <View style={[styles.formContainer, { backgroundColor: theme.colors.cardBackground }]}>
-
-              <View style={styles.inputWrapper}>
-                <Text style={[styles.inputLabel, { color: theme.colors.text }]}>WhatsApp Mobile Number <Text style={styles.redAsteriskText}>*</Text></Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      color: theme.colors.text,
-                      borderColor: phoneValidationError ? theme.colors.error : (phoneFocused ? theme.colors.primary : theme.colors.border),
-                      backgroundColor: theme.colors.inputBackground,
-                    }
-                  ]}
-                  value={phone}
-                  onChangeText={(value) => {
-                    const digitsOnly = value.replace(/\D/g, '');
-                    setPhone(digitsOnly);
-                    if (phoneValidationError) setPhoneValidationError('');
-                  }}
-                  onFocus={() => setPhoneFocused(true)}
-                  onBlur={() => setPhoneFocused(false)}
-                  placeholder="Enter 10 digit phone number"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  keyboardType="phone-pad"
-                  maxLength={10}
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.content}>
+              {/* Header */}
+              <View style={styles.header}>
+                <Image
+                  source={require('../assets/MainLogo/main_logo.png')}
+                  style={styles.logo}
+                  resizeMode="contain"
                 />
-                {phoneValidationError ? (
-                  <View style={styles.errorContainer}>
-                    <Icon name="error" size={16} color={theme.colors.error} />
-                    <Text style={[styles.errorText, { color: theme.colors.error }]}>
-                      {phoneValidationError}
+                <Text style={[styles.title, { color: theme.colors.text }]}>Welcome Back</Text>
+                <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Sign in to continue your journey</Text>
+              </View>
+
+              {/* Form */}
+              <View style={[styles.formContainer, { backgroundColor: theme.colors.cardBackground }]}>
+
+                <View style={styles.inputWrapper}>
+                  <Text style={[styles.inputLabel, { color: theme.colors.text }]}>WhatsApp Mobile Number <Text style={styles.redAsteriskText}>*</Text></Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        color: theme.colors.text,
+                        borderColor: phoneValidationError ? theme.colors.error : (phoneFocused ? theme.colors.primary : theme.colors.border),
+                        backgroundColor: theme.colors.inputBackground,
+                      }
+                    ]}
+                    value={phone}
+                    onChangeText={(value) => {
+                      const digitsOnly = value.replace(/\D/g, '');
+                      setPhone(digitsOnly);
+                      if (phoneValidationError) setPhoneValidationError('');
+                    }}
+                    onFocus={() => setPhoneFocused(true)}
+                    onBlur={() => setPhoneFocused(false)}
+                    placeholder="Enter 10 digit phone number"
+                    placeholderTextColor={theme.colors.textSecondary}
+                    keyboardType="phone-pad"
+                    maxLength={10}
+                  />
+                  {phoneValidationError ? (
+                    <View style={styles.errorContainer}>
+                      <Icon name="error" size={16} color={theme.colors.error} />
+                      <Text style={[styles.errorText, { color: theme.colors.error }]}>
+                        {phoneValidationError}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    styles.signInButton,
+                    { backgroundColor: isPhoneValid ? theme.colors.buttonPrimary : '#A0A0A0' },
+                    (isLoading || !isPhoneValid) && styles.buttonDisabled
+                  ]}
+                  onPress={handleSignIn}
+                  disabled={isLoading || !isPhoneValid}
+                >
+                  <Text style={[styles.signInButtonText, { color: '#ffffff' }]}>
+                    {isLoading ? 'SIGNING IN...' : 'SIGN IN'}
+                  </Text>
+                </TouchableOpacity>
+
+                <View style={styles.footer}>
+                  <Text style={[styles.footerText, { color: theme.colors.textSecondary }]}>
+                    Don't have an account?{' '}
+                  </Text>
+                  <TouchableOpacity onPress={() => navigation.navigate('Registration')}>
+                    <Text style={[styles.footerLink, { color: theme.colors.primary }]}>
+                      Sign Up
                     </Text>
-                  </View>
-                ) : null}
-              </View>
+                  </TouchableOpacity>
+                </View>
 
-              <TouchableOpacity
-                style={[
-                  styles.signInButton,
-                  { backgroundColor: isPhoneValid ? theme.colors.buttonPrimary : '#A0A0A0' },
-                  (isLoading || !isPhoneValid) && styles.buttonDisabled
-                ]}
-                onPress={handleSignIn}
-                disabled={isLoading || !isPhoneValid}
-              >
-                <Text style={[styles.signInButtonText, { color: '#ffffff' }]}>
-                  {isLoading ? 'SIGNING IN...' : 'SIGN IN'}
-                </Text>
-              </TouchableOpacity>
-
-              <View style={styles.footer}>
-                <Text style={[styles.footerText, { color: theme.colors.textSecondary }]}>
-                  Don't have an account?{' '}
-                </Text>
-                <TouchableOpacity onPress={() => navigation.navigate('Registration')}>
-                  <Text style={[styles.footerLink, { color: theme.colors.primary }]}>
-                    Sign Up
+                {/* Privacy Policy Link */}
+                <View style={styles.privacyFooter}>
+                  <Text style={[styles.privacyFooterText, { color: theme.colors.textSecondary }]}>
+                    By signing in, you agree to our{' '}
                   </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Privacy Policy Link */}
-              <View style={styles.privacyFooter}>
-                <Text style={[styles.privacyFooterText, { color: theme.colors.textSecondary }]}>
-                  By signing in, you agree to our{' '}
-                </Text>
-                <TouchableOpacity onPress={() => navigation.navigate('PrivacyPolicy')}>
-                  <Text style={[styles.privacyFooterLink, { color: theme.colors.primary }]}>
-                    Privacy Policy
-                  </Text>
-                </TouchableOpacity>
+                  <TouchableOpacity onPress={() => navigation.navigate('PrivacyPolicy')}>
+                    <Text style={[styles.privacyFooterLink, { color: theme.colors.primary }]}>
+                      Privacy Policy
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
-          </View>
+          </ScrollView>
         </KeyboardAvoidingView>
       </LinearGradient>
 
@@ -319,7 +344,7 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (screenWidth: number, screenHeight: number, theme: any) => StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -328,6 +353,10 @@ const styles = StyleSheet.create({
   },
   keyboardAvoidingView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   content: {
     flex: 1,

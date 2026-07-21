@@ -127,6 +127,7 @@ interface HierarchicalSearchItem {
 }
 
 const TemplateCard: React.FC<TemplateCardProps> = React.memo(({ item, cardWidth, theme, onPress, getThumbnailUrl }) => {
+  const styles = globalStyles || {};
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
   const animationRef = React.useRef<Animated.CompositeAnimation | null>(null);
 
@@ -335,6 +336,7 @@ interface VideoTemplateCardProps {
 }
 
 const VideoTemplateCard: React.FC<VideoTemplateCardProps> = React.memo(({ item, cardWidth, theme, playIconSize, onPress, getThumbnailUrl }) => {
+  const styles = globalStyles || {};
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
   const animationRef = React.useRef<Animated.CompositeAnimation | null>(null);
 
@@ -446,6 +448,7 @@ interface GreetingCategoryCardProps {
 }
 
 const GreetingCategoryCard: React.FC<GreetingCategoryCardProps> = React.memo(({ item, cardWidth, theme, categoryImage, onPress, getThumbnailUrl }) => {
+  const styles = globalStyles || {};
   const handlePress = useCallback(() => {
     onPress(item, categoryImage);
   }, [item, categoryImage, onPress]);
@@ -543,6 +546,7 @@ interface GreetingCardProps {
 }
 
 const GreetingCard: React.FC<GreetingCardProps> = React.memo(({ item, cardWidth, theme, categoryTemplates, searchQuery, navigation, onCardPress, getThumbnailUrl }) => {
+  const styles = globalStyles || {};
   // Pre-compute related templates to avoid filtering on every press
   const relatedTemplates = useMemo(() => {
     return categoryTemplates.filter(t => t.id !== item.id);
@@ -728,6 +732,7 @@ const RecentSearchList: React.FC<RecentSearchListProps> = React.memo(({
   onRemoveItem,
   theme
 }) => {
+  const styles = globalStyles || {};
   // Removed debug logging to prevent console spam
   // Component only re-renders when props actually change
 
@@ -1650,6 +1655,18 @@ const HomeScreen: React.FC = React.memo(() => {
   // Dynamic device detection that updates on rotation
   const isTabletDevice = useMemo(() => screenWidth >= 768, [screenWidth]);
   const isLandscapeMode = useMemo(() => screenWidth > screenHeight, [screenWidth, screenHeight]);
+
+  const styles = useMemo(() => {
+    const computedStyles = getStyles(
+      dimensions.width,
+      dimensions.height,
+      isTabletDevice,
+      isLandscapeMode,
+      theme
+    );
+    globalStyles = computedStyles;
+    return computedStyles;
+  }, [dimensions, isTabletDevice, isLandscapeMode, theme]);
 
   // Responsive icon sizes
   const getIconSize = useCallback((baseSize: number) => {
@@ -8607,22 +8624,79 @@ const HomeScreen: React.FC = React.memo(() => {
 
 HomeScreen.displayName = 'HomeScreen';
 
-// Get dynamic screen dimensions
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+let globalStyles: any = null;
 
-// Responsive helper functions
-const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
-const verticalScale = (size: number) => (SCREEN_HEIGHT / 667) * size;
+// Global fallback dimensions and helpers for top-level subcomponents (TemplateCard, etc.)
+const { width: FALLBACK_WIDTH, height: FALLBACK_HEIGHT } = Dimensions.get('window');
+const scale = (size: number) => (FALLBACK_WIDTH / 375) * size;
+const verticalScale = (size: number) => (FALLBACK_HEIGHT / 667) * size;
 const moderateScale = (size: number, factor = 0.5) => size + (scale(size) - size) * factor;
-
-// Responsive values
 const getResponsiveValue = (small: number, medium: number, large: number) => {
-  if (SCREEN_WIDTH < 400) return small;
-  if (SCREEN_WIDTH < 768) return medium;
+  if (FALLBACK_WIDTH < 400) return small;
+  if (FALLBACK_WIDTH < 768) return medium;
   return large;
 };
 
-const styles = StyleSheet.create({
+// Get dynamic styles function
+const getStyles = (
+  SCREEN_WIDTH: number,
+  SCREEN_HEIGHT: number,
+  isTabletDevice: boolean,
+  isLandscapeMode: boolean,
+  theme: any
+) => {
+  // Responsive helper functions
+  const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
+  const verticalScale = (size: number) => (SCREEN_HEIGHT / 667) * size;
+  const moderateScale = (size: number, factor = 0.5) => size + (scale(size) - size) * factor;
+
+  const isSmallScreen = SCREEN_WIDTH < 375;
+  const isMediumScreen = SCREEN_WIDTH >= 375 && SCREEN_WIDTH < 414;
+
+  const responsiveSpacing = {
+    xs: isSmallScreen ? 4 : isMediumScreen ? 6 : 8,
+    sm: isSmallScreen ? 8 : isMediumScreen ? 12 : 16,
+    md: isSmallScreen ? 12 : isMediumScreen ? 16 : 20,
+    lg: isSmallScreen ? 16 : isMediumScreen ? 20 : 24,
+    xl: isSmallScreen ? 20 : isMediumScreen ? 24 : 32,
+    xxl: isSmallScreen ? 24 : isMediumScreen ? 32 : 40,
+  };
+
+  const responsiveFontSize = {
+    xs: isSmallScreen ? 10 : isMediumScreen ? 12 : 14,
+    sm: isSmallScreen ? 12 : isMediumScreen ? 14 : 16,
+    md: isSmallScreen ? 14 : isMediumScreen ? 16 : 18,
+    lg: isSmallScreen ? 16 : isMediumScreen ? 18 : 20,
+    xl: isSmallScreen ? 18 : isMediumScreen ? 20 : 22,
+    xxl: isSmallScreen ? 20 : isMediumScreen ? 22 : 24,
+    xxxl: isSmallScreen ? 24 : isMediumScreen ? 28 : 32,
+  };
+
+  const responsiveShadow = {
+    small: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: Math.max(2, SCREEN_WIDTH * 0.005),
+      elevation: Math.max(2, SCREEN_WIDTH * 0.005),
+    },
+    large: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.15,
+      shadowRadius: Math.max(20, SCREEN_WIDTH * 0.05),
+      elevation: Math.max(10, SCREEN_WIDTH * 0.025),
+    }
+  };
+
+  // Responsive values
+  const getResponsiveValue = (small: number, medium: number, large: number) => {
+    if (SCREEN_WIDTH < 400) return small;
+    if (SCREEN_WIDTH < 768) return medium;
+    return large;
+  };
+
+  return StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -10106,8 +10180,8 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(12),
     textDecorationLine: 'underline',
   },
-
 });
+};
 
 export default HomeScreen;
 

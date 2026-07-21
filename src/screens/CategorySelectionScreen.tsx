@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,10 +19,26 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { moderateScale } from '../utils/responsiveUtils';
 import businessCategoriesService, { BusinessCategory } from '../services/businessCategoriesService';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-
 const CategorySelectionScreen: React.FC = ({ navigation }: any) => {
   const { theme, isDarkMode } = useTheme();
+
+  // Dynamic dimensions for foldable device compatibility
+  const [dimensions, setDimensions] = useState(() => {
+    const { width, height } = Dimensions.get('window');
+    return { width, height };
+  });
+
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setDimensions({ width: window.width, height: window.height });
+    });
+    return () => subscription?.remove();
+  }, []);
+
+  const screenWidth = dimensions.width;
+  const screenHeight = dimensions.height;
+
+  const styles = useMemo(() => getStyles(screenWidth, screenHeight, theme), [screenWidth, screenHeight, theme]);
 
   // Category Selection States
   const [categories, setCategories] = useState<BusinessCategory[]>([]);
@@ -306,7 +322,7 @@ const CategorySelectionScreen: React.FC = ({ navigation }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (screenWidth: number, screenHeight: number, theme: any) => StyleSheet.create({
   container: {
     flex: 1,
   },

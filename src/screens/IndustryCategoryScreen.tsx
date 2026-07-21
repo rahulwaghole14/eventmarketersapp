@@ -134,7 +134,11 @@ const IndustryCategoryScreen: React.FC = () => {
   const { width: screenWidth, height: screenHeight } = dimensions;
 
   const isTabletDevice = screenWidth >= 768;
-  const isFoldPhoneUnfolded = screenWidth >= 900;
+  // Detect if fold phone is unfolded (typically width >= 600px with aspect ratio close to square, < 1.6)
+  const isFoldPhoneUnfolded = useMemo(() => {
+    const aspect = screenHeight / screenWidth;
+    return screenWidth >= 600 && aspect < 1.6;
+  }, [screenWidth, screenHeight]);
   const moderateScale = useCallback((size: number, factor = 0.5) => size + (size * (screenWidth / 375 - 1) * factor), [screenWidth]);
 
   const [posters, setPosters] = useState<Template[]>([]);
@@ -329,6 +333,11 @@ const IndustryCategoryScreen: React.FC = () => {
     ];
   }, [primaryColor, secondaryColor]);
 
+  // Generate skeleton data for loading state
+  const skeletonData = useMemo(() => {
+    return Array.from({ length: 6 }, (_, index) => ({ id: `skeleton-${index}` }));
+  }, []);
+
 
   const categoryButtons = useMemo(() => [
     { id: 'all', name: 'All', tags: [] },
@@ -449,17 +458,28 @@ const IndustryCategoryScreen: React.FC = () => {
 
   const cardHeight = cardWidth;
 
+  // Calculate poster preview height
   const computedPreviewHeight = useMemo(() => {
     if (imageDimensions && imageDimensions.width > 0 && imageDimensions.height > 0) {
       const aspectHeight = screenWidth * (imageDimensions.height / imageDimensions.width);
 
+      const headerHeight = moderateScale(80);
+      const topSpacing = insets.top + moderateScale(12);
+      const gridMinHeight = moderateScale(150);
+      const bottomSpacing = insets.bottom;
+      const reservedSpace = headerHeight + topSpacing + gridMinHeight + bottomSpacing + moderateScale(30);
+
       const baseMaxPercentage = isFoldPhoneUnfolded ? 0.50 : 0.60;
       const maxPosterHeightByPercentage = screenHeight * baseMaxPercentage;
+      const maxPosterHeightBySpace = screenHeight - reservedSpace;
 
-      return Math.min(aspectHeight, maxPosterHeightByPercentage);
+      // Use the smaller of constraints and enforce a minimum height of 120dp to prevent negative/too-small values in split-screen/landscape
+      const maxPosterHeight = Math.max(moderateScale(120), Math.min(maxPosterHeightByPercentage, maxPosterHeightBySpace));
+
+      return Math.min(aspectHeight, maxPosterHeight);
     }
     return screenHeight * 0.30;
-  }, [imageDimensions, screenWidth, screenHeight, isFoldPhoneUnfolded]);
+  }, [imageDimensions, screenWidth, screenHeight, isFoldPhoneUnfolded, insets, moderateScale]);
 
   const handlePosterSelect = useCallback((poster: Template) => {
     setSelectedPoster(poster);
@@ -768,65 +788,22 @@ const IndustryCategoryScreen: React.FC = () => {
   }, [screenWidth]);
 
   
-  return (
-    <View style={[styles.container, { backgroundColor: theme.colors.gradient[0] || '#e8e8e8' }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
+  const renderEmptyComponent = useCallback(() => (
+    <View style={styles.noPostersContainer}>
+      <Text style={styles.noPostersText}>
+        {selectedLanguage === 'all' ? 'No posters available' : `No posters in ${languages.find(lang => lang.id === selectedLanguage)?.name}`}
+      </Text>
+      <Text style={styles.noPostersSubtext}>
+        {selectedLanguage === 'all' ? 'Try refreshing or changing your industry' : 'Try selecting "All" or a different language'}
+      </Text>
+    </View>
+  ), [selectedLanguage, languages]);
 
-      <LinearGradient
-        colors={theme.colors.gradient}
-        style={styles.gradientBackground}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <View style={{ height: (insets?.top || 0) + moderateScale(12) }} />
-
-        <View style={styles.topHeader}>
-          <TouchableOpacity
-            onPress={handleBackPress}
-            style={styles.backArrowButton}
-            activeOpacity={0.85}
-          >
-            <LinearGradient
-              colors={[theme.colors.secondary, theme.colors.primary]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.backArrowButtonGradient}
-            >
-              <Icon name="chevron-left" size={getIconSize(20)} color="#ffffff" />
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <View style={styles.headerTitleContainer}>
-            <LinearGradient
-              colors={[theme.colors.secondary, theme.colors.primary]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.headerTitleGradient}
-            >
-              <Text style={styles.headerCategoryTitle} numberOfLines={1} ellipsizeMode="tail">
-                {selectedIndustry}
-              </Text>
-            </LinearGradient>
-          </View>
-
-          <TouchableOpacity
-            onPress={navigateToPosterEditor}
-            style={styles.headerTextButton}
-            activeOpacity={0.85}
-          >
-            <LinearGradient
-              colors={[theme.colors.secondary, theme.colors.primary]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.headerTextButtonGradient}
-            >
-              <Text style={styles.headerButtonText}>Next</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-
+  const renderHeader = useCallback(() => {
+    return (
+      <View>
         <View
-          style={[styles.posterContainer, { height: computedPreviewHeight }]}
+          style={[styles.posterContainer, { height: computedPreviewHeight, width: screenWidth, marginLeft: -moderateScale(8) }]}
           {...swipeResponder.panHandlers}
           collapsable={false}
         >
@@ -949,50 +926,124 @@ const IndustryCategoryScreen: React.FC = () => {
             })}
           </ScrollView>
         </View>
+      </View>
+    );
+  }, [
+    computedPreviewHeight,
+    screenWidth,
+    moderateScale,
+    swipeResponder.panHandlers,
+    selectedPoster,
+    getHighQualityImageUrl,
+    languages,
+    selectedLanguage,
+    setSelectedLanguage,
+    theme.colors,
+    categoryButtons,
+    selectedCategory,
+    setSelectedCategory
+  ]);
 
-        <View style={styles.relatedSection}>
-          {loading ? (
-            <FlatList
-              data={Array.from({ length: 6 }, (_, index) => ({ id: `skeleton-${index}` }))}
-              renderItem={renderSkeletonItem}
-              keyExtractor={(item) => item.id}
-              numColumns={numColumns}
-              columnWrapperStyle={styles.relatedGrid}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.relatedList}
-              style={styles.relatedFlatList}
-              removeClippedSubviews={true}
-              maxToRenderPerBatch={6}
-              windowSize={3}
-              initialNumToRender={6}
-            />
-          ) : filteredPosters.length > 0 ? (
-            <FlatList
-              data={filteredPosters}
-              renderItem={renderRelatedPoster}
-              keyExtractor={(item) => item.id}
-              numColumns={numColumns}
-              columnWrapperStyle={styles.relatedGrid}
-              showsVerticalScrollIndicator={true}
-              contentContainerStyle={styles.relatedList}
-              style={styles.relatedFlatList}
-              removeClippedSubviews={true}
-              maxToRenderPerBatch={isTabletDevice ? 8 : 6}
-              windowSize={5}
-              initialNumToRender={isTabletDevice ? 8 : 6}
-              updateCellsBatchingPeriod={100}
-            />
-          ) : (
-            <View style={styles.noPostersContainer}>
-              <Text style={styles.noPostersText}>
-                {selectedLanguage === 'all' ? 'No posters available' : `No posters in ${languages.find(lang => lang.id === selectedLanguage)?.name}`}
+  const isNextDisabled = !selectedPoster || !selectedPoster.thumbnail || !selectedPoster.id;
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.colors.gradient[0] || '#e8e8e8' }]}>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
+
+      <LinearGradient
+        colors={theme.colors.gradient}
+        style={styles.gradientBackground}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={{ height: (insets?.top || 0) + moderateScale(12) }} />
+
+        <View style={styles.topHeader}>
+          <TouchableOpacity
+            onPress={handleBackPress}
+            style={styles.backArrowButton}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={[theme.colors.secondary, theme.colors.primary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.backArrowButtonGradient}
+            >
+              <Icon name="chevron-left" size={getIconSize(20)} color="#ffffff" />
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <View style={styles.headerTitleContainer}>
+            <LinearGradient
+              colors={[theme.colors.secondary, theme.colors.primary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.headerTitleGradient}
+            >
+              <Text style={styles.headerCategoryTitle} numberOfLines={1} ellipsizeMode="tail">
+                {selectedIndustry}
               </Text>
-              <Text style={styles.noPostersSubtext}>
-                {selectedLanguage === 'all' ? 'Try refreshing or changing your industry' : 'Try selecting "All" or a different language'}
-              </Text>
-            </View>
-          )}
+            </LinearGradient>
+          </View>
+
+          <TouchableOpacity
+            onPress={navigateToPosterEditor}
+            disabled={isNextDisabled}
+            style={[
+              styles.headerTextButton,
+              isNextDisabled && { opacity: 0.5 }
+            ]}
+            activeOpacity={isNextDisabled ? 1 : 0.85}
+          >
+            <LinearGradient
+              colors={isNextDisabled ? ['#ccc', '#999'] : [theme.colors.secondary, theme.colors.primary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.headerTextButtonGradient}
+            >
+              <Text style={styles.headerButtonText}>Next</Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
+
+        {renderHeader()}
+
+        {loading ? (
+          <FlatList
+            data={skeletonData}
+            renderItem={renderSkeletonItem}
+            keyExtractor={(item) => item.id}
+            numColumns={numColumns}
+            key={`skeleton-grid-${numColumns}`}
+            columnWrapperStyle={styles.relatedGrid}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.relatedList}
+            style={styles.relatedFlatList}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={6}
+            windowSize={3}
+            initialNumToRender={6}
+          />
+        ) : (
+          <FlatList
+            data={filteredPosters}
+            renderItem={renderRelatedPoster}
+            keyExtractor={(item) => item.id}
+            numColumns={numColumns}
+            key={`grid-${numColumns}`}
+            columnWrapperStyle={styles.relatedGrid}
+            showsVerticalScrollIndicator={true}
+            contentContainerStyle={styles.relatedList}
+            style={styles.relatedFlatList}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={isTabletDevice ? 8 : 6}
+            windowSize={5}
+            initialNumToRender={isTabletDevice ? 8 : 6}
+            updateCellsBatchingPeriod={100}
+            ListEmptyComponent={renderEmptyComponent}
+          />
+        )}
 
         <View style={{ height: insets.bottom }} />
       </LinearGradient>
@@ -1075,6 +1126,7 @@ const styles = StyleSheet.create({
     marginTop: moderateScale(8),
     marginBottom: moderateScale(12),
     gap: moderateScale(6),
+    marginHorizontal: -moderateScale(8),
   },
   categoryButtonsScrollContent: {
     flexDirection: 'row',
@@ -1203,6 +1255,7 @@ const styles = StyleSheet.create({
   relatedList: {
     paddingBottom: moderateScale(20),
     paddingTop: moderateScale(4),
+    paddingHorizontal: moderateScale(8),
   },
   relatedFlatList: {
     flex: 1,

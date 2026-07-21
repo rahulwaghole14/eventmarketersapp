@@ -432,6 +432,7 @@ const DraggableLayer = React.memo(({
   currentCanvasHeight,
   selectedTemplate,
   onLogoToggleShape,
+  styles,
 }: {
   layer: ComposerVideoLayer;
   index: number;
@@ -446,6 +447,7 @@ const DraggableLayer = React.memo(({
   currentCanvasHeight: number;
   selectedTemplate: string;
   onLogoToggleShape?: (id: string) => void;
+  styles: any;
 }) => {
   const [localPos, setLocalPos] = useState({ x: layer.position.x, y: layer.position.y });
   const dragStartRef = useRef<{ x: number; y: number; layerX: number; layerY: number } | null>(null);
@@ -806,6 +808,168 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   const insets = useSafeAreaInsets();
   const { selectedLanguage: initialLanguage, selectedTemplateId, selectedVideo } = route.params;
 
+  // State for dynamic dimensions to handle orientation/folding changes
+  const [dimensions, setDimensions] = useState(() => {
+    const { width, height } = Dimensions.get('window');
+    return { width, height };
+  });
+
+  // Listen for orientation/folding changes and update dimensions
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setDimensions({ width: window.width, height: window.height });
+    });
+
+    return () => subscription?.remove();
+  }, []);
+
+  const currentScreenWidth = dimensions.width;
+  const currentScreenHeight = dimensions.height;
+
+  // Dynamic device detection that updates on rotation - Enhanced for foldables
+  const isTabletDevice = useMemo(() => Math.min(currentScreenWidth, currentScreenHeight) >= 600, [currentScreenWidth, currentScreenHeight]);
+  const isFoldableExpanded = useMemo(() => {
+    const aspectRatio = currentScreenWidth / currentScreenHeight;
+    return currentScreenWidth > 550 && aspectRatio > 0.7 && aspectRatio < 1.3;
+  }, [currentScreenWidth, currentScreenHeight]);
+
+  const isLandscapeMode = useMemo(() => currentScreenWidth > currentScreenHeight, [currentScreenWidth, currentScreenHeight]);
+  const isPortraitMode = useMemo(() => currentScreenHeight > currentScreenWidth, [currentScreenWidth, currentScreenHeight]);
+
+  // Dynamic screen size breakpoints
+  const isUltraSmallDevice = useMemo(() => currentScreenWidth < 360, [currentScreenWidth]);
+  const isSmallDevice = useMemo(() => currentScreenWidth >= 360 && currentScreenWidth < 375, [currentScreenWidth]);
+  const isMediumDevice = useMemo(() => currentScreenWidth >= 375 && currentScreenWidth < 414, [currentScreenWidth]);
+  const isLargeDevice = useMemo(() => currentScreenWidth >= 414 && currentScreenWidth < 480, [currentScreenWidth]);
+  const isXLargeDevice = useMemo(() => currentScreenWidth >= 480, [currentScreenWidth]);
+
+  // Map old helper variables dynamically to ensure Z Fold6 compatibility
+  const isUltraSmallScreen = isUltraSmallDevice;
+  const isSmallScreen = isSmallDevice;
+  const isMediumScreen = isMediumDevice;
+  const isLargeScreen = isLargeDevice;
+  const isXLargeScreen = isXLargeDevice;
+  const isLandscape = isLandscapeMode;
+  const isPortrait = isPortraitMode;
+  const isTablet = isTabletDevice;
+  const isPhone = !isTabletDevice;
+  const isFoldableUnfolded = isFoldableExpanded;
+
+  // Dynamic responsive spacing and font sizing systems
+  const responsiveSpacing = useMemo(() => ({
+    xs: Math.max(1, (isUltraSmallScreen ? 2 : isSmallScreen ? 4 : isMediumScreen ? 6 : isLargeScreen ? 8 : 10)),
+    sm: Math.max(2, (isUltraSmallScreen ? 4 : isSmallScreen ? 6 : isMediumScreen ? 8 : isLargeScreen ? 10 : 12)),
+    md: Math.max(3, (isUltraSmallScreen ? 6 : isSmallScreen ? 8 : isMediumScreen ? 10 : isLargeScreen ? 12 : 14)),
+    lg: Math.max(4, (isUltraSmallScreen ? 8 : isSmallScreen ? 10 : isMediumScreen ? 12 : isLargeScreen ? 14 : 16)),
+    xl: Math.max(5, (isUltraSmallScreen ? 10 : isSmallScreen ? 12 : isMediumScreen ? 14 : isLargeScreen ? 16 : 18)),
+    xxl: Math.max(6, (isUltraSmallScreen ? 12 : isSmallScreen ? 14 : isMediumScreen ? 16 : isLargeScreen ? 18 : 20)),
+    xxxl: Math.max(7, (isUltraSmallScreen ? 14 : isSmallScreen ? 16 : isMediumScreen ? 18 : isLargeScreen ? 20 : 24)),
+  }), [isUltraSmallScreen, isSmallScreen, isMediumScreen, isLargeScreen]);
+
+  const responsiveFontSize = useMemo(() => ({
+    xs: Math.max(7, (isUltraSmallScreen ? 8 : isSmallScreen ? 9 : isMediumScreen ? 10 : isLargeScreen ? 11 : 12) * 0.85),
+    sm: Math.max(8, (isUltraSmallScreen ? 9 : isSmallScreen ? 10 : isMediumScreen ? 11 : isLargeScreen ? 12 : 13) * 0.85),
+    md: Math.max(9, (isUltraSmallScreen ? 10 : isSmallScreen ? 11 : isMediumScreen ? 12 : isLargeScreen ? 13 : 14) * 0.85),
+    lg: Math.max(10, (isUltraSmallScreen ? 11 : isSmallScreen ? 12 : isMediumScreen ? 13 : isLargeScreen ? 14 : 15) * 0.85),
+    xl: Math.max(11, (isUltraSmallScreen ? 12 : isSmallScreen ? 13 : isMediumScreen ? 14 : isLargeScreen ? 15 : 16) * 0.85),
+    xxl: Math.max(12, (isUltraSmallScreen ? 13 : isSmallScreen ? 14 : isMediumScreen ? 15 : isLargeScreen ? 16 : 17) * 0.85),
+    xxxl: Math.max(13, (isUltraSmallScreen ? 14 : isSmallScreen ? 15 : isMediumScreen ? 16 : isLargeScreen ? 17 : 18) * 0.85),
+    xxxxl: Math.max(14, (isUltraSmallScreen ? 15 : isSmallScreen ? 16 : isMediumScreen ? 17 : isLargeScreen ? 18 : 20) * 0.85),
+    xxxxxl: Math.max(15, (isUltraSmallScreen ? 16 : isSmallScreen ? 17 : isMediumScreen ? 18 : isLargeScreen ? 19 : 22) * 0.85),
+  }), [isUltraSmallScreen, isSmallScreen, isMediumScreen, isLargeScreen]);
+
+  const scale = useCallback((size: number) => (currentScreenWidth / 375) * size, [currentScreenWidth]);
+  const verticalScale = useCallback((size: number) => (currentScreenHeight / 667) * size, [currentScreenHeight]);
+  const moderateScale = useCallback((size: number, factor = 0.5) => size + (scale(size) - size) * factor, [scale]);
+
+  // Responsive video canvas dimensions computed dynamically
+  const responsiveDimensions = useMemo(() => {
+    const availableWidth = currentScreenWidth - (insets.left + insets.right);
+    const availableHeight = currentScreenHeight - (insets.top + insets.bottom);
+
+    // Calculate square canvas dimensions based on screen size
+    let canvasWidthRatio = 0.95;
+
+    if (isLandscapeMode) {
+      // Landscape mode - smaller square canvas
+      canvasWidthRatio = isTabletDevice ? 0.45 : 0.55;
+    } else {
+      // Portrait mode - square canvas that fits the screen
+      if (isTabletDevice || isFoldableExpanded) {
+        canvasWidthRatio = 0.65; // Slightly smaller to leave room for controls on square screens
+      } else if (isUltraSmallDevice) {
+        canvasWidthRatio = 0.95;
+      } else if (isSmallDevice) {
+        canvasWidthRatio = 0.93;
+      } else if (isMediumDevice) {
+        canvasWidthRatio = 0.92;
+      } else if (isLargeDevice) {
+        canvasWidthRatio = 0.90;
+      } else {
+        canvasWidthRatio = 0.88;
+      }
+    }
+
+    // Make canvas square: width = height (1:1 aspect ratio)
+    let canvasWidth = Math.min(availableWidth * canvasWidthRatio, currentScreenWidth * canvasWidthRatio);
+
+    // Safety check: Ensure canvas doesn't take more than 45% of height on square-ish screens
+    const maxHeightAllowed = availableHeight * (isFoldableExpanded ? 0.42 : 0.5);
+    if (canvasWidth > maxHeightAllowed) {
+      canvasWidth = maxHeightAllowed;
+    }
+
+    return {
+      width: Math.round(canvasWidth),
+      height: Math.round(canvasWidth), // Square!
+    };
+  }, [currentScreenWidth, currentScreenHeight, insets, isLandscapeMode, isTabletDevice, isFoldableExpanded, isUltraSmallDevice, isSmallDevice, isMediumDevice, isLargeDevice]);
+
+  const currentCanvasWidth = responsiveDimensions.width;
+  const currentCanvasHeight = responsiveDimensions.height;
+
+  const getHeaderButtonSize = useCallback(() => {
+    if (isLandscape) {
+      return Math.max(24, (isTablet ? 44 : 32) * 0.7);
+    }
+    return Math.max(20, (isUltraSmallScreen ? 28 : isSmallScreen ? 32 : isMediumScreen ? 36 : isLargeScreen ? 40 : 44) * 0.7);
+  }, [isLandscape, isTablet, isUltraSmallScreen, isSmallScreen, isMediumScreen, isLargeScreen]);
+
+  const getHeaderTitleSize = useCallback(() => {
+    if (isLandscape) {
+      return Math.max(14, (isTablet ? 20 : 16) * 0.85);
+    }
+    return Math.max(12, (isUltraSmallScreen ? 14 : isSmallScreen ? 16 : isMediumScreen ? 18 : isLargeScreen ? 20 : 22) * 0.85);
+  }, [isLandscape, isTablet, isUltraSmallScreen, isSmallScreen, isMediumScreen, isLargeScreen]);
+
+  const getHeaderSubtitleSize = useCallback(() => {
+    if (isLandscape) {
+      return Math.max(10, (isTablet ? 14 : 12) * 0.85);
+    }
+    return Math.max(9, (isUltraSmallScreen ? 10 : isSmallScreen ? 11 : isMediumScreen ? 12 : isLargeScreen ? 13 : 14) * 0.85);
+  }, [isLandscape, isTablet, isUltraSmallScreen, isSmallScreen, isMediumScreen, isLargeScreen]);
+
+  const getResponsiveButtonSize = useCallback(() => {
+    if (isLandscape) {
+      return (isTablet ? 60 : 45) * 0.7;
+    }
+    return (isUltraSmallScreen ? 40 : isSmallScreen ? 50 : isMediumScreen ? 60 : isLargeScreen ? 70 : 80) * 0.7;
+  }, [isLandscape, isTablet, isUltraSmallScreen, isSmallScreen, isMediumScreen, isLargeScreen]);
+
+  const getResponsiveIconSize = useCallback((base: number = 16) => {
+    if (isLandscape) {
+      return Math.max(base - 2, (isTablet ? base + 4 : base) * 0.85);
+    }
+    return Math.max(base - 2, (isUltraSmallScreen ? base - 1 : isSmallScreen ? base : isMediumScreen ? base + 1 : base + 2) * 0.85);
+  }, [isLandscape, isTablet, isUltraSmallScreen, isSmallScreen, isMediumScreen]);
+
+  const getToolbarButtonTextSize = useCallback(() => {
+    if (isLandscape) {
+      return Math.max(8, (isTablet ? 12 : 10) * 0.85);
+    }
+    return Math.max(7, (isUltraSmallScreen ? 8 : isSmallScreen ? 9 : isMediumScreen ? 10 : isLargeScreen ? 11 : 12) * 0.85);
+  }, [isLandscape, isTablet, isUltraSmallScreen, isSmallScreen, isMediumScreen, isLargeScreen]);
+
   const { refreshSubscription } = useSubscription();
   const { selectedBusinessProfile, updateBusinessProfileGlobally } = useBusinessProfile();
   const { isDarkMode, theme } = useTheme();
@@ -920,12 +1084,6 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
     };
   }, [getTemplateColor]);
 
-  const [canvasDimensions, setCanvasDimensions] = useState({
-    width: videoCanvasWidth,
-    height: videoCanvasHeight,
-  });
-  const currentCanvasWidth = canvasDimensions.width;
-  const currentCanvasHeight = canvasDimensions.height;
   const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: number } | null>(null);
 
   const getExportDimensions = () => {
@@ -1439,6 +1597,49 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
 
   const themeStyles = getThemeStyles();
 
+  // Instantiate stylesheet dynamically using useMemo so it automatically updates on screen dimensions changes
+  const styles = useMemo(() => {
+    return getStyles(
+      theme,
+      currentScreenWidth,
+      currentScreenHeight,
+      isLandscape,
+      isPortrait,
+      isTablet,
+      isPhone,
+      isFoldableUnfolded,
+      isUltraSmallScreen,
+      isSmallScreen,
+      isMediumScreen,
+      isLargeScreen,
+      isXLargeScreen,
+      responsiveSpacing,
+      responsiveFontSize,
+      scale,
+      verticalScale,
+      moderateScale
+    );
+  }, [
+    theme,
+    currentScreenWidth,
+    currentScreenHeight,
+    isLandscape,
+    isPortrait,
+    isTablet,
+    isPhone,
+    isFoldableUnfolded,
+    isUltraSmallScreen,
+    isSmallScreen,
+    isMediumScreen,
+    isLargeScreen,
+    isXLargeScreen,
+    responsiveSpacing,
+    responsiveFontSize,
+    scale,
+    verticalScale,
+    moderateScale
+  ]);
+
   const getIconSize = useCallback((baseSize: number) => {
     const scale = screenWidth / 375;
     return Math.round(baseSize * scale);
@@ -1477,7 +1678,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
 
   // Apply default template when component loads or canvas size changes
   useEffect(() => {
-    console.log('useEffect triggered - selectedProfile:', selectedProfile?.name, 'selectedTemplate:', selectedTemplate, 'dimensions:', canvasDimensions.width, 'x', canvasDimensions.height); // Debug log
+    console.log('useEffect triggered - selectedProfile:', selectedProfile?.name, 'selectedTemplate:', selectedTemplate, 'dimensions:', currentCanvasWidth, 'x', currentCanvasHeight); // Debug log
     if (selectedProfile) {
       applyTemplate(selectedTemplate);
     } else {
@@ -1485,7 +1686,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
       console.log('No profile selected, applying template with defaults'); // Debug log
       applyTemplate(selectedTemplate);
     }
-  }, [selectedProfile, selectedTemplate, canvasDimensions.width, canvasDimensions.height]);
+  }, [selectedProfile, selectedTemplate, currentCanvasWidth, currentCanvasHeight]);
 
   // Force apply template on mount
   useEffect(() => {
@@ -2972,6 +3173,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         currentCanvasHeight={currentCanvasHeight || videoCanvasHeight}
         selectedTemplate={selectedTemplate}
         onLogoToggleShape={handleLogoToggleShape}
+        styles={styles}
       />
     );
   };
@@ -3057,7 +3259,8 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.canvasContainer}>
+        {/* Canvas Container */}
+        <View style={styles.canvasContainer}>
         <ViewShot
           ref={canvasRef}
           style={[styles.canvas, { width: currentCanvasWidth, height: currentCanvasHeight }]}
@@ -3305,7 +3508,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         </ViewShot>
       </View>
 
-      <View style={styles.controlsContainer}>
+      <View style={[styles.controlsContainer, { flex: 1 }]}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
@@ -3318,6 +3521,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
                   : Math.max(insets.bottom + responsiveSpacing.md, responsiveSpacing.lg)
             }
           ]}
+          style={{ flex: 1 }}
         >
 
           <View style={styles.bottomToolbar}>
@@ -3574,7 +3778,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
         </ScrollView>
       </View>
 
-      {/* Text Modal */}
+    {/* Text Modal */}
       <Modal
         visible={showTextModal}
         transparent
@@ -4273,7 +4477,26 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (
+  theme: any,
+  screenWidth: number,
+  screenHeight: number,
+  isLandscape: boolean,
+  isPortrait: boolean,
+  isTablet: boolean,
+  isPhone: boolean,
+  isFoldableUnfolded: boolean,
+  isUltraSmallScreen: boolean,
+  isSmallScreen: boolean,
+  isMediumScreen: boolean,
+  isLargeScreen: boolean,
+  isXLargeScreen: boolean,
+  responsiveSpacing: any,
+  responsiveFontSize: any,
+  scale: (size: number) => number,
+  verticalScale: (size: number) => number,
+  moderateScale: (size: number, factor?: number) => number
+) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
@@ -4417,7 +4640,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: isLandscape ? (isTablet ? responsiveSpacing.sm : responsiveSpacing.xs) : (isUltraSmallScreen ? 1 : isSmallScreen ? 2 : responsiveSpacing.xs),
     paddingBottom: isLandscape ? (isTablet ? responsiveSpacing.sm : responsiveSpacing.xs) : (isUltraSmallScreen ? 1 : isSmallScreen ? 2 : responsiveSpacing.xs),
-    marginBottom: isTablet ? responsiveSpacing.md : isLandscape ? responsiveSpacing.sm : isUltraSmallScreen ? responsiveSpacing.sm : responsiveSpacing.md,
+    marginBottom: (isTablet || isFoldableUnfolded) ? 4 : isLandscape ? responsiveSpacing.sm : isUltraSmallScreen ? responsiveSpacing.sm : responsiveSpacing.md,
   },
   canvas: {
     borderRadius: 0,
@@ -4441,12 +4664,12 @@ const styles = StyleSheet.create({
   },
   bottomToolbar: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: isTablet ? 16 : isLandscape ? 12 : isUltraSmallScreen ? 6 : isSmallScreen ? 8 : 12,
-    paddingHorizontal: isTablet ? 12 : isLandscape ? 8 : isUltraSmallScreen ? 4 : isSmallScreen ? 6 : 8,
-    paddingVertical: isTablet ? 12 : isLandscape ? 8 : isUltraSmallScreen ? 3 : isSmallScreen ? 4 : 6,
-    marginTop: isTablet ? 40 : isLandscape ? 35 : isUltraSmallScreen ? 25 : isSmallScreen ? 30 : 35,
-    marginBottom: isTablet ? 12 : isLandscape ? 8 : isUltraSmallScreen ? 4 : isSmallScreen ? 5 : 10,
-    marginHorizontal: isTablet ? 12 : isLandscape ? 8 : isUltraSmallScreen ? 4 : isSmallScreen ? 6 : 8,
+    borderRadius: (isTablet || isFoldableUnfolded) ? 12 : isLandscape ? 12 : isUltraSmallScreen ? 6 : isSmallScreen ? 8 : 12,
+    paddingHorizontal: (isTablet || isFoldableUnfolded) ? 8 : isLandscape ? 8 : isUltraSmallScreen ? 4 : isSmallScreen ? 6 : 8,
+    paddingVertical: (isTablet || isFoldableUnfolded) ? 4 : isLandscape ? 8 : isUltraSmallScreen ? 3 : isSmallScreen ? 4 : 6,
+    marginTop: isFoldableUnfolded ? 15 : isTablet ? 40 : isLandscape ? 35 : isUltraSmallScreen ? 25 : isSmallScreen ? 30 : 35,
+    marginBottom: (isTablet || isFoldableUnfolded) ? 5 : isLandscape ? 8 : isUltraSmallScreen ? 4 : isSmallScreen ? 5 : 10,
+    marginHorizontal: (isTablet || isFoldableUnfolded) ? 8 : isLandscape ? 8 : isUltraSmallScreen ? 4 : isSmallScreen ? 6 : 8,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,

@@ -867,6 +867,122 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   const isLargeDevice = useMemo(() => currentScreenWidth >= 414 && currentScreenWidth < 480, [currentScreenWidth]);
   const isXLargeDevice = useMemo(() => currentScreenWidth >= 480, [currentScreenWidth]);
 
+  // Map old helper variables dynamically to ensure Z Fold6 compatibility
+  const isUltraSmallScreen = isUltraSmallDevice;
+  const isSmallScreen = isSmallDevice;
+  const isMediumScreen = isMediumDevice;
+  const isLargeScreen = isLargeDevice;
+  const isXLargeScreen = isXLargeDevice;
+  const isLandscape = isLandscapeMode;
+  const isPortrait = isPortraitMode;
+  const isTablet = isTabletDevice;
+  const isPhone = !isTabletDevice;
+  const isFoldableUnfolded = isFoldableExpanded;
+
+  // Dynamic responsive spacing and font sizing systems
+  const responsiveSpacing = useMemo(() => ({
+    xs: Math.max(1, (isUltraSmallScreen ? 2 : isSmallScreen ? 4 : isMediumScreen ? 6 : isLargeScreen ? 8 : 10) * COMPACT_MULTIPLIER),
+    sm: Math.max(2, (isUltraSmallScreen ? 4 : isSmallScreen ? 6 : isMediumScreen ? 8 : isLargeScreen ? 10 : 12) * COMPACT_MULTIPLIER),
+    md: Math.max(3, (isUltraSmallScreen ? 6 : isSmallScreen ? 8 : isMediumScreen ? 10 : isLargeScreen ? 12 : 14) * COMPACT_MULTIPLIER),
+    lg: Math.max(4, (isUltraSmallScreen ? 8 : isSmallScreen ? 10 : isMediumScreen ? 12 : isLargeScreen ? 14 : 16) * COMPACT_MULTIPLIER),
+    xl: Math.max(5, (isUltraSmallScreen ? 10 : isSmallScreen ? 12 : isMediumScreen ? 14 : isLargeScreen ? 16 : 18) * COMPACT_MULTIPLIER),
+    xxl: Math.max(6, (isUltraSmallScreen ? 12 : isSmallScreen ? 14 : isMediumScreen ? 16 : isLargeScreen ? 18 : 20) * COMPACT_MULTIPLIER),
+    xxxl: Math.max(7, (isUltraSmallScreen ? 14 : isSmallScreen ? 16 : isMediumScreen ? 18 : isLargeScreen ? 20 : 24) * COMPACT_MULTIPLIER),
+  }), [isUltraSmallScreen, isSmallScreen, isMediumScreen, isLargeScreen]);
+
+  const responsiveFontSize = useMemo(() => ({
+    xs: Math.max(7, (isUltraSmallScreen ? 8 : isSmallScreen ? 9 : isMediumScreen ? 10 : isLargeScreen ? 11 : 12) * 0.85),
+    sm: Math.max(8, (isUltraSmallScreen ? 9 : isSmallScreen ? 10 : isMediumScreen ? 11 : isLargeScreen ? 12 : 13) * 0.85),
+    md: Math.max(9, (isUltraSmallScreen ? 10 : isSmallScreen ? 11 : isMediumScreen ? 12 : isLargeScreen ? 13 : 14) * 0.85),
+    lg: Math.max(10, (isUltraSmallScreen ? 11 : isSmallScreen ? 12 : isMediumScreen ? 13 : isLargeScreen ? 14 : 15) * 0.85),
+    xl: Math.max(11, (isUltraSmallScreen ? 12 : isSmallScreen ? 13 : isMediumScreen ? 14 : isLargeScreen ? 15 : 16) * 0.85),
+    xxl: Math.max(12, (isUltraSmallScreen ? 13 : isSmallScreen ? 14 : isMediumScreen ? 15 : isLargeScreen ? 16 : 17) * 0.85),
+    xxxl: Math.max(13, (isUltraSmallScreen ? 14 : isSmallScreen ? 15 : isMediumScreen ? 16 : isLargeScreen ? 17 : 18) * 0.85),
+    xxxxl: Math.max(14, (isUltraSmallScreen ? 15 : isSmallScreen ? 16 : isMediumScreen ? 17 : isLargeScreen ? 18 : 20) * 0.85),
+    xxxxxl: Math.max(15, (isUltraSmallScreen ? 16 : isSmallScreen ? 17 : isMediumScreen ? 18 : isLargeScreen ? 19 : 22) * 0.85),
+  }), [isUltraSmallScreen, isSmallScreen, isMediumScreen, isLargeScreen]);
+
+  const scale = useCallback((size: number) => (currentScreenWidth / 375) * size, [currentScreenWidth]);
+  const verticalScale = useCallback((size: number) => (currentScreenHeight / 667) * size, [currentScreenHeight]);
+  const moderateScale = useCallback((size: number, factor = 0.5) => size + (scale(size) - size) * factor, [scale]);
+
+  const getResponsiveSectionHeight = useCallback(() => {
+    if (isLandscape) {
+      return (isTablet ? 100 : 80) * COMPACT_MULTIPLIER;
+    }
+    return (isUltraSmallScreen ? 50 : isSmallScreen ? 65 : isMediumScreen ? 80 : isLargeScreen ? 100 : 120) * COMPACT_MULTIPLIER;
+  }, [isLandscape, isTablet, isUltraSmallScreen, isSmallScreen, isMediumScreen, isLargeScreen]);
+
+  const getResponsiveSectionPadding = useCallback(() => {
+    if (isLandscape) {
+      return Math.max(4, (isTablet ? 16 : 8) * COMPACT_MULTIPLIER);
+    }
+    return Math.max(2, (isUltraSmallScreen ? 4 : isSmallScreen ? 6 : isMediumScreen ? 8 : isLargeScreen ? 10 : 12) * COMPACT_MULTIPLIER);
+  }, [isLandscape, isTablet, isUltraSmallScreen, isSmallScreen, isMediumScreen, isLargeScreen]);
+
+  const getResponsiveSectionMargin = useCallback(() => {
+    if (isLandscape) {
+      return Math.max(5, (isTablet ? 20 : 10) * COMPACT_MULTIPLIER);
+    }
+    return Math.max(2, (isUltraSmallScreen ? 4 : isSmallScreen ? 6 : isMediumScreen ? 8 : isLargeScreen ? 12 : 15) * COMPACT_MULTIPLIER);
+  }, [isLandscape, isTablet, isUltraSmallScreen, isSmallScreen, isMediumScreen, isLargeScreen]);
+
+  const getUltraCompactSpacing = useCallback(() => {
+    if (isLandscape) {
+      return Math.max(3, (isTablet ? 12 : 6) * COMPACT_MULTIPLIER);
+    }
+    return Math.max(1, (isUltraSmallScreen ? 2 : isSmallScreen ? 4 : getResponsiveSectionPadding()) * COMPACT_MULTIPLIER);
+  }, [isLandscape, isTablet, isUltraSmallScreen, isSmallScreen, getResponsiveSectionPadding]);
+
+  const getUltraCompactMargin = useCallback(() => {
+    if (isLandscape) {
+      return Math.max(4, (isTablet ? 16 : 8) * COMPACT_MULTIPLIER);
+    }
+    return Math.max(1, (isUltraSmallScreen ? 2 : isSmallScreen ? 4 : getResponsiveSectionMargin()) * COMPACT_MULTIPLIER);
+  }, [isLandscape, isTablet, isUltraSmallScreen, isSmallScreen, getResponsiveSectionMargin]);
+
+  const getHeaderButtonSize = useCallback(() => {
+    if (isLandscape) {
+      return Math.max(24, (isTablet ? 44 : 32) * 0.7);
+    }
+    return Math.max(20, (isUltraSmallScreen ? 28 : isSmallScreen ? 32 : isMediumScreen ? 36 : isLargeScreen ? 40 : 44) * 0.7);
+  }, [isLandscape, isTablet, isUltraSmallScreen, isSmallScreen, isMediumScreen, isLargeScreen]);
+
+  const getHeaderPadding = useCallback(() => {
+    if (isLandscape) {
+      return Math.max(3, (isTablet ? 12 : 6) * 0.6);
+    }
+    return Math.max(1, (isUltraSmallScreen ? 2 : isSmallScreen ? 4 : isMediumScreen ? 6 : isLargeScreen ? 8 : 10) * 0.6);
+  }, [isLandscape, isTablet, isUltraSmallScreen, isSmallScreen, isMediumScreen, isLargeScreen]);
+
+  const getHeaderTitleSize = useCallback(() => {
+    if (isLandscape) {
+      return Math.max(14, (isTablet ? 20 : 16) * 0.85);
+    }
+    return Math.max(12, (isUltraSmallScreen ? 14 : isSmallScreen ? 16 : isMediumScreen ? 18 : isLargeScreen ? 20 : 22) * 0.85);
+  }, [isLandscape, isTablet, isUltraSmallScreen, isSmallScreen, isMediumScreen, isLargeScreen]);
+
+  const getHeaderSubtitleSize = useCallback(() => {
+    if (isLandscape) {
+      return Math.max(10, (isTablet ? 14 : 12) * 0.85);
+    }
+    return Math.max(9, (isUltraSmallScreen ? 10 : isSmallScreen ? 11 : isMediumScreen ? 12 : isLargeScreen ? 13 : 14) * 0.85);
+  }, [isLandscape, isTablet, isUltraSmallScreen, isSmallScreen, isMediumScreen, isLargeScreen]);
+
+  const getToolbarButtonSize = useCallback(() => {
+    if (isLandscape) {
+      return Math.max(49, (isTabletDevice ? 80 : 70) * 0.7);
+    }
+    return Math.max(42, (isUltraSmallScreen ? 60 : isSmallScreen ? 65 : isMediumScreen ? 70 : isLargeScreen ? 75 : 80) * 0.7);
+  }, [isLandscape, isTabletDevice, isUltraSmallScreen, isSmallScreen, isMediumScreen, isLargeScreen]);
+
+  const getToolbarButtonTextSize = useCallback(() => {
+    if (isLandscape || isFoldableUnfolded) {
+      return Math.max(7.5, (isTablet ? 11 : 9) * 0.8);
+    }
+    return Math.max(7, (isUltraSmallScreen ? 8 : isSmallScreen ? 9 : isMediumScreen ? 10 : isLargeScreen ? 11 : 12) * 0.85);
+  }, [isLandscape, isFoldableUnfolded, isTablet, isUltraSmallScreen, isSmallScreen, isMediumScreen, isLargeScreen]);
+
   // Dynamic responsive scaling functions (for theme styles that need to update on orientation change)
   const dynamicScale = (size: number) => (currentScreenWidth / 375) * size;
   const dynamicVerticalScale = (size: number) => (currentScreenHeight / 667) * size;
@@ -1454,6 +1570,49 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   });
 
   const themeStyles = getThemeStyles();
+
+  // Instantiate stylesheet dynamically using useMemo so it automatically updates on screen dimensions changes
+  const styles = useMemo(() => {
+    return getStyles(
+      theme,
+      currentScreenWidth,
+      currentScreenHeight,
+      isLandscape,
+      isPortrait,
+      isTablet,
+      isPhone,
+      isFoldableUnfolded,
+      isUltraSmallScreen,
+      isSmallScreen,
+      isMediumScreen,
+      isLargeScreen,
+      isXLargeScreen,
+      responsiveSpacing,
+      responsiveFontSize,
+      scale,
+      verticalScale,
+      moderateScale
+    );
+  }, [
+    theme,
+    currentScreenWidth,
+    currentScreenHeight,
+    isLandscape,
+    isPortrait,
+    isTablet,
+    isPhone,
+    isFoldableUnfolded,
+    isUltraSmallScreen,
+    isSmallScreen,
+    isMediumScreen,
+    isLargeScreen,
+    isXLargeScreen,
+    responsiveSpacing,
+    responsiveFontSize,
+    scale,
+    verticalScale,
+    moderateScale
+  ]);
 
 
   // Ref for capturing the poster as image
@@ -3684,7 +3843,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Canvas Container */}
+        {/* Canvas Container */}
       <View style={styles.canvasContainer}>
         {/* ViewShot wrapper for capturing the visible canvas */}
         <ViewShot
@@ -3922,7 +4081,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
       </View>
 
       {/* Controls Container - Fixed layout with responsive heights */}
-      <View style={styles.controlsContainer}>
+      <View style={[styles.controlsContainer, { flex: 1 }]}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
@@ -3935,6 +4094,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                   : Math.max(insets.bottom + responsiveSpacing.md, responsiveSpacing.lg)
             }
           ]}
+          style={{ flex: 1 }}
         >
           {/* Toolbar Below Canvas */}
           <View style={styles.bottomToolbar}>
@@ -4178,7 +4338,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
         </ScrollView>
       </View>
 
-      {/* Business Profile Selection Modal */}
+    {/* Business Profile Selection Modal */}
       <Modal
         visible={showProfileSelectionModal}
         transparent
@@ -5213,7 +5373,26 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (
+  theme: any,
+  screenWidth: number,
+  screenHeight: number,
+  isLandscape: boolean,
+  isPortrait: boolean,
+  isTablet: boolean,
+  isPhone: boolean,
+  isFoldableUnfolded: boolean,
+  isUltraSmallScreen: boolean,
+  isSmallScreen: boolean,
+  isMediumScreen: boolean,
+  isLargeScreen: boolean,
+  isXLargeScreen: boolean,
+  responsiveSpacing: any,
+  responsiveFontSize: any,
+  scale: (size: number) => number,
+  verticalScale: (size: number) => number,
+  moderateScale: (size: number, factor?: number) => number
+) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',

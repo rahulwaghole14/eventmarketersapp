@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -27,7 +27,7 @@ import ImagePickerModal from '../components/ImagePickerModal';
 import { getUserFriendlyError } from '../utils/errorHandler';
 import { moderateScale } from '../utils/responsiveUtils';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+let globalStyles: any = null;
 
 // Stable FloatingInput component
 const FloatingInput = React.memo(({
@@ -69,6 +69,7 @@ const FloatingInput = React.memo(({
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   autoCorrect?: boolean;
 }) => {
+  const styles = globalStyles || {};
   return (
     <View style={styles.inputContainer}>
       <TextInput
@@ -104,6 +105,28 @@ const FloatingInput = React.memo(({
 
 const BusinessProfileCreationScreen: React.FC = ({ navigation, route }: any) => {
   const { isDarkMode, theme } = useTheme();
+
+  // Dynamic dimensions for foldable device compatibility
+  const [dimensions, setDimensions] = useState(() => {
+    const { width, height } = Dimensions.get('window');
+    return { width, height };
+  });
+
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setDimensions({ width: window.width, height: window.height });
+    });
+    return () => subscription?.remove();
+  }, []);
+
+  const screenWidth = dimensions.width;
+  const screenHeight = dimensions.height;
+
+  const styles = useMemo(() => {
+    const s = getStyles(screenWidth, screenHeight, theme);
+    globalStyles = s;
+    return s;
+  }, [screenWidth, screenHeight, theme]);
   
   // Category / Subcategory from route params or fallback to storage
   const [category, setCategory] = useState(route.params?.category || '');
@@ -527,7 +550,7 @@ const BusinessProfileCreationScreen: React.FC = ({ navigation, route }: any) => 
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (screenWidth: number, screenHeight: number, theme: any) => StyleSheet.create({
   container: {
     flex: 1,
   },

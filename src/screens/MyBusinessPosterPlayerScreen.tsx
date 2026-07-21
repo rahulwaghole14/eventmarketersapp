@@ -122,7 +122,11 @@ const MyBusinessPosterPlayerScreen: React.FC = () => {
 
   // Responsive design helpers
   const isTabletDevice = screenWidth >= 768;
-  const isFoldPhoneUnfolded = screenWidth >= 900;
+  // Detect if fold phone is unfolded (typically width >= 600px with aspect ratio close to square, < 1.6)
+  const isFoldPhoneUnfolded = useMemo(() => {
+    const aspect = screenHeight / screenWidth;
+    return screenWidth >= 600 && aspect < 1.6;
+  }, [screenWidth, screenHeight]);
   const moderateScale = useCallback((size: number, factor = 0.5) => size + (size * (screenWidth / 375 - 1) * factor), [screenWidth]);
 
   // Get business category from selected profile
@@ -360,6 +364,11 @@ const MyBusinessPosterPlayerScreen: React.FC = () => {
     ];
   }, [primaryColor, secondaryColor]);
 
+  // Generate skeleton data for loading state
+  const skeletonData = useMemo(() => {
+    return Array.from({ length: 6 }, (_, index) => ({ id: `skeleton-${index}` }));
+  }, []);
+
   // State management
   const [posters, setPosters] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
@@ -590,10 +599,13 @@ const MyBusinessPosterPlayerScreen: React.FC = () => {
       const maxPosterHeightByPercentage = screenHeight * baseMaxPercentage;
       const maxPosterHeightBySpace = screenHeight - reservedSpace;
 
-      return Math.min(aspectHeight, maxPosterHeightByPercentage);
+      // Use the smaller of constraints and enforce a minimum height of 120dp to prevent negative/too-small values in split-screen/landscape
+      const maxPosterHeight = Math.max(moderateScale(120), Math.min(maxPosterHeightByPercentage, maxPosterHeightBySpace));
+
+      return Math.min(aspectHeight, maxPosterHeight);
     }
     return screenHeight * 0.30;
-  }, [imageDimensions, screenWidth, screenHeight, isFoldPhoneUnfolded, insets]);
+  }, [imageDimensions, screenWidth, screenHeight, isFoldPhoneUnfolded, insets, moderateScale]);
 
   // Handle poster selection
   const handlePosterSelect = useCallback((poster: Template) => {
@@ -818,149 +830,23 @@ const MyBusinessPosterPlayerScreen: React.FC = () => {
     );
   }, [cardWidth, cardHeight, handlePosterSelect, selectedPoster, previewOverlayColors]);
 
-  const renderSkeletonItem = useCallback(() => {
+  const renderEmptyComponent = useCallback(() => (
+    <View style={styles.noPostersContainer}>
+      <Text style={styles.noPostersText}>
+        {selectedLanguage === 'all' ? 'No posters available' : `No posters in ${languages.find(lang => lang.id === selectedLanguage)?.name}`}
+      </Text>
+      <Text style={styles.noPostersSubtext}>
+        {selectedLanguage === 'all' ? 'Try refreshing or changing your business category' : 'Try selecting "All" or a different language'}
+      </Text>
+    </View>
+  ), [selectedLanguage, languages]);
+
+  const renderHeader = useCallback(() => {
     return (
-      <View
-        style={[
-          styles.relatedPosterCard,
-          {
-            width: cardWidth,
-            height: cardHeight,
-            backgroundColor: theme.colors.inputBackground || '#f0f0f0',
-          },
-        ]}
-      >
-        {/* Shimmer Effect */}
-        <Animated.View
-          style={[
-            styles.skeletonShimmer,
-            {
-              backgroundColor: theme.colors.primary + '20' || 'rgba(102, 126, 234, 0.2)',
-              opacity: shimmerAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0.3, 0.7],
-              }),
-              transform: [
-                {
-                  translateX: shimmerAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-cardWidth, cardWidth],
-                  }),
-                },
-              ],
-            }
-          ]}
-        />
-        {/* Skeleton Content Structure */}
-        <View style={styles.skeletonContent}>
-          {/* Main image area */}
-          <View style={[
-            styles.skeletonImage,
-            { backgroundColor: theme.colors.border + '40' || 'rgba(0,0,0,0.1)' }
-          ]} />
-          {/* Text placeholder */}
-          <View style={styles.skeletonTextContainer}>
-            <View style={[
-              styles.skeletonTextLine,
-              { backgroundColor: theme.colors.border + '60' || 'rgba(0,0,0,0.15)' }
-            ]} />
-            <View style={[
-              styles.skeletonTextLine,
-              styles.skeletonTextLineSmall,
-              { backgroundColor: theme.colors.border + '40' || 'rgba(0,0,0,0.1)' }
-            ]} />
-          </View>
-        </View>
-      </View>
-    );
-  }, [cardWidth, cardHeight, theme.colors, shimmerAnim]);
-
-  const getIconSize = useCallback((baseSize: number) => {
-    const scale = screenWidth / 375;
-    return Math.round(baseSize * scale);
-  }, [screenWidth]);
-
-
-  if (!businessCategory) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.gradient[0] || '#e8e8e8' }]}>
-        <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
-        <View style={styles.noPostersContainer}>
-          <Text style={styles.noPostersText}>No Business Category Selected</Text>
-          <Text style={styles.noPostersSubtext}>Please select a business profile to view posters</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  // Check if business subcategory is software company and render IndustryCategory
-  const businessSubCategory = selectedBusinessProfile?.subCategory || selectedBusinessProfile?.subcategory || '';
-  if (businessSubCategory.toLowerCase() === 'software company') {
-    return <IndustryCategoryScreen />;
-  }
-
-  return (
-    <View style={[styles.container, { backgroundColor: theme.colors.gradient[0] || '#e8e8e8' }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
-
-      <LinearGradient
-        colors={theme.colors.gradient}
-        style={styles.gradientBackground}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        {/* Safe Area Top Spacing */}
-        <View style={{ height: insets.top + moderateScale(12) }} />
-
-        {/* Header */}
-        <View style={styles.topHeader}>
-          <TouchableOpacity
-            onPress={handleBackPress}
-            style={styles.backArrowButton}
-            activeOpacity={0.85}
-          >
-            <LinearGradient
-              colors={[theme.colors.secondary, theme.colors.primary]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.backArrowButtonGradient}
-            >
-              <Icon name="chevron-left" size={getIconSize(20)} color="#ffffff" />
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <View style={styles.headerTitleContainer}>
-            <LinearGradient
-              colors={[theme.colors.secondary, theme.colors.primary]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.headerTitleGradient}
-            >
-              <Text style={styles.headerCategoryTitle} numberOfLines={1} ellipsizeMode="tail">
-                {businessCategory}
-              </Text>
-            </LinearGradient>
-          </View>
-
-          <TouchableOpacity
-            onPress={navigateToPosterEditor}
-            style={styles.headerTextButton}
-            activeOpacity={0.85}
-          >
-            <LinearGradient
-              colors={[theme.colors.secondary, theme.colors.primary]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.headerTextButtonGradient}
-            >
-              <Text style={styles.headerButtonText}>Next</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-
+      <View>
         {/* Poster Preview */}
         <View
-          style={[styles.posterContainer, { height: computedPreviewHeight, width: '100%' }]}
+          style={[styles.posterContainer, { height: computedPreviewHeight, width: screenWidth, marginLeft: -moderateScale(8) }]}
           {...swipeResponder.panHandlers}
           collapsable={false}
         >
@@ -1082,51 +968,208 @@ const MyBusinessPosterPlayerScreen: React.FC = () => {
             </ScrollView>
           </View>
         )}
+      </View>
+    );
+  }, [
+    computedPreviewHeight,
+    screenWidth,
+    moderateScale,
+    swipeResponder.panHandlers,
+    selectedPoster,
+    getHighQualityImageUrl,
+    languages,
+    selectedLanguage,
+    setSelectedLanguage,
+    theme.colors,
+    isEventPlannerCategory,
+    selectedServiceFilter,
+    isLoadingServiceFilter,
+    setSelectedServiceFilter
+  ]);
 
-        {/* Related Posters Grid */}
-        <View style={styles.relatedSection}>
-          {loading ? (
-            <FlatList
-              data={Array.from({ length: 6 }, (_, index) => ({ id: `skeleton-${index}` }))}
-              renderItem={renderSkeletonItem}
-              keyExtractor={(item) => item.id}
-              numColumns={numColumns}
-              columnWrapperStyle={styles.relatedGrid}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.relatedList}
-              style={styles.relatedFlatList}
-              removeClippedSubviews={true}
-              maxToRenderPerBatch={6}
-              windowSize={3}
-              initialNumToRender={6}
-            />
-          ) : filteredPosters.length > 0 ? (
-            <FlatList
-              data={filteredPosters}
-              renderItem={renderRelatedPoster}
-              keyExtractor={(item) => item.id}
-              numColumns={numColumns}
-              columnWrapperStyle={styles.relatedGrid}
-              showsVerticalScrollIndicator={true}
-              contentContainerStyle={styles.relatedList}
-              style={styles.relatedFlatList}
-              removeClippedSubviews={true}
-              maxToRenderPerBatch={isTabletDevice ? 8 : 6}
-              windowSize={5}
-              initialNumToRender={isTabletDevice ? 8 : 6}
-              updateCellsBatchingPeriod={100}
-            />
-          ) : (
-            <View style={styles.noPostersContainer}>
-              <Text style={styles.noPostersText}>
-                {selectedLanguage === 'all' ? 'No posters available' : `No posters in ${languages.find(lang => lang.id === selectedLanguage)?.name}`}
-              </Text>
-              <Text style={styles.noPostersSubtext}>
-                {selectedLanguage === 'all' ? 'Try refreshing or changing your business category' : 'Try selecting "All" or a different language'}
-              </Text>
-            </View>
-          )}
+  const renderSkeletonItem = useCallback(() => {
+    return (
+      <View
+        style={[
+          styles.relatedPosterCard,
+          {
+            width: cardWidth,
+            height: cardHeight,
+            backgroundColor: theme.colors.inputBackground || '#f0f0f0',
+          },
+        ]}
+      >
+        {/* Shimmer Effect */}
+        <Animated.View
+          style={[
+            styles.skeletonShimmer,
+            {
+              backgroundColor: theme.colors.primary + '20' || 'rgba(102, 126, 234, 0.2)',
+              opacity: shimmerAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.3, 0.7],
+              }),
+              transform: [
+                {
+                  translateX: shimmerAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-cardWidth, cardWidth],
+                  }),
+                },
+              ],
+            }
+          ]}
+        />
+        {/* Skeleton Content Structure */}
+        <View style={styles.skeletonContent}>
+          {/* Main image area */}
+          <View style={[
+            styles.skeletonImage,
+            { backgroundColor: theme.colors.border + '40' || 'rgba(0,0,0,0.1)' }
+          ]} />
+          {/* Text placeholder */}
+          <View style={styles.skeletonTextContainer}>
+            <View style={[
+              styles.skeletonTextLine,
+              { backgroundColor: theme.colors.border + '60' || 'rgba(0,0,0,0.15)' }
+            ]} />
+            <View style={[
+              styles.skeletonTextLine,
+              styles.skeletonTextLineSmall,
+              { backgroundColor: theme.colors.border + '40' || 'rgba(0,0,0,0.1)' }
+            ]} />
+          </View>
         </View>
+      </View>
+    );
+  }, [cardWidth, cardHeight, theme.colors, shimmerAnim]);
+
+  const getIconSize = useCallback((baseSize: number) => {
+    const scale = screenWidth / 375;
+    return Math.round(baseSize * scale);
+  }, [screenWidth]);
+
+
+  if (!businessCategory) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.gradient[0] || '#e8e8e8' }]}>
+        <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
+        <View style={styles.noPostersContainer}>
+          <Text style={styles.noPostersText}>No Business Category Selected</Text>
+          <Text style={styles.noPostersSubtext}>Please select a business profile to view posters</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Check if business subcategory is software company and render IndustryCategory
+  const businessSubCategory = selectedBusinessProfile?.subCategory || selectedBusinessProfile?.subcategory || '';
+  if (businessSubCategory.toLowerCase() === 'software company') {
+    return <IndustryCategoryScreen />;
+  }
+
+  const isNextDisabled = !selectedPoster || !selectedPoster.thumbnail || !selectedPoster.id;
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.colors.gradient[0] || '#e8e8e8' }]}>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
+
+      <LinearGradient
+        colors={theme.colors.gradient}
+        style={styles.gradientBackground}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        {/* Safe Area Top Spacing */}
+        <View style={{ height: insets.top + moderateScale(12) }} />
+
+        {/* Header */}
+        <View style={styles.topHeader}>
+          <TouchableOpacity
+            onPress={handleBackPress}
+            style={styles.backArrowButton}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={[theme.colors.secondary, theme.colors.primary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.backArrowButtonGradient}
+            >
+              <Icon name="chevron-left" size={getIconSize(20)} color="#ffffff" />
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <View style={styles.headerTitleContainer}>
+            <LinearGradient
+              colors={[theme.colors.secondary, theme.colors.primary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.headerTitleGradient}
+            >
+              <Text style={styles.headerCategoryTitle} numberOfLines={1} ellipsizeMode="tail">
+                {businessCategory}
+              </Text>
+            </LinearGradient>
+          </View>
+
+          <TouchableOpacity
+            onPress={navigateToPosterEditor}
+            disabled={isNextDisabled}
+            style={[
+              styles.headerTextButton,
+              isNextDisabled && { opacity: 0.5 }
+            ]}
+            activeOpacity={isNextDisabled ? 1 : 0.85}
+          >
+            <LinearGradient
+              colors={isNextDisabled ? ['#ccc', '#999'] : [theme.colors.secondary, theme.colors.primary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.headerTextButtonGradient}
+            >
+              <Text style={styles.headerButtonText}>Next</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+
+        {renderHeader()}
+
+        {loading ? (
+          <FlatList
+            data={skeletonData}
+            renderItem={renderSkeletonItem}
+            keyExtractor={(item) => item.id}
+            numColumns={numColumns}
+            key={`skeleton-grid-${numColumns}`}
+            columnWrapperStyle={styles.relatedGrid}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.relatedList}
+            style={styles.relatedFlatList}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={6}
+            windowSize={3}
+            initialNumToRender={6}
+          />
+        ) : (
+          <FlatList
+            data={filteredPosters}
+            renderItem={renderRelatedPoster}
+            keyExtractor={(item) => item.id}
+            numColumns={numColumns}
+            key={`grid-${numColumns}`}
+            columnWrapperStyle={styles.relatedGrid}
+            showsVerticalScrollIndicator={true}
+            contentContainerStyle={styles.relatedList}
+            style={styles.relatedFlatList}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={isTabletDevice ? 8 : 6}
+            windowSize={5}
+            initialNumToRender={isTabletDevice ? 8 : 6}
+            updateCellsBatchingPeriod={100}
+            ListEmptyComponent={renderEmptyComponent}
+          />
+        )}
 
         {/* Safe Area Bottom Spacing */}
         <View style={{ height: insets.bottom }} />
@@ -1282,6 +1325,7 @@ const styles = StyleSheet.create({
   relatedList: {
     paddingBottom: moderateScale(20),
     paddingTop: moderateScale(4),
+    paddingHorizontal: moderateScale(8),
   },
   relatedFlatList: {
     flex: 1,
@@ -1382,6 +1426,7 @@ const styles = StyleSheet.create({
     marginTop: moderateScale(8),
     marginBottom: moderateScale(12),
     gap: moderateScale(6),
+    marginHorizontal: -moderateScale(8),
   },
   serviceFilterButton: {
     flex: 1,

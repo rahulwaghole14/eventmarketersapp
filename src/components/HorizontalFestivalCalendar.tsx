@@ -464,13 +464,13 @@ const HorizontalFestivalCalendar: React.FC<HorizontalFestivalCalendarProps> = ({
     return getOptimizedCloudinaryUrl(thumbnailUrl, 400);
   }, []);
   
-  // Generate dates from today to 15 days forward
+  // Generate dates from today to 7 days forward
   const upcomingDates = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Reset to start of day
     
     const dates: Date[] = [];
-    for (let i = 0; i <= 15; i++) {
+    for (let i = 0; i < 7; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
       dates.push(date);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -25,10 +25,28 @@ import loginAPIs from '../services/loginAPIs';
 import { moderateScale } from '../utils/responsiveUtils';
 import { getUserFriendlyError } from '../utils/errorHandler';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-
 const RegistrationScreen: React.FC = ({ navigation }: any) => {
   const { isDarkMode, theme } = useTheme();
+
+  // Dynamic dimensions hook
+  const [dimensions, setDimensions] = useState(() => {
+    const { width, height } = Dimensions.get('window');
+    return { width, height };
+  });
+
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setDimensions({ width: window.width, height: window.height });
+    });
+    return () => subscription?.remove();
+  }, []);
+
+  const screenWidth = dimensions.width;
+  const screenHeight = dimensions.height;
+
+  const styles = useMemo(() => {
+    return getStyles(screenWidth, screenHeight, theme);
+  }, [screenWidth, screenHeight, theme]);
 
   // Step 1 States
   const [phone, setPhone] = useState('');
@@ -506,7 +524,7 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (screenWidth: number, screenHeight: number, theme: any) => StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -518,33 +536,33 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: moderateScale(25),
+    paddingBottom: Math.max(screenHeight * 0.02, 12),
   },
   header: {
     alignItems: 'center',
-    paddingVertical: moderateScale(30),
+    paddingVertical: screenHeight < 700 ? screenHeight * 0.02 : screenHeight * 0.035,
   },
   logo: {
-    width: moderateScale(90),
-    height: moderateScale(90),
-    marginBottom: moderateScale(10),
+    width: Math.min(screenWidth * 0.22, 90),
+    height: Math.min(screenWidth * 0.22, 90),
+    marginBottom: screenHeight < 700 ? 4 : moderateScale(10),
   },
   title: {
-    fontSize: moderateScale(26),
+    fontSize: Math.min(screenWidth * 0.065, 26),
     fontWeight: '800',
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: moderateScale(14),
+    fontSize: Math.min(screenWidth * 0.035, 14),
     textAlign: 'center',
     opacity: 0.85,
-    marginTop: moderateScale(5),
+    marginTop: moderateScale(4),
   },
   formContainer: {
-    marginHorizontal: moderateScale(16),
+    marginHorizontal: Math.max(screenWidth * 0.04, 12),
     borderRadius: moderateScale(24),
-    paddingHorizontal: moderateScale(20),
-    paddingVertical: moderateScale(25),
+    paddingHorizontal: Math.max(screenWidth * 0.04, 16),
+    paddingVertical: screenHeight < 700 ? 14 : moderateScale(25),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
@@ -556,28 +574,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: moderateScale(10),
-    marginBottom: moderateScale(30),
-    marginTop: moderateScale(10),
+    marginBottom: screenHeight < 700 ? 12 : moderateScale(30),
+    marginTop: screenHeight < 700 ? 4 : moderateScale(10),
   },
   stepWrapper: {
     alignItems: 'center',
     width: moderateScale(60),
   },
   stepCircle: {
-    width: moderateScale(36),
-    height: moderateScale(36),
-    borderRadius: moderateScale(18),
+    width: screenHeight < 700 ? 28 : moderateScale(36),
+    height: screenHeight < 700 ? 28 : moderateScale(36),
+    borderRadius: screenHeight < 700 ? 14 : moderateScale(18),
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
   },
   stepNumber: {
-    fontSize: moderateScale(14),
+    fontSize: screenHeight < 700 ? 12 : moderateScale(14),
     fontWeight: '700',
   },
   stepLabel: {
-    fontSize: moderateScale(11),
-    marginTop: moderateScale(6),
+    fontSize: screenHeight < 700 ? 10 : moderateScale(11),
+    marginTop: screenHeight < 700 ? 3 : moderateScale(6),
     fontWeight: '600',
     textAlign: 'center',
   },
@@ -585,36 +603,36 @@ const styles = StyleSheet.create({
     flex: 1,
     height: moderateScale(2),
     alignSelf: 'center',
-    marginBottom: moderateScale(20),
+    marginBottom: screenHeight < 700 ? 12 : moderateScale(20),
   },
   stepContent: {
     width: '100%',
   },
   stepTitle: {
-    fontSize: moderateScale(20),
+    fontSize: Math.min(screenWidth * 0.05, 20),
     fontWeight: '700',
-    marginBottom: moderateScale(8),
+    marginBottom: screenHeight < 700 ? 4 : moderateScale(8),
   },
   stepSubtitle: {
-    fontSize: moderateScale(13),
-    lineHeight: moderateScale(18),
-    marginBottom: moderateScale(25),
+    fontSize: Math.min(screenWidth * 0.033, 13),
+    lineHeight: Math.min(screenWidth * 0.048, 18),
+    marginBottom: screenHeight < 700 ? 12 : moderateScale(25),
   },
   input: {
-    height: moderateScale(50),
+    height: screenHeight < 700 ? 42 : moderateScale(50),
     borderWidth: 1.5,
     borderRadius: moderateScale(12),
     paddingHorizontal: moderateScale(16),
-    fontSize: moderateScale(15),
+    fontSize: Math.min(screenWidth * 0.038, 15),
   },
   inputWrapper: {
     width: '100%',
-    marginBottom: moderateScale(16),
+    marginBottom: screenHeight < 700 ? 10 : moderateScale(16),
   },
   inputLabel: {
-    fontSize: moderateScale(14),
+    fontSize: Math.min(screenWidth * 0.035, 14),
     fontWeight: '600',
-    marginBottom: moderateScale(8),
+    marginBottom: screenHeight < 700 ? 4 : moderateScale(8),
   },
   redAsteriskText: {
     color: '#E53E3E',
@@ -629,18 +647,18 @@ const styles = StyleSheet.create({
     marginLeft: moderateScale(6),
   },
   resendContainer: {
-    marginTop: moderateScale(12),
+    marginTop: screenHeight < 700 ? 8 : moderateScale(12),
     alignItems: 'center',
   },
   resendText: {
-    fontSize: moderateScale(13),
+    fontSize: Math.min(screenWidth * 0.033, 13),
   },
   resendLink: {
-    fontSize: moderateScale(13),
+    fontSize: Math.min(screenWidth * 0.033, 13),
     fontWeight: '600',
   },
   primaryButton: {
-    height: moderateScale(50),
+    height: screenHeight < 700 ? 42 : moderateScale(50),
     borderRadius: moderateScale(12),
     justifyContent: 'center',
     alignItems: 'center',
@@ -652,18 +670,18 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: '#ffffff',
-    fontSize: moderateScale(13),
+    fontSize: Math.min(screenWidth * 0.033, 13),
     fontWeight: '600',
   },
   secondaryButton: {
-    height: moderateScale(50),
+    height: screenHeight < 700 ? 42 : moderateScale(50),
     borderRadius: moderateScale(12),
     borderWidth: 1.5,
     justifyContent: 'center',
     alignItems: 'center',
   },
   secondaryButtonText: {
-    fontSize: moderateScale(13),
+    fontSize: Math.min(screenWidth * 0.033, 13),
     fontWeight: '600',
   },
   loginLinkContainer: {
@@ -672,10 +690,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loginLinkText: {
-    fontSize: moderateScale(14),
+    fontSize: Math.min(screenWidth * 0.035, 14),
   },
   loginLink: {
-    fontSize: moderateScale(14),
+    fontSize: Math.min(screenWidth * 0.035, 14),
     fontWeight: '600',
   },
   modalOverlay: {

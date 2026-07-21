@@ -82,40 +82,40 @@ const ProfileScreen: React.FC = () => {
   const currentUser = authService.getCurrentUser();
   const { selectedBusinessProfileId } = useBusinessProfile();
   const { refreshSubscription } = useSubscription();
-  
+
   // Helper function to sanitize subscription data for production
   const sanitizeSubscriptionData = (subscriptionStatus: any) => {
     if (!subscriptionStatus) return subscriptionStatus;
-    
+
     // NOTE: Test plan filtering removed to allow test subscriptions to be displayed
     // const testPlanIds = ['rzp_test', 'test_plan', 'demo_plan'];
     // const testPlanNames = ['RZP_Test', 'Test Plan', 'Demo Plan'];
-    
+
     const planId = subscriptionStatus.planId || '';
     const planName = subscriptionStatus.planName || '';
-    
+
     // Test plan filtering disabled - allow all subscriptions to be displayed
     // if (testPlanIds.includes(planId) || testPlanNames.includes(planName)) {
     //   console.warn('🚫 Test plan detected and filtered:', { planId, planName });
     //   return null;
     // }
-    
+
     // Sanitize plan name for production
     const sanitizedData = {
       ...subscriptionStatus,
       planName: planName.replace(/test|demo|rzp_/gi, '').trim() || 'Pro Subscription'
     };
-    
+
     console.log('🔍 SUBSCRIPTION SANITIZATION:', {
       original: subscriptionStatus,
       sanitized: sanitizedData,
       planId,
       planName
     });
-    
+
     return sanitizedData;
   };
-  
+
   // Dynamic dimensions for responsive layout (matching HomeScreen)
   const [dimensions, setDimensions] = useState(() => {
     const { width, height } = Dimensions.get('window');
@@ -133,7 +133,7 @@ const ProfileScreen: React.FC = () => {
 
   const currentScreenWidth = dimensions.width;
   const currentScreenHeight = dimensions.height;
-  
+
   // DEBUG: Log screen dimensions on mount and when they change
   useEffect(() => {
     console.log('📐 [ProfileScreen] Screen Dimensions:', {
@@ -144,15 +144,15 @@ const ProfileScreen: React.FC = () => {
       deviceType: currentScreenWidth < 450 ? 'SMALL/MEDIUM' : 'LARGE/TABLET',
     });
   }, [currentScreenWidth, currentScreenHeight]);
-  
+
   // Dynamic responsive scaling functions
   const dynamicScale = (size: number) => (currentScreenWidth / 375) * size;
   const dynamicVerticalScale = (size: number) => (currentScreenHeight / 667) * size;
   const dynamicModerateScale = (size: number, factor = 0.5) => size + (dynamicScale(size) - size) * factor;
-  
+
   // Ensure avatar remains visible on small screens
   const avatarSize = Math.max(64, dynamicModerateScale(60));
-  
+
   // Normalize possibly relative image URLs to absolute (prefer HTTPS backend)
   const toAbsoluteUrl = (url?: string | null): string | null => {
     if (!url) return null;
@@ -194,25 +194,25 @@ const ProfileScreen: React.FC = () => {
     }
     return url;
   };
-  
-  
+
+
   // Responsive icon sizes (compact - 60% of original, slightly larger for small screens)
   const getIconSize = (baseSize: number) => {
     const isCurrentlySmall = currentScreenWidth < 375;
     const multiplier = isCurrentlySmall ? 0.75 : 0.6; // Increased from 0.7 to 0.75 for small screens
     return Math.max(10, Math.round(baseSize * (currentScreenWidth / 375) * multiplier));
   };
-  
+
   // Track logged base sizes to reduce console noise
   const loggedBaseSizes = useRef<Set<number>>(new Set());
   const hasLoggedScreenInfo = useRef(false);
-  
+
   // Responsive text size helper (much larger for small screens)
   const getFontSize = (baseSize: number) => {
     // Increased threshold to 450px to catch more devices including medium phones
     // True small screens are typically < 375px, but we extend to 450px for better coverage
     const isCurrentlySmall = currentScreenWidth < 450;
-    
+
     // DEBUG: Log screen info once
     if (!hasLoggedScreenInfo.current) {
       console.log('═══════════════════════════════════════════════════════════');
@@ -225,14 +225,14 @@ const ProfileScreen: React.FC = () => {
       console.log('═══════════════════════════════════════════════════════════');
       hasLoggedScreenInfo.current = true;
     }
-    
+
     if (isCurrentlySmall) {
       // For small screens, use a moderate multiplier approach
       // Apply a reasonable boost to make text more readable without being too large
       // Using 1.3x multiplier + 3px for a balanced increase
       const boostedSize = baseSize * 1.3 + 3;
       const finalSize = Math.round(boostedSize);
-      
+
       // DEBUG: Log each unique baseSize calculation (only once per unique size)
       if (!loggedBaseSizes.current.has(baseSize)) {
         console.log('📱 [getFontSize] SMALL SCREEN CALCULATION:', {
@@ -245,13 +245,13 @@ const ProfileScreen: React.FC = () => {
         });
         loggedBaseSizes.current.add(baseSize);
       }
-      
+
       return finalSize;
     }
-    
+
     // For medium and large screens, use normal scaling
     const baseFontSize = dynamicModerateScale(baseSize);
-    
+
     // DEBUG: Log each unique baseSize for normal screens (only once per unique size)
     if (!loggedBaseSizes.current.has(baseSize)) {
       console.log('💻 [getFontSize] NORMAL SCREEN CALCULATION:', {
@@ -262,10 +262,10 @@ const ProfileScreen: React.FC = () => {
       });
       loggedBaseSizes.current.add(baseSize);
     }
-    
+
     return baseFontSize;
   };
-  
+
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [editFormData, setEditFormData] = useState({
@@ -303,6 +303,7 @@ const ProfileScreen: React.FC = () => {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [showComingSoonModal, setShowComingSoonModal] = useState(false);
   const [comingSoonTitle, setComingSoonTitle] = useState('');
+  const [dailyMarketingOptIn, setDailyMarketingOptIn] = useState(currentUser?.receiveDailyMarketing !== false);
   const [comingSoonSubtitle, setComingSoonSubtitle] = useState('');
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorModalMessage, setErrorModalMessage] = useState('');
@@ -345,6 +346,16 @@ const ProfileScreen: React.FC = () => {
     darkModeAnimation.setValue(isDarkMode ? 1 : 0);
   }, [isDarkMode]);
 
+  const dailyMarketingAnimation = useRef(new Animated.Value(dailyMarketingOptIn ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(dailyMarketingAnimation, {
+      toValue: dailyMarketingOptIn ? 1 : 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  }, [dailyMarketingOptIn]);
+
   // Clear state when user changes to prevent data leakage between users
   useEffect(() => {
     return () => {
@@ -367,10 +378,10 @@ const ProfileScreen: React.FC = () => {
         console.log('   - Current user ID:', currentUserId);
         return false;
       }
-      
+
       const lastUpdate = await AsyncStorage.getItem(CACHE_KEYS.LAST_UPDATE);
       if (!lastUpdate) return false;
-      
+
       const timeSinceUpdate = Date.now() - parseInt(lastUpdate, 10);
       return timeSinceUpdate < CACHE_DURATION;
     } catch (error) {
@@ -433,12 +444,12 @@ const ProfileScreen: React.FC = () => {
           // Get current user ID for user-specific data
           let currentUser = authService.getCurrentUser();
           const userId = currentUser?.id;
-          
+
           if (!userId) {
             console.log('⚠️ No user ID available for loading profile data');
             return;
           }
-          
+
           // Also refresh subscription status
           console.log('🔄 SUBSCRIPTION_STATUS_FETCH - ProfileScreen focused, refreshing subscription');
           refreshSubscription(true);
@@ -448,12 +459,12 @@ const ProfileScreen: React.FC = () => {
             const cacheValid = await isCacheValid(userId);
             if (cacheValid) {
               console.log('📦 Loading profile data from cache for user:', userId);
-              
+
               // Load from cache
               const cachedProfile = await getCachedData<any>(CACHE_KEYS.PROFILE_DATA);
               const cachedDownloadStats = await getCachedData<any>(CACHE_KEYS.DOWNLOAD_STATS);
               const cachedBusinessStats = await getCachedData<any>(CACHE_KEYS.BUSINESS_STATS);
-              
+
               // Verify cached profile belongs to current user
               if (cachedProfile && cachedProfile.id === userId) {
                 authService.setCurrentUser(cachedProfile);
@@ -461,22 +472,25 @@ const ProfileScreen: React.FC = () => {
                 if (cachedProfile?.logo || cachedProfile?.companyLogo) {
                   setProfileImageUri(cachedProfile?.logo || cachedProfile?.companyLogo || null);
                 }
+                if (cachedProfile.receiveDailyMarketing !== undefined) {
+                  setDailyMarketingOptIn(cachedProfile.receiveDailyMarketing);
+                }
                 console.log('✅ Profile data loaded from cache');
               } else if (cachedProfile) {
                 console.log('⚠️ Cached profile belongs to different user, invalidating cache');
                 await invalidateCache();
               }
-              
+
               if (cachedDownloadStats) {
                 setPosterStats(cachedDownloadStats);
                 console.log('✅ Download stats loaded from cache');
               }
-              
+
               if (cachedBusinessStats) {
                 setBusinessProfileStats(cachedBusinessStats);
                 console.log('✅ Business stats loaded from cache');
               }
-              
+
               // If all cache data is available and belongs to correct user, return early
               if (cachedProfile && cachedProfile.id === userId && cachedDownloadStats && cachedBusinessStats) {
                 console.log('✅ All data loaded from cache, skipping API calls');
@@ -536,9 +550,9 @@ const ProfileScreen: React.FC = () => {
             console.log('═══════════════════════════════════════════════════════════');
             console.log('🔍 User ID:', userId);
             console.log('📡 Calling authApi.getProfile()...');
-            
+
             const profileResponse = await authApi.getProfile(userId);
-            
+
             console.log('═══════════════════════════════════════════════════════════');
             console.log('📥 GET PROFILE API RESPONSE - FULL RESPONSE');
             console.log('═══════════════════════════════════════════════════════════');
@@ -548,9 +562,9 @@ const ProfileScreen: React.FC = () => {
             console.log('✅ Response Success:', profileResponse?.success);
             console.log('✅ Response Message:', profileResponse?.message || 'N/A');
             console.log('─────────────────────────────────────────────────────────');
-            
+
             const completeUserData = profileResponse.data;
-            
+
             console.log('📋 Complete User Data Object:');
             console.log(JSON.stringify(completeUserData, null, 2));
             console.log('─────────────────────────────────────────────────────────');
@@ -586,17 +600,17 @@ const ProfileScreen: React.FC = () => {
             console.log('═══════════════════════════════════════════════════════════');
             console.log('📥 GET PROFILE API RESPONSE - END');
             console.log('═══════════════════════════════════════════════════════════');
-            
+
             // Update current user with complete profile data
             // CRITICAL: Exclude businessProfiles from API to prevent contamination
             const { businessProfiles, ...cleanUserData } = completeUserData as any;
-            
+
             // Use the name/companyName from API response (this is the user's actual current name)
             const apiCompanyName = cleanUserData.name || cleanUserData.companyName || currentUser?.companyName;
-            
+
             // Sync logo from API response (prefer 'logo' field, fallback to 'companyLogo')
             const apiLogo = cleanUserData.logo || cleanUserData.companyLogo || currentUser?.logo || currentUser?.companyLogo;
-            
+
             // CRITICAL: If we have _original values, use them instead of potentially contaminated API data
             // This protects against backend bugs where business profile data leaks into user profile
             const protectedAddress = currentUser?._originalAddress !== undefined ? currentUser._originalAddress : cleanUserData.address;
@@ -604,7 +618,7 @@ const ProfileScreen: React.FC = () => {
             const protectedCategory = currentUser?._originalCategory !== undefined ? currentUser._originalCategory : cleanUserData.category;
             const protectedDescription = currentUser?._originalDescription !== undefined ? currentUser._originalDescription : cleanUserData.description;
             const protectedAlternatePhone = currentUser?._originalAlternatePhone !== undefined ? currentUser._originalAlternatePhone : cleanUserData.alternatePhone;
-            
+
             console.log('🛡️ BACKEND CONTAMINATION PROTECTION (on load):');
             console.log('   - Using _originalAddress:', currentUser?._originalAddress !== undefined ? 'YES' : 'NO (using API)');
             console.log('   - Protected address:', protectedAddress);
@@ -612,7 +626,7 @@ const ProfileScreen: React.FC = () => {
             if (currentUser?._originalAddress !== undefined && protectedAddress !== cleanUserData.address) {
               console.warn('   ⚠️ CONTAMINATION DETECTED: API address differs from _original!');
             }
-            
+
             const updatedUserData = {
               ...currentUser,
               ...cleanUserData,
@@ -640,18 +654,18 @@ const ProfileScreen: React.FC = () => {
               photoURL: apiLogo,
               profileImage: apiLogo,
             };
-            
+
             // Update auth service with complete data (without business profiles)
             authService.setCurrentUser(updatedUserData);
-            
+
             // Cache the updated profile data
             await setCachedData(CACHE_KEYS.PROFILE_DATA, updatedUserData);
-            
+
             console.log('✅ User data updated (business profiles excluded from API)');
             console.log('✅ Company name from API:', updatedUserData.companyName);
             console.log('🖼️ Logo from API:', updatedUserData.logo);
             console.log('💾 Profile data cached');
-            
+
             // Update profile image from logo field
             if (apiLogo) {
               console.log('🖼️ Setting profile image URI from API:', apiLogo);
@@ -659,13 +673,17 @@ const ProfileScreen: React.FC = () => {
             } else {
               console.log('⚠️ No profile image/logo found in API response');
             }
-            
+
+            if (updatedUserData.receiveDailyMarketing !== undefined) {
+              setDailyMarketingOptIn(updatedUserData.receiveDailyMarketing);
+            }
+
             console.log('✅ User profile data loaded and updated');
           } catch (error) {
             console.log('⚠️ Failed to load profile data from API:', error);
             // Continue with existing user data
           }
-          
+
           // 🔍 STEP 5: BUSINESS-SPECIFIC HISTORY API
           try {
             let downloadsResponse: any;
@@ -677,15 +695,15 @@ const ProfileScreen: React.FC = () => {
               console.log('⚠️ [PROFILE SCREEN] No business profile selected, skipping download fetch');
               return;
             }
-            
+
             // Deduplicate downloads to match MyPostersScreen logic and prevent double-counting
             const rawDownloads = downloadsResponse?.downloads || [];
             const validDownloads = rawDownloads.filter((download: any) => {
               const url = download.fileUrl || download.thumbnail;
-              return url && typeof url === 'string' && url.trim() !== '' && 
+              return url && typeof url === 'string' && url.trim() !== '' &&
                 (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('file://'));
             });
-            
+
             const uniqueMap = new Map<string, any>();
             validDownloads.forEach((download: any) => {
               const existing = uniqueMap.get(download.resourceId);
@@ -698,7 +716,7 @@ const ProfileScreen: React.FC = () => {
               }
             });
             const uniqueDownloads = Array.from(uniqueMap.values());
-            
+
             const posterStatsData = {
               total: uniqueDownloads.length,
               recentCount: uniqueDownloads.filter((d: any) => {
@@ -709,47 +727,47 @@ const ProfileScreen: React.FC = () => {
               }).length,
             };
             setPosterStats(posterStatsData);
-            
+
             // Cache download stats
             await setCachedData(CACHE_KEYS.DOWNLOAD_STATS, posterStatsData);
-            
+
             console.log('✅ [PROFILE] Download stats loaded:', posterStatsData);
             console.log('💾 Download stats cached');
           } catch (error) {
             console.log('⚠️ [PROFILE] Failed to load download stats:', error);
             setPosterStats({ total: 0, recentCount: 0 });
           }
-          
+
           // Load business profile stats by fetching actual profiles from backend
           let businessStats = { total: 0, recentCount: 0 };
           try {
             const profiles = await businessProfileService.getUserBusinessProfiles(userId);
             const oneWeekAgo = new Date();
             oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-            const recentCount = profiles.filter(profile => 
+            const recentCount = profiles.filter(profile =>
               new Date(profile.createdAt) > oneWeekAgo
             ).length;
-            
+
             businessStats = {
               total: profiles.length,
               recentCount: recentCount,
             };
-            
+
             setBusinessProfileStats(businessStats);
-            
+
             // Cache business stats
             await setCachedData(CACHE_KEYS.BUSINESS_STATS, businessStats);
-            
+
             console.log('📊 Business profile stats loaded:', businessStats);
             console.log('💾 Business stats cached');
           } catch (error) {
             console.log('⚠️ Failed to load business profile stats:', error);
             setBusinessProfileStats({ total: 0, recentCount: 0 });
           }
-          
+
           // Update cache timestamp after successful data load
           await updateCacheTimestamp(userId);
-          
+
           console.log('📊 Loaded stats for user:', userId, 'Posters:', posterStats?.total || 0, 'Business Profiles:', businessStats?.total || 0);
           console.log('✅ All profile data cached successfully');
         } catch (error) {
@@ -765,44 +783,44 @@ const ProfileScreen: React.FC = () => {
     setIsRefreshing(true);
     try {
       console.log('🔄 Manual refresh triggered');
-      
+
       // Get current user
       let currentUser = authService.getCurrentUser();
       const userId = currentUser?.id;
-      
+
       if (!userId) {
         console.log('⚠️ No user ID available for refresh');
         setIsRefreshing(false);
         return;
       }
-      
+
       // Invalidate cache first
       await invalidateCache();
-      
+
       // Fetch fresh profile data
       try {
         const profileResponse = await authApi.getProfile(userId);
         const completeUserData = profileResponse.data;
-        
+
         const { businessProfiles, ...cleanUserData } = completeUserData as any;
-        
+
         // Use the name from API (this is the user's actual current name)
         const apiCompanyName = cleanUserData.name || cleanUserData.companyName || currentUser?.companyName;
-        
+
         // CRITICAL: Protect against backend contamination during refresh too
         const protectedAddress = currentUser?._originalAddress !== undefined ? currentUser._originalAddress : cleanUserData.address;
         const protectedWebsite = currentUser?._originalWebsite !== undefined ? currentUser._originalWebsite : cleanUserData.website;
         const protectedCategory = currentUser?._originalCategory !== undefined ? currentUser._originalCategory : cleanUserData.category;
         const protectedDescription = currentUser?._originalDescription !== undefined ? currentUser._originalDescription : cleanUserData.description;
         const protectedAlternatePhone = currentUser?._originalAlternatePhone !== undefined ? currentUser._originalAlternatePhone : cleanUserData.alternatePhone;
-        
+
         console.log('🛡️ BACKEND CONTAMINATION PROTECTION (on refresh):');
         console.log('   - Protected address:', protectedAddress);
         console.log('   - API returned address:', cleanUserData.address);
         if (currentUser?._originalAddress !== undefined && protectedAddress !== cleanUserData.address) {
           console.warn('   ⚠️ CONTAMINATION DETECTED on refresh: API address differs from _original!');
         }
-        
+
         const updatedUserData = {
           ...currentUser,
           ...cleanUserData,
@@ -824,29 +842,32 @@ const ProfileScreen: React.FC = () => {
           _originalDescription: currentUser?._originalDescription !== undefined ? currentUser._originalDescription : cleanUserData.description,
           _originalAlternatePhone: currentUser?._originalAlternatePhone !== undefined ? currentUser._originalAlternatePhone : cleanUserData.alternatePhone,
         };
-        
+
         authService.setCurrentUser(updatedUserData);
         await setCachedData(CACHE_KEYS.PROFILE_DATA, updatedUserData);
-        
+        if (updatedUserData.receiveDailyMarketing !== undefined) {
+          setDailyMarketingOptIn(updatedUserData.receiveDailyMarketing);
+        }
+
         if (completeUserData?.logo || completeUserData?.companyLogo) {
           setProfileImageUri(completeUserData?.logo || completeUserData?.companyLogo || null);
         }
       } catch (error) {
         console.log('⚠️ Failed to refresh profile data:', error);
       }
-      
+
       // Fetch fresh download stats
       try {
         const downloadsResponse = await downloadTrackingService.getUserDownloads(userId);
-        
+
         // Deduplicate downloads to match MyPostersScreen logic and prevent double-counting
         const rawDownloads = downloadsResponse.downloads || [];
         const validDownloads = rawDownloads.filter((download: any) => {
           const url = download.fileUrl || download.thumbnail;
-          return url && typeof url === 'string' && url.trim() !== '' && 
+          return url && typeof url === 'string' && url.trim() !== '' &&
             (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('file://'));
         });
-        
+
         const uniqueMap = new Map<string, any>();
         validDownloads.forEach((download: any) => {
           const existing = uniqueMap.get(download.resourceId);
@@ -859,7 +880,7 @@ const ProfileScreen: React.FC = () => {
           }
         });
         const uniqueDownloads = Array.from(uniqueMap.values());
-        
+
         const posterStatsData = {
           total: uniqueDownloads.length,
           recentCount: uniqueDownloads.filter((d: any) => {
@@ -874,30 +895,30 @@ const ProfileScreen: React.FC = () => {
       } catch (error) {
         console.log('⚠️ Failed to refresh download stats:', error);
       }
-      
+
       // Fetch fresh business stats
       try {
         const profiles = await businessProfileService.getUserBusinessProfiles(userId);
         const oneWeekAgo = new Date();
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        const recentCount = profiles.filter(profile => 
+        const recentCount = profiles.filter(profile =>
           new Date(profile.createdAt) > oneWeekAgo
         ).length;
-        
+
         const businessStats = {
           total: profiles.length,
           recentCount: recentCount,
         };
-        
+
         setBusinessProfileStats(businessStats);
         await setCachedData(CACHE_KEYS.BUSINESS_STATS, businessStats);
       } catch (error) {
         console.log('⚠️ Failed to refresh business stats:', error);
       }
-      
+
       // Update cache timestamp
       await updateCacheTimestamp(userId);
-      
+
       console.log('✅ Profile data refreshed successfully');
     } catch (error) {
       console.error('❌ Error during refresh:', error);
@@ -914,24 +935,24 @@ const ProfileScreen: React.FC = () => {
   const confirmSignOut = async () => {
     try {
       setIsSigningOut(true);
-      
+
       // Clear subscription data immediately
       clearSubscriptionData();
-      
+
       // Call signOut (this will handle all cache clearing internally)
       await authService.signOut();
-      
+
       // Navigation will be handled by the auth state change listener
       setShowSignOutModal(false);
-            } catch (error) {
-              setIsSigningOut(false);
-              console.error('ProfileScreen: Sign out error:', error);
-              Alert.alert(
-                'Sign Out Error', 
-                'There was an issue signing out. Your local data has been cleared, but you may need to sign in again.',
-                [{ text: 'OK' }]
-              );
-            }
+    } catch (error) {
+      setIsSigningOut(false);
+      console.error('ProfileScreen: Sign out error:', error);
+      Alert.alert(
+        'Sign Out Error',
+        'There was an issue signing out. Your local data has been cleared, but you may need to sign in again.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const handleDeleteAccount = () => {
@@ -942,31 +963,31 @@ const ProfileScreen: React.FC = () => {
     try {
       const currentUser = authService.getCurrentUser();
       const userId = currentUser?.id;
-      
+
       if (!userId) {
         Alert.alert('Error', 'User not found. Please sign in again.');
         return;
       }
-      
+
       // Set loading state instead of showing Alert
       setIsDeletingAccount(true);
-      
+
       // Delete user account
       await authApi.deleteUser(userId);
-      
+
       // Clear all local data
       clearSubscriptionData();
       await authService.signOut();
-      
+
       // Close modal - navigation will be handled by auth state change listener
       setIsDeletingAccount(false);
       setShowDeleteAccountModal(false);
-      
+
     } catch (error: any) {
       console.error('Delete account error:', error);
       setIsDeletingAccount(false);
       setShowDeleteAccountModal(false);
-      
+
       Alert.alert(
         'Delete Account Error',
         error.response?.data?.message || 'Failed to delete account. Please try again.',
@@ -981,28 +1002,63 @@ const ProfileScreen: React.FC = () => {
     try {
       const currentUser = authService.getCurrentUser();
       const userId = currentUser?.id;
-      
+
       if (!userId) {
         console.warn('No user ID available for notification toggle');
         return;
       }
-      
+
       const newValue = !notificationsEnabled;
       setNotificationsEnabled(newValue);
-      
+
       // Save to user preferences via backend
       await userProfileService.updatePreference(userId, 'notificationsEnabled', newValue);
-      
+
       // Animate the toggle
       Animated.timing(notificationsAnimation, {
         toValue: newValue ? 1 : 0,
         duration: 200,
         useNativeDriver: false,
       }).start();
-      
+
       console.log('✅ Notification preference updated for user:', userId, 'Value:', newValue);
     } catch (error) {
       console.error('❌ Error updating notification preference:', error);
+    }
+  };
+
+  const handleDailyMarketingToggle = async () => {
+    try {
+      const currentUser = authService.getCurrentUser();
+      const userId = currentUser?.id;
+
+      if (!userId) {
+        console.warn('No user ID available for daily marketing toggle');
+        return;
+      }
+
+      const newValue = !dailyMarketingOptIn;
+      setDailyMarketingOptIn(newValue);
+
+      // Save to backend via PATCH /api/mobile/users/me/marketing-preferences
+      await authApi.updateMarketingPreferences(newValue);
+
+      // Update local storage and cache
+      const updatedUser = {
+        ...currentUser,
+        receiveDailyMarketing: newValue
+      };
+
+      authService.setCurrentUser(updatedUser);
+      await AsyncStorage.setItem('currentUser', JSON.stringify(updatedUser));
+      await setCachedData(CACHE_KEYS.PROFILE_DATA, updatedUser);
+
+      console.log('✅ Daily marketing preferences updated for user:', userId, 'Value:', newValue);
+    } catch (error) {
+      console.error('❌ Error updating daily marketing preferences:', error);
+      // Revert state on error
+      setDailyMarketingOptIn(dailyMarketingOptIn);
+      Alert.alert('Error', 'Failed to save preferences. Please check your network connection.');
     }
   };
 
@@ -1036,10 +1092,10 @@ const ProfileScreen: React.FC = () => {
     try {
       const newValue = !isDarkMode;
       toggleDarkMode();
-      
+
       // Dark mode is now stored locally per device, not synced with backend
       console.log('✅ Dark mode toggled locally:', newValue);
-      
+
       // Animate the toggle
       Animated.timing(darkModeAnimation, {
         toValue: newValue ? 1 : 0,
@@ -1091,7 +1147,7 @@ const ProfileScreen: React.FC = () => {
 
       // Try to open Play Store app first
       const canOpenPlayStore = await Linking.canOpenURL(playStoreUrl);
-      
+
       if (canOpenPlayStore) {
         console.log('Opening Play Store app...');
         await Linking.openURL(playStoreUrl);
@@ -1114,21 +1170,21 @@ const ProfileScreen: React.FC = () => {
   const handleEditProfile = async () => {
     try {
       const currentUser = authService.getCurrentUser();
-      
+
       if (!currentUser) {
         console.log('⚠️ No current user available');
         throw new Error('No user data available');
       }
-      
+
       // Always fetch from backend API
       console.log('🔍 Fetching profile data from backend API...');
-      
+
       const userId = currentUser?.id;
-      
+
       if (!userId) {
         throw new Error('No user ID available');
       }
-      
+
       // Wait for token to be available before fetching profile
       let token = await AsyncStorage.getItem('authToken');
       if (!token) {
@@ -1155,12 +1211,12 @@ const ProfileScreen: React.FC = () => {
           console.log('✅ Token now available in storage');
         }
       }
-      
+
       console.log('🔍 Fetching profile using userId:', userId);
       console.log('📡 Making GET request to profile API...');
-      
+
       const profileResponse = await authApi.getProfile(userId);
-      
+
       console.log('═══════════════════════════════════════════════');
       console.log('📥 GET PROFILE RESPONSE - START');
       console.log('═══════════════════════════════════════════════');
@@ -1169,26 +1225,26 @@ const ProfileScreen: React.FC = () => {
       console.log('✅ Response Status:', (profileResponse as any)?.status || 'N/A');
       console.log('✅ Response Success:', profileResponse?.success || 'N/A');
       console.log('───────────────────────────────────────────────');
-      
+
       const apiResponse = profileResponse.data as any;
-      
+
       console.log('═══════════════════════════════════════════════');
       console.log('📥 API RESPONSE FROM /api/mobile/auth/me');
       console.log('═══════════════════════════════════════════════');
       console.log(JSON.stringify(apiResponse, null, 2));
       console.log('═══════════════════════════════════════════════');
-      
+
       // Remove business profiles from API response to prevent contamination
       const { businessProfiles, ...cleanApiData } = apiResponse;
-      
+
       // Update current user with API data
       const updatedUser = {
         ...currentUser,
         ...cleanApiData,
       };
-      
+
       authService.setCurrentUser(updatedUser);
-      
+
       console.log('✅ Updated currentUser with API data');
       console.log('📋 Populating Edit Form DIRECTLY from API response:');
       console.log('   - name/companyName:', apiResponse.companyName || apiResponse.name);
@@ -1198,7 +1254,7 @@ const ProfileScreen: React.FC = () => {
       console.log('   - phone:', apiResponse.phoneNumber || apiResponse.phone);
       console.log('   - alternatePhone:', apiResponse.alternatePhone);
       console.log('   - website:', apiResponse.website);
-      
+
       // Populate edit form DIRECTLY from API response (no merging, no fallbacks)
       setEditFormData({
         name: apiResponse.companyName || apiResponse.name || '',
@@ -1210,18 +1266,18 @@ const ProfileScreen: React.FC = () => {
         website: apiResponse.website ?? '',
         companyLogo: apiResponse.logo || apiResponse.companyLogo || '',
       });
-      
+
       setShowEditProfileModal(true);
-      
+
     } catch (error) {
       console.log('⚠️ Failed to fetch complete profile data from API:', error);
-      
+
       // No local storage fallback - API only
       console.log('❌ All profile API endpoints failed, showing error to user');
-      
+
       // Show error to user instead of using local data
       Alert.alert(
-        'Error', 
+        'Error',
         'Failed to load profile data from server. Please check your internet connection and try again.',
         [
           {
@@ -1291,7 +1347,7 @@ const ProfileScreen: React.FC = () => {
     try {
       const currentUser = authService.getCurrentUser();
       const userId = currentUser?.id;
-      
+
       if (!userId) {
         Alert.alert('Error', 'User not found. Please log in again.');
         return;
@@ -1329,15 +1385,15 @@ const ProfileScreen: React.FC = () => {
       };
 
       const response = await authApi.updateProfile(updateData, userId);
-      
+
       console.log('📥 API Update Response:', JSON.stringify(response, null, 2));
       console.log('📥 Response data fields:', Object.keys(response.data || {}));
-      
+
       if (response.success) {
         // API returns user data nested under response.data.user (or directly in response.data)
         const responseData: any = response.data;
         const apiUserData = responseData.user || response.data;
-        
+
         // CRITICAL WORKAROUND FOR BACKEND BUG:
         // Backend sometimes returns contaminated data from business profiles
         // We MUST use what WE SENT (updateData) as the source of truth for fields we updated
@@ -1348,7 +1404,7 @@ const ProfileScreen: React.FC = () => {
         console.log('   - website (backend returned):', apiUserData.website);
         console.log('   - category (sent):', updateData.category);
         console.log('   - category (backend returned):', apiUserData.category);
-        
+
         console.log('📥 Extracted user data:', JSON.stringify(apiUserData, null, 2));
         console.log('📤 What we sent (updateData):', JSON.stringify(updateData, null, 2));
         console.log('🔍 Checking which fields API returned:');
@@ -1356,15 +1412,15 @@ const ProfileScreen: React.FC = () => {
         console.log('   - description in API?', 'description' in apiUserData, apiUserData.description);
         console.log('   - address in API?', 'address' in apiUserData, apiUserData.address);
         console.log('   - website in API?', 'website' in apiUserData, apiUserData.website);
-        
+
         // Update the current user object with the response
         // CRITICAL WORKAROUND: Backend has a bug where it returns contaminated data
         // We MUST use what WE SENT (updateData) as the source of truth
         const updatedCompanyName = apiUserData.name || apiUserData.companyName || updateData.name;
-        
+
         // Sync logo from API response (prefer 'logo' field, fallback to 'companyLogo')
         const updatedLogo = apiUserData.logo || apiUserData.companyLogo || (updateData as any).logo || (updateData as any).companyLogo || currentUser?.logo || currentUser?.companyLogo;
-        
+
         const updatedUser = {
           ...currentUser,
           ...apiUserData,
@@ -1394,7 +1450,7 @@ const ProfileScreen: React.FC = () => {
           _originalDescription: updateData.description ?? '',
           _originalAlternatePhone: updateData.alternatePhone ?? '',
         };
-        
+
         console.log('✅ Updated user object (USER FIELDS ONLY):');
         console.log('   - companyName:', updatedUser.companyName);
         console.log('   - address:', updatedUser.address);
@@ -1409,31 +1465,31 @@ const ProfileScreen: React.FC = () => {
         console.log('   - _originalCategory:', updatedUser._originalCategory);
         console.log('   - _originalDescription:', updatedUser._originalDescription);
         console.log('   - _originalAlternatePhone:', updatedUser._originalAlternatePhone);
-        
+
         authService.setCurrentUser(updatedUser);
-        
+
         // Update profile image URI if logo changed
         if (updatedLogo && updatedLogo !== profileImageUri) {
           console.log('🖼️ Updating profile image URI to:', updatedLogo);
           setProfileImageUri(updatedLogo);
         }
-        
+
         console.log('✅ Profile updated in memory');
         console.log('   - address:', updatedUser.address);
         console.log('   - website:', updatedUser.website);
         console.log('   - category:', updatedUser.category);
         console.log('   - description:', updatedUser.description);
         console.log('   - logo:', updatedUser.logo)
-        
+
         // Invalidate profile cache to force fresh data on next load
         console.log('🗑️ Invalidating profile cache after update');
         await invalidateCache();
-        
+
         // Cache the newly updated profile data
         await setCachedData(CACHE_KEYS.PROFILE_DATA, authService.getCurrentUser());
         await updateCacheTimestamp(userId);
         console.log('💾 Updated profile data cached');
-        
+
         // Skip business profile cache clearing - user profile update only
         console.log('ℹ️ Skipping business profile cache clearing - user profile update only');
         try {
@@ -1441,7 +1497,7 @@ const ProfileScreen: React.FC = () => {
         } catch (error) {
           console.warn('⚠️ Could not handle business profile cache preservation:', error);
         }
-        
+
         // Clear business category posters cache to refresh My Business screen with new category posters
         console.log('🔄 Clearing business category posters cache after profile update');
         try {
@@ -1450,7 +1506,7 @@ const ProfileScreen: React.FC = () => {
         } catch (error) {
           console.error('Failed to clear business category posters cache:', error);
         }
-        
+
         // Skip business profile refresh event - user profile update only
         console.log('ℹ️ Skipping business profile refresh event - user profile update only');
         try {
@@ -1458,16 +1514,16 @@ const ProfileScreen: React.FC = () => {
         } catch (eventError) {
           console.warn('⚠️ Could not handle business profile refresh skip:', eventError);
         }
-        
+
         // Fallback: try to update HomeScreen state directly if it's mounted
         try {
           // Find HomeScreen instance and refresh its business profiles
           const navigation = require('@react-navigation/native').useNavigation();
           const rootState = navigation.getState();
-          const homeScreenRoute = rootState?.routes?.find((route: any) => 
+          const homeScreenRoute = rootState?.routes?.find((route: any) =>
             route.name === 'Home' || route.name === 'MyBusiness'
           );
-          
+
           if (homeScreenRoute) {
             console.log('🔄 HomeScreen or MyBusiness screen is active, triggering refresh...');
             // Small delay to ensure current operation completes
@@ -1481,7 +1537,7 @@ const ProfileScreen: React.FC = () => {
         } catch (navError) {
           console.warn('⚠️ Could not trigger navigation refresh:', navError);
         }
-        
+
         setShowEditProfileModal(false);
         setSuccessMessage('Profile updated successfully!');
         setShowSuccessModal(true);
@@ -1529,7 +1585,7 @@ const ProfileScreen: React.FC = () => {
 
   const handleImageSelected = async (imageUri: string) => {
     console.log('🖼️ [START] handleImageSelected called with:', imageUri);
-    
+
     try {
       // Validate image URI first
       if (!imageUri || imageUri.trim() === '') {
@@ -1537,7 +1593,7 @@ const ProfileScreen: React.FC = () => {
         Alert.alert('Error', 'Invalid image. Please try again.');
         return;
       }
-      
+
       // Get current user at the start
       const currentUser = authService.getCurrentUser();
       console.log('📍 Current user info:', {
@@ -1545,20 +1601,20 @@ const ProfileScreen: React.FC = () => {
         logo: currentUser?.logo,
         companyLogo: currentUser?.companyLogo,
       });
-      
+
       if (!currentUser) {
         console.error('❌ No current user available');
         Alert.alert('Error', 'User session not found. Please try again.');
         return;
       }
-      
+
       const userId = currentUser?.id;
       if (!userId) {
         console.error('❌ No user ID available');
         Alert.alert('Error', 'User ID not found. Please try again.');
         return;
       }
-      
+
       // Step 1: Update UI state immediately (optimistic update)
       try {
         console.log('✅ Step 1: Setting profile image URI (optimistic)...');
@@ -1568,15 +1624,15 @@ const ProfileScreen: React.FC = () => {
         console.error('❌ Step 1 failed:', error);
         throw error;
       }
-      
+
       // Step 2: Upload image file to server using FormData
       let uploadedLogoUrl: string;
       try {
         console.log('✅ Step 2: Uploading image file to server...');
         console.log('📤 [STEP 2] Using proper file upload (FormData)');
-        
+
         const response = await authApi.uploadProfileImage(userId, imageUri);
-        
+
         // Extract the logo URL from response (handle multiple response shapes)
         const responsePayload: Partial<UserProfile> | undefined =
           (response as ProfileResponse)?.data ??
@@ -1588,17 +1644,17 @@ const ProfileScreen: React.FC = () => {
           responsePayload?.companyLogo ||
           (response as any)?.data?.data?.logo ||
           (response as any)?.logo;
-        
+
         if (!uploadedLogoUrl) {
           console.error('❌ [STEP 2] No logo URL in response:', response);
           throw new Error('Server did not return a logo URL');
         }
-        
+
         console.log('✅ Step 2 complete - Uploaded logo URL:', uploadedLogoUrl);
         console.log('🔗 [STEP 2] Image now available at:', uploadedLogoUrl);
       } catch (error: any) {
         console.error('❌ Step 2 file upload failed:', error);
-        
+
         // Check if backend endpoint doesn't exist
         if (error.message?.includes('Backend upload endpoint not implemented')) {
           Alert.alert(
@@ -1615,12 +1671,12 @@ const ProfileScreen: React.FC = () => {
             [{ text: 'OK' }]
           );
         }
-        
+
         // Revert UI state
         setProfileImageUri(currentUser?.logo || currentUser?.companyLogo || null);
         return;
       }
-      
+
       // Step 3: Update user object locally with the uploaded URL
       let updatedUser;
       try {
@@ -1632,20 +1688,20 @@ const ProfileScreen: React.FC = () => {
           profileImage: uploadedLogoUrl,
           companyLogo: uploadedLogoUrl, // Keep for backward compatibility
         };
-        
+
         // Update in auth service
         authService.setCurrentUser(updatedUser);
-        
+
         // Update UI with the server URL
         setProfileImageUri(uploadedLogoUrl);
-        
+
         console.log('✅ Step 3 complete');
         console.log('🔗 [STEP 3] Profile now uses server URL:', uploadedLogoUrl);
       } catch (error) {
         console.error('❌ Step 3 failed:', error);
         throw error;
       }
-      
+
       // Step 4: Save to storage
       try {
         console.log('✅ Step 4: Saving to storage...');
@@ -1656,7 +1712,7 @@ const ProfileScreen: React.FC = () => {
         console.error('❌ Step 4 failed:', error);
         // Continue anyway - this is not critical
       }
-      
+
       // Step 5: Update cache
       try {
         console.log('✅ Step 5: Updating cache...');
@@ -1667,10 +1723,10 @@ const ProfileScreen: React.FC = () => {
         console.error('❌ Step 5 failed:', error);
         // Continue anyway - this is not critical
       }
-      
+
       console.log('✅ Profile picture updated in storage');
       console.log('💾 Profile picture cached');
-      
+
       // Step 6: Skip business profile update - only update user profile
       try {
         console.log('✅ Step 6: Skipping business profile update - user profile only');
@@ -1680,7 +1736,7 @@ const ProfileScreen: React.FC = () => {
         console.error('❌ Step 6 failed:', error);
         // Don't fail the user profile update if business profile update fails
       }
-      
+
       // Step 7: Show success message
       try {
         console.log('✅ Step 7: Showing success message...');
@@ -1690,13 +1746,13 @@ const ProfileScreen: React.FC = () => {
       } catch (error) {
         console.error('❌ Step 7 failed:', error);
       }
-      
+
       console.log('✅ [COMPLETE] Profile picture update complete');
     } catch (error) {
       console.error('❌ [ERROR] Fatal error in handleImageSelected:', error);
       console.error('❌ [ERROR] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       console.error('❌ [ERROR] Error message:', error instanceof Error ? error.message : String(error));
-      
+
       Alert.alert(
         'Update Error',
         'Failed to update profile picture. Please try again.',
@@ -1719,20 +1775,20 @@ const ProfileScreen: React.FC = () => {
     onToggle?: () => void,
     animationValue?: Animated.Value
   ) => (
-    <TouchableOpacity 
-      style={[styles.menuItem, { 
+    <TouchableOpacity
+      style={[styles.menuItem, {
         backgroundColor: theme.colors.cardBackground,
         marginHorizontal: dynamicModerateScale(8),
         marginBottom: dynamicModerateScale(6),
         paddingVertical: dynamicModerateScale(10),
         paddingHorizontal: dynamicModerateScale(12),
         borderRadius: dynamicModerateScale(12),
-      }]} 
-      onPress={onPress} 
+      }]}
+      onPress={onPress}
       disabled={showToggle}
     >
       <View style={styles.menuItemLeft}>
-        <View style={[styles.menuItemIcon, { 
+        <View style={[styles.menuItemIcon, {
           backgroundColor: `${theme.colors.primary}20`,
           width: dynamicModerateScale(32),
           height: dynamicModerateScale(32),
@@ -1742,66 +1798,66 @@ const ProfileScreen: React.FC = () => {
           <Icon name={icon} size={getIconSize(16)} color={theme.colors.primary} />
         </View>
         <View style={styles.menuItemContent}>
-          <Text style={[styles.menuItemText, { 
+          <Text style={[styles.menuItemText, {
             color: theme.colors.text,
             fontSize: getFontSize(10),
           }]}>{title}</Text>
-          {subtitle && <Text style={[styles.menuItemSubtext, { 
+          {subtitle && <Text style={[styles.menuItemSubtext, {
             color: theme.colors.textSecondary,
             fontSize: getFontSize(8),
             marginTop: dynamicModerateScale(0.5),
           }]}>{subtitle}</Text>}
         </View>
       </View>
-             {showToggle ? (
-          <TouchableOpacity
+      {showToggle ? (
+        <TouchableOpacity
+          style={[
+            styles.toggle,
+            {
+              backgroundColor: toggleValue ? theme.colors.primary : theme.colors.border,
+              width: dynamicModerateScale(40),
+              height: dynamicModerateScale(20),
+              borderRadius: dynamicModerateScale(10),
+            }
+          ]}
+          onPress={onToggle}
+          activeOpacity={0.7}
+        >
+          <Animated.View
             style={[
-              styles.toggle, 
-              { 
-                backgroundColor: toggleValue ? theme.colors.primary : theme.colors.border,
-                width: dynamicModerateScale(40),
-                height: dynamicModerateScale(20),
-                borderRadius: dynamicModerateScale(10),
+              styles.toggleThumb,
+              {
+                backgroundColor: theme.colors.surface,
+                width: dynamicModerateScale(16),
+                height: dynamicModerateScale(16),
+                borderRadius: dynamicModerateScale(8),
+                transform: [{
+                  translateX: animationValue ? animationValue.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, dynamicModerateScale(20)] // Move from left to right
+                  }) : 0
+                }]
               }
             ]}
-            onPress={onToggle}
-            activeOpacity={0.7}
-          >
-            <Animated.View 
-              style={[
-                styles.toggleThumb, 
-                { 
-                  backgroundColor: theme.colors.surface,
-                  width: dynamicModerateScale(16),
-                  height: dynamicModerateScale(16),
-                  borderRadius: dynamicModerateScale(8),
-                  transform: [{
-                    translateX: animationValue ? animationValue.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0, dynamicModerateScale(20)] // Move from left to right
-                    }) : 0
-                  }]
-                }
-              ]} 
-            />
-          </TouchableOpacity>
-        ) : (
-          <Icon name="chevron-right" size={getIconSize(20)} color={theme.colors.textSecondary} />
-        )}
+          />
+        </TouchableOpacity>
+      ) : (
+        <Icon name="chevron-right" size={getIconSize(20)} color={theme.colors.textSecondary} />
+      )}
     </TouchableOpacity>
   );
 
   return (
-    <SafeAreaView 
+    <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.gradient[0] || '#e8e8e8' }]}
       edges={['top', 'left', 'right']}
     >
-      <StatusBar 
+      <StatusBar
         barStyle={isDarkMode ? "light-content" : "dark-content"}
-        backgroundColor="transparent" 
+        backgroundColor="transparent"
         translucent={true}
       />
-      
+
       <LinearGradient
         colors={theme.colors.gradient}
         style={styles.gradientBackground}
@@ -1809,14 +1865,14 @@ const ProfileScreen: React.FC = () => {
         end={{ x: 1, y: 1 }}
       >
         {/* Header */}
-        <View style={[styles.header, { 
+        <View style={[styles.header, {
           paddingTop: dynamicModerateScale(10),
           paddingHorizontal: dynamicModerateScale(2),
           paddingBottom: dynamicModerateScale(1),
-        }]}> 
+        }]}>
         </View>
 
-        <ScrollView 
+        <ScrollView
           style={styles.content}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.contentContainer, { paddingBottom: 80 + insets.bottom }]}
@@ -1832,7 +1888,7 @@ const ProfileScreen: React.FC = () => {
           }
         >
           {/* Profile Card */}
-          <View style={[styles.profileCard, { 
+          <View style={[styles.profileCard, {
             backgroundColor: theme.colors.cardBackground,
             marginHorizontal: dynamicModerateScale(8),
             marginBottom: dynamicModerateScale(12),
@@ -1854,43 +1910,43 @@ const ProfileScreen: React.FC = () => {
                     console.log('🖼️ [PROFILE] No avatar URI available');
                   }
                   return avatarUri && !avatarErrored ? (
-                  <View style={[styles.avatarImageContainer, {
-                    width: avatarSize,
-                    height: avatarSize,
-                    borderRadius: avatarSize / 2,
-                    borderWidth: 2,
-                    backgroundColor: '#eaeaea',
-                  }]}>
-                    <Image
-                      key={avatarUri}
-                      source={{ uri: avatarUri }}
-                      style={styles.avatarImage}
-                      resizeMode="cover"
-                      onError={() => {
-                        console.log('🖼️ [PROFILE] Avatar failed to load:', avatarUri);
-                        setAvatarErrored(true);
-                      }}
-                    />
-                  </View>
-                  ) : (
-                  <LinearGradient
-                    colors={[theme.colors.primary, theme.colors.secondary]}
-                    style={[styles.avatarGradient, {
+                    <View style={[styles.avatarImageContainer, {
                       width: avatarSize,
                       height: avatarSize,
                       borderRadius: avatarSize / 2,
-                    }]}
-                  >
-                    <Text style={[styles.avatarText, {
-                      fontSize: getFontSize(24),
+                      borderWidth: 2,
+                      backgroundColor: '#eaeaea',
                     }]}>
-                      {(currentUser?.companyName || currentUser?.displayName)?.charAt(0) || currentUser?.phone?.charAt(0) || currentUser?.phoneNumber?.charAt(0) || 'U'}
-                    </Text>
-                  </LinearGradient>
+                      <Image
+                        key={avatarUri}
+                        source={{ uri: avatarUri }}
+                        style={styles.avatarImage}
+                        resizeMode="cover"
+                        onError={() => {
+                          console.log('🖼️ [PROFILE] Avatar failed to load:', avatarUri);
+                          setAvatarErrored(true);
+                        }}
+                      />
+                    </View>
+                  ) : (
+                    <LinearGradient
+                      colors={[theme.colors.primary, theme.colors.secondary]}
+                      style={[styles.avatarGradient, {
+                        width: avatarSize,
+                        height: avatarSize,
+                        borderRadius: avatarSize / 2,
+                      }]}
+                    >
+                      <Text style={[styles.avatarText, {
+                        fontSize: getFontSize(24),
+                      }]}>
+                        {(currentUser?.companyName || currentUser?.displayName)?.charAt(0) || currentUser?.phone?.charAt(0) || currentUser?.phoneNumber?.charAt(0) || 'U'}
+                      </Text>
+                    </LinearGradient>
                   );
                 })()}
-                <TouchableOpacity 
-                  style={[styles.editAvatarButton, { 
+                <TouchableOpacity
+                  style={[styles.editAvatarButton, {
                     backgroundColor: theme.colors.primary,
                     width: dynamicModerateScale(24),
                     height: dynamicModerateScale(24),
@@ -1903,14 +1959,14 @@ const ProfileScreen: React.FC = () => {
                 </TouchableOpacity>
               </View>
               <View style={styles.profileInfo}>
-                <Text style={[styles.userName, { 
+                <Text style={[styles.userName, {
                   color: theme.colors.text,
                   fontSize: getFontSize(10),
                   marginBottom: dynamicModerateScale(2),
                 }]}>
                   {currentUser?.companyName || currentUser?.displayName || currentUser?.name || 'MarketBrand'}
                 </Text>
-                <Text style={[styles.userEmail, { 
+                <Text style={[styles.userEmail, {
                   color: theme.colors.textSecondary,
                   fontSize: getFontSize(8),
                   marginBottom: dynamicModerateScale(4),
@@ -1919,8 +1975,8 @@ const ProfileScreen: React.FC = () => {
                 </Text>
               </View>
             </View>
-            <TouchableOpacity 
-              style={[styles.editProfileButton, { 
+            <TouchableOpacity
+              style={[styles.editProfileButton, {
                 backgroundColor: theme.colors.primary,
                 paddingVertical: dynamicModerateScale(8),
                 paddingHorizontal: dynamicModerateScale(12),
@@ -1948,6 +2004,17 @@ const ProfileScreen: React.FC = () => {
               color: theme.colors.text,
             }]}>Account Settings</Text>
             {renderMenuItem('business', 'My Businesses', `${businessProfileStats.total} Profiles`, handleBusinessProfiles)}
+            {/* Daily Marketing Messages temporarily hidden until backend deployment */}
+            {renderMenuItem(
+              'message',
+              'Daily Marketing Messages',
+              'Receive branded daily marketing posters via WhatsApp',
+              undefined,
+              true,
+              dailyMarketingOptIn,
+              handleDailyMarketingToggle,
+              dailyMarketingAnimation
+            )}
             {/* Notifications temporarily hidden */}
             {/* {renderMenuItem('notifications', 'Notifications', 'Manage notification preferences', undefined, true, notificationsEnabled, handleNotificationToggle, notificationsAnimation)} */}
           </View>
@@ -2053,17 +2120,17 @@ const ProfileScreen: React.FC = () => {
           </View> */}
 
           {/* App Settings */}
-           <View style={[styles.section, {
-             marginBottom: dynamicModerateScale(12),
-           }]}>
-             <Text style={[styles.sectionTitle, {
-               fontSize: getFontSize(10),
-               marginBottom: dynamicModerateScale(5),
-               paddingHorizontal: dynamicModerateScale(8),
-               color: theme.colors.text,
-             }]}>App Settings</Text>
-             {renderMenuItem('dark-mode', 'Dark Mode', 'Switch to dark theme', undefined, true, isDarkMode, handleDarkModeToggle, darkModeAnimation)}
-           </View>
+          <View style={[styles.section, {
+            marginBottom: dynamicModerateScale(12),
+          }]}>
+            <Text style={[styles.sectionTitle, {
+              fontSize: getFontSize(10),
+              marginBottom: dynamicModerateScale(5),
+              paddingHorizontal: dynamicModerateScale(8),
+              color: theme.colors.text,
+            }]}>App Settings</Text>
+            {renderMenuItem('dark-mode', 'Dark Mode', 'Switch to dark theme', undefined, true, isDarkMode, handleDarkModeToggle, darkModeAnimation)}
+          </View>
 
           {/* Support & Legal */}
           <View style={[styles.section, {
@@ -2091,8 +2158,8 @@ const ProfileScreen: React.FC = () => {
               paddingHorizontal: dynamicModerateScale(8),
               color: theme.colors.text,
             }]}>Share & Support</Text>
-            <TouchableOpacity 
-              style={[styles.shareAppCard, { 
+            <TouchableOpacity
+              style={[styles.shareAppCard, {
                 backgroundColor: theme.colors.cardBackground,
                 marginHorizontal: dynamicModerateScale(8),
                 marginBottom: dynamicModerateScale(6),
@@ -2104,7 +2171,7 @@ const ProfileScreen: React.FC = () => {
             >
               <View style={styles.shareAppContent}>
                 <View style={styles.shareAppLeft}>
-                  <View style={[styles.shareAppIcon, { 
+                  <View style={[styles.shareAppIcon, {
                     backgroundColor: `${theme.colors.primary}20`,
                     width: dynamicModerateScale(32),
                     height: dynamicModerateScale(32),
@@ -2114,13 +2181,13 @@ const ProfileScreen: React.FC = () => {
                     <Icon name="share" size={getIconSize(16)} color={theme.colors.primary} />
                   </View>
                   <View style={styles.shareAppInfo}>
-                    <Text style={[styles.shareAppTitle, { 
+                    <Text style={[styles.shareAppTitle, {
                       color: theme.colors.text,
                       fontSize: getFontSize(10),
                     }]}>
                       Share MarketBrand
                     </Text>
-                    <Text style={[styles.shareAppSubtitle, { 
+                    <Text style={[styles.shareAppSubtitle, {
                       color: theme.colors.textSecondary,
                       fontSize: getFontSize(8),
                       marginTop: dynamicModerateScale(0.5),
@@ -2132,8 +2199,8 @@ const ProfileScreen: React.FC = () => {
                 <Icon name="chevron-right" size={getIconSize(20)} color={theme.colors.textSecondary} />
               </View>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.shareAppCard, { 
+            <TouchableOpacity
+              style={[styles.shareAppCard, {
                 backgroundColor: theme.colors.cardBackground,
                 marginHorizontal: dynamicModerateScale(8),
                 marginBottom: dynamicModerateScale(6),
@@ -2145,7 +2212,7 @@ const ProfileScreen: React.FC = () => {
             >
               <View style={styles.shareAppContent}>
                 <View style={styles.shareAppLeft}>
-                  <View style={[styles.shareAppIcon, { 
+                  <View style={[styles.shareAppIcon, {
                     backgroundColor: `${theme.colors.primary}20`,
                     width: dynamicModerateScale(32),
                     height: dynamicModerateScale(32),
@@ -2155,13 +2222,13 @@ const ProfileScreen: React.FC = () => {
                     <Icon name="star" size={getIconSize(16)} color={theme.colors.primary} />
                   </View>
                   <View style={styles.shareAppInfo}>
-                    <Text style={[styles.shareAppTitle, { 
+                    <Text style={[styles.shareAppTitle, {
                       color: theme.colors.text,
                       fontSize: getFontSize(10),
                     }]}>
                       Rate Us
                     </Text>
-                    <Text style={[styles.shareAppSubtitle, { 
+                    <Text style={[styles.shareAppSubtitle, {
                       color: theme.colors.textSecondary,
                       fontSize: getFontSize(8),
                       marginTop: dynamicModerateScale(0.5),
@@ -2176,49 +2243,49 @@ const ProfileScreen: React.FC = () => {
           </View>
 
           {/* Sign Out Button */}
-          <TouchableOpacity 
-            style={[styles.signOutButton, { 
+          <TouchableOpacity
+            style={[styles.signOutButton, {
               backgroundColor: '#ff4444',
               borderColor: '#ff4444',
               marginHorizontal: dynamicModerateScale(8),
               marginTop: dynamicModerateScale(12),
               paddingVertical: dynamicModerateScale(10),
               borderRadius: dynamicModerateScale(12),
-            }]} 
+            }]}
             onPress={handleSignOut}
           >
             <Icon name="logout" size={getIconSize(14)} color="#ffffff" style={[styles.signOutIcon, {
               marginRight: dynamicModerateScale(5),
             }]} />
-            <Text style={[styles.signOutText, { 
+            <Text style={[styles.signOutText, {
               color: '#ffffff',
               fontSize: getFontSize(10),
             }]}>Sign Out</Text>
           </TouchableOpacity>
 
           {/* Delete Account Button */}
-          <TouchableOpacity 
-            style={[styles.signOutButton, { 
+          <TouchableOpacity
+            style={[styles.signOutButton, {
               backgroundColor: '#cc0000',
               borderColor: '#cc0000',
               marginHorizontal: dynamicModerateScale(8),
               marginTop: dynamicModerateScale(8),
               paddingVertical: dynamicModerateScale(10),
               borderRadius: dynamicModerateScale(12),
-            }]} 
+            }]}
             onPress={handleDeleteAccount}
           >
             <Icon name="delete-forever" size={getIconSize(14)} color="#ffffff" style={[styles.signOutIcon, {
               marginRight: dynamicModerateScale(5),
             }]} />
-            <Text style={[styles.signOutText, { 
+            <Text style={[styles.signOutText, {
               color: '#ffffff',
               fontSize: getFontSize(10),
             }]}>Delete Account</Text>
           </TouchableOpacity>
 
           {/* App Version */}
-            <Text style={[styles.versionText, { 
+          <Text style={[styles.versionText, {
             color: theme.colors.textSecondary,
             fontSize: getFontSize(8),
             marginTop: dynamicModerateScale(14),
@@ -2234,7 +2301,7 @@ const ProfileScreen: React.FC = () => {
         onRequestClose={handleCancelEdit}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { 
+          <View style={[styles.modalContent, {
             backgroundColor: theme.colors.cardBackground,
             borderRadius: dynamicModerateScale(16),
           }]}>
@@ -2243,7 +2310,7 @@ const ProfileScreen: React.FC = () => {
               paddingVertical: dynamicModerateScale(14),
               borderBottomWidth: 0.5,
             }]}>
-              <Text style={[styles.modalTitle, { 
+              <Text style={[styles.modalTitle, {
                 color: theme.colors.text,
                 fontSize: getFontSize(12),
               }]}>Edit Profile</Text>
@@ -2262,14 +2329,14 @@ const ProfileScreen: React.FC = () => {
               <View style={[styles.inputGroup, {
                 marginBottom: dynamicModerateScale(12),
               }]}>
-                <Text style={[styles.inputLabel, { 
+                <Text style={[styles.inputLabel, {
                   color: theme.colors.text,
                   fontSize: getFontSize(9),
                   marginBottom: dynamicModerateScale(3),
                 }]}>Company Name *</Text>
                 <TextInput
                   ref={registerEditInputRef('editName')}
-                  style={[styles.textInput, { 
+                  style={[styles.textInput, {
                     backgroundColor: theme.colors.surface,
                     borderColor: theme.colors.border,
                     color: theme.colors.text,
@@ -2279,7 +2346,7 @@ const ProfileScreen: React.FC = () => {
                     borderRadius: dynamicModerateScale(10),
                   }]}
                   value={editFormData.name}
-                  onChangeText={(text) => setEditFormData({...editFormData, name: text})}
+                  onChangeText={(text) => setEditFormData({ ...editFormData, name: text })}
                   placeholder="Enter your company name"
                   placeholderTextColor={theme.colors.textSecondary}
                   returnKeyType="next"
@@ -2290,107 +2357,107 @@ const ProfileScreen: React.FC = () => {
 
               {/* Business Category section hidden */}
               {false && (
-              <View style={[styles.inputGroup, {
-                marginBottom: dynamicModerateScale(12),
-              }]}>
-                <Text style={[styles.inputLabel, { 
-                  color: theme.colors.text,
-                  fontSize: getFontSize(9),
-                  marginBottom: dynamicModerateScale(3),
-                }]}>Business Category *</Text>
-                
-                {/* Selected Category Display */}
-                <View style={[styles.selectedCategoryContainer, {
-                  marginBottom: dynamicModerateScale(8),
+                <View style={[styles.inputGroup, {
+                  marginBottom: dynamicModerateScale(12),
                 }]}>
-                  <TextInput
-                    style={[
-                      styles.selectedCategoryInput,
-                      { 
-                        color: theme.colors.text,
-                        borderColor: editFormData.category ? theme.colors.primary : theme.colors.border,
-                        backgroundColor: theme.colors.surface,
-                        paddingHorizontal: dynamicModerateScale(10),
-                        paddingVertical: dynamicModerateScale(8),
-                        fontSize: getFontSize(10),
-                        borderRadius: dynamicModerateScale(10),
-                      }
-                    ]}
-                    value={editFormData.category}
-                    placeholder="Select your business category"
-                    placeholderTextColor={theme.colors.textSecondary}
-                    editable={false}
-                    pointerEvents="none"
-                  />
-                </View>
-                
-                {/* Category Options */}
-                <ScrollView 
-                  horizontal 
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={[styles.categoryScrollContent, {
-                    paddingVertical: dynamicModerateScale(6),
-                    gap: dynamicModerateScale(6),
-                  }]}
-                >
-                {categories.map((category) => (
-                  <TouchableOpacity
-                    key={category}
-                    style={[
-                      styles.categoryOption,
-                      { 
-                        borderColor: theme.colors.border,
-                        paddingVertical: dynamicModerateScale(8),
-                        paddingHorizontal: dynamicModerateScale(10),
-                        borderRadius: dynamicModerateScale(8),
-                        marginRight: dynamicModerateScale(4),
-                      },
-                      editFormData.category === category && [
-                        styles.categoryOptionSelected, 
-                        { 
-                          backgroundColor: theme.colors.primary,
-                          borderColor: theme.colors.primary,
-                          shadowColor: theme.colors.primary,
-                          shadowOffset: { width: 0, height: moderateScale(1) },
-                          shadowOpacity: 0.25,
-                          shadowRadius: moderateScale(3),
-                          elevation: moderateScale(3),
+                  <Text style={[styles.inputLabel, {
+                    color: theme.colors.text,
+                    fontSize: getFontSize(9),
+                    marginBottom: dynamicModerateScale(3),
+                  }]}>Business Category *</Text>
+
+                  {/* Selected Category Display */}
+                  <View style={[styles.selectedCategoryContainer, {
+                    marginBottom: dynamicModerateScale(8),
+                  }]}>
+                    <TextInput
+                      style={[
+                        styles.selectedCategoryInput,
+                        {
+                          color: theme.colors.text,
+                          borderColor: editFormData.category ? theme.colors.primary : theme.colors.border,
+                          backgroundColor: theme.colors.surface,
+                          paddingHorizontal: dynamicModerateScale(10),
+                          paddingVertical: dynamicModerateScale(8),
+                          fontSize: getFontSize(10),
+                          borderRadius: dynamicModerateScale(10),
                         }
-                      ]
-                    ]}
-                    onPress={() => setEditFormData({...editFormData, category})}
+                      ]}
+                      value={editFormData.category}
+                      placeholder="Select your business category"
+                      placeholderTextColor={theme.colors.textSecondary}
+                      editable={false}
+                      pointerEvents="none"
+                    />
+                  </View>
+
+                  {/* Category Options */}
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={[styles.categoryScrollContent, {
+                      paddingVertical: dynamicModerateScale(6),
+                      gap: dynamicModerateScale(6),
+                    }]}
                   >
-                    <Text style={[
-                      styles.categoryOptionText,
-                      { 
-                        color: theme.colors.text,
-                        fontSize: getFontSize(9),
-                      },
-                      editFormData.category === category && [
-                        styles.categoryOptionTextSelected, 
-                        { color: '#ffffff' }
-                      ]
-                    ]}>
-                      {category}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-                </ScrollView>
-              </View>
+                    {categories.map((category) => (
+                      <TouchableOpacity
+                        key={category}
+                        style={[
+                          styles.categoryOption,
+                          {
+                            borderColor: theme.colors.border,
+                            paddingVertical: dynamicModerateScale(8),
+                            paddingHorizontal: dynamicModerateScale(10),
+                            borderRadius: dynamicModerateScale(8),
+                            marginRight: dynamicModerateScale(4),
+                          },
+                          editFormData.category === category && [
+                            styles.categoryOptionSelected,
+                            {
+                              backgroundColor: theme.colors.primary,
+                              borderColor: theme.colors.primary,
+                              shadowColor: theme.colors.primary,
+                              shadowOffset: { width: 0, height: moderateScale(1) },
+                              shadowOpacity: 0.25,
+                              shadowRadius: moderateScale(3),
+                              elevation: moderateScale(3),
+                            }
+                          ]
+                        ]}
+                        onPress={() => setEditFormData({ ...editFormData, category })}
+                      >
+                        <Text style={[
+                          styles.categoryOptionText,
+                          {
+                            color: theme.colors.text,
+                            fontSize: getFontSize(9),
+                          },
+                          editFormData.category === category && [
+                            styles.categoryOptionTextSelected,
+                            { color: '#ffffff' }
+                          ]
+                        ]}>
+                          {category}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
               )}
 
               {/* Phone Number */}
               <View style={[styles.inputGroup, {
                 marginBottom: dynamicModerateScale(12),
               }]}>
-                <Text style={[styles.inputLabel, { 
+                <Text style={[styles.inputLabel, {
                   color: theme.colors.text,
                   fontSize: getFontSize(9),
                   marginBottom: dynamicModerateScale(3),
                 }]}>Phone Number *</Text>
                 <TextInput
                   ref={registerEditInputRef('editPhone')}
-                  style={[styles.textInput, styles.readOnlyInput, { 
+                  style={[styles.textInput, styles.readOnlyInput, {
                     backgroundColor: theme.colors.inputBackground,
                     borderColor: theme.colors.border,
                     color: theme.colors.textSecondary,
@@ -2408,7 +2475,7 @@ const ProfileScreen: React.FC = () => {
                   returnKeyType="done"
                 />
                 {phoneValidationError ? (
-                  <Text style={[styles.validationError, { 
+                  <Text style={[styles.validationError, {
                     color: '#ff4444',
                     fontSize: getFontSize(8),
                     marginTop: dynamicModerateScale(2),
@@ -2430,8 +2497,8 @@ const ProfileScreen: React.FC = () => {
               borderTopWidth: 0.5,
               gap: dynamicModerateScale(8),
             }]}>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.cancelModalButton, { 
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelModalButton, {
                   borderColor: theme.colors.border,
                   paddingVertical: dynamicModerateScale(10),
                   borderRadius: dynamicModerateScale(10),
@@ -2439,13 +2506,13 @@ const ProfileScreen: React.FC = () => {
                 onPress={handleCancelEdit}
                 disabled={isUpdating}
               >
-                <Text style={[styles.modalButtonText, { 
+                <Text style={[styles.modalButtonText, {
                   color: theme.colors.textSecondary,
                   fontSize: getFontSize(10),
                 }]}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.saveModalButton, { 
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveModalButton, {
                   backgroundColor: theme.colors.primary,
                   paddingVertical: dynamicModerateScale(10),
                   borderRadius: dynamicModerateScale(10),
@@ -2458,7 +2525,7 @@ const ProfileScreen: React.FC = () => {
                     fontSize: getFontSize(10),
                   }]}>Updating...</Text>
                 ) : (
-                  <Text style={[styles.modalButtonText, { 
+                  <Text style={[styles.modalButtonText, {
                     color: '#ffffff',
                     fontSize: getFontSize(10),
                   }]}>Save Changes</Text>
@@ -2484,16 +2551,16 @@ const ProfileScreen: React.FC = () => {
         onRequestClose={() => setShowSignOutModal(false)}
         statusBarTranslucent={true}
       >
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
           onPress={() => setShowSignOutModal(false)}
         >
-          <TouchableOpacity 
+          <TouchableOpacity
             activeOpacity={1}
-            onPress={() => {}} // Prevent closing when tapping inside modal
+            onPress={() => { }} // Prevent closing when tapping inside modal
           >
-            <View style={[styles.signOutModalContainer, { 
+            <View style={[styles.signOutModalContainer, {
               backgroundColor: theme.colors.surface,
               borderRadius: dynamicModerateScale(16),
               padding: dynamicModerateScale(16),
@@ -2501,7 +2568,7 @@ const ProfileScreen: React.FC = () => {
               <View style={[styles.signOutModalHeader, {
                 marginBottom: dynamicModerateScale(10),
               }]}>
-                <View style={[styles.signOutIconContainer, { 
+                <View style={[styles.signOutIconContainer, {
                   backgroundColor: '#ff444420',
                   width: dynamicModerateScale(42),
                   height: dynamicModerateScale(42),
@@ -2510,16 +2577,16 @@ const ProfileScreen: React.FC = () => {
                 }]}>
                   <Icon name="logout" size={getIconSize(22)} color="#ff4444" />
                 </View>
-                <Text 
-                  style={[styles.signOutModalTitle, { 
+                <Text
+                  style={[styles.signOutModalTitle, {
                     color: theme.colors.text,
                     fontSize: getFontSize(14),
                   }]}
                 >
                   Sign Out
                 </Text>
-                <TouchableOpacity 
-                  style={[styles.closeModalButton, { 
+                <TouchableOpacity
+                  style={[styles.closeModalButton, {
                     backgroundColor: theme.colors.inputBackground,
                     width: dynamicModerateScale(24),
                     height: dynamicModerateScale(24),
@@ -2533,11 +2600,11 @@ const ProfileScreen: React.FC = () => {
                   <Icon name="close" size={getIconSize(16)} color={theme.colors.textSecondary} />
                 </TouchableOpacity>
               </View>
-              
+
               <View style={[styles.signOutModalContent, {
                 marginBottom: dynamicModerateScale(12),
               }]}>
-                <Text style={[styles.signOutModalMessage, { 
+                <Text style={[styles.signOutModalMessage, {
                   color: theme.colors.text,
                   fontSize: getFontSize(10),
                   lineHeight: dynamicModerateScale(16),
@@ -2545,13 +2612,13 @@ const ProfileScreen: React.FC = () => {
                   Are you sure you want to sign out? This will clear all your local data.
                 </Text>
               </View>
-              
+
               <View style={[styles.signOutModalButtons, {
                 gap: dynamicModerateScale(8),
               }]}>
-                                
-                <TouchableOpacity 
-                  style={[styles.signOutConfirmButton, { 
+
+                <TouchableOpacity
+                  style={[styles.signOutConfirmButton, {
                     backgroundColor: '#ff4444',
                     paddingVertical: dynamicModerateScale(9),
                     borderRadius: dynamicModerateScale(10),
@@ -2581,14 +2648,14 @@ const ProfileScreen: React.FC = () => {
         onRequestClose={() => setShowDeleteAccountModal(false)}
         statusBarTranslucent={true}
       >
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
           onPress={() => setShowDeleteAccountModal(false)}
         >
-          <TouchableOpacity 
+          <TouchableOpacity
             activeOpacity={1}
-            onPress={() => {}} // Prevent closing when tapping inside modal
+            onPress={() => { }} // Prevent closing when tapping inside modal
           >
             <View style={[styles.deleteAccountModalContainer, {
               backgroundColor: theme.colors.surface,
@@ -2598,7 +2665,7 @@ const ProfileScreen: React.FC = () => {
               <View style={[styles.signOutModalHeader, {
                 marginBottom: dynamicModerateScale(8),
               }]}>
-                <View style={[styles.deleteAccountIconContainer, { 
+                <View style={[styles.deleteAccountIconContainer, {
                   backgroundColor: '#ff4444',
                   width: dynamicModerateScale(48),
                   height: dynamicModerateScale(48),
@@ -2607,8 +2674,8 @@ const ProfileScreen: React.FC = () => {
                 }]}>
                   <Icon name="close" size={getIconSize(24)} color="#ffffff" />
                 </View>
-                <Text 
-                  style={[styles.deleteAccountModalTitle, { 
+                <Text
+                  style={[styles.deleteAccountModalTitle, {
                     color: theme.colors.text,
                     fontSize: getFontSize(12),
                     textAlign: 'center',
@@ -2616,8 +2683,8 @@ const ProfileScreen: React.FC = () => {
                 >
                   Are you sure you want to delete your account?
                 </Text>
-                <TouchableOpacity 
-                  style={[styles.closeModalButton, { 
+                <TouchableOpacity
+                  style={[styles.closeModalButton, {
                     backgroundColor: theme.colors.inputBackground,
                     width: dynamicModerateScale(24),
                     height: dynamicModerateScale(24),
@@ -2631,13 +2698,13 @@ const ProfileScreen: React.FC = () => {
                   <Icon name="close" size={getIconSize(16)} color={theme.colors.textSecondary} />
                 </TouchableOpacity>
               </View>
-              
+
               <View style={[styles.signOutModalContent, {
                 marginBottom: dynamicModerateScale(12),
               }]}>
                 {isDeletingAccount ? (
                   <View style={{ alignItems: 'center', paddingVertical: dynamicModerateScale(8) }}>
-                    <Text style={{ 
+                    <Text style={{
                       color: theme.colors.text,
                       fontSize: getFontSize(12),
                       fontWeight: '600',
@@ -2646,7 +2713,7 @@ const ProfileScreen: React.FC = () => {
                     }}>
                       Deleting Account
                     </Text>
-                    <Text style={{ 
+                    <Text style={{
                       color: theme.colors.textSecondary,
                       fontSize: getFontSize(10),
                       textAlign: 'center',
@@ -2660,7 +2727,7 @@ const ProfileScreen: React.FC = () => {
                   </View>
                 ) : (
                   <>
-                    <Text style={[styles.deleteAccountModalDescription, { 
+                    <Text style={[styles.deleteAccountModalDescription, {
                       color: '#666666',
                       fontSize: getFontSize(9),
                       textAlign: 'center',
@@ -2672,13 +2739,13 @@ const ProfileScreen: React.FC = () => {
                   </>
                 )}
               </View>
-              
+
               <View style={[styles.signOutModalButtons, {
                 gap: dynamicModerateScale(12),
               }]}>
-                                
-                <TouchableOpacity 
-                  style={[styles.deleteAccountConfirmButton, { 
+
+                <TouchableOpacity
+                  style={[styles.deleteAccountConfirmButton, {
                     backgroundColor: isDeletingAccount ? '#cccccc' : '#ff4444',
                     paddingVertical: dynamicModerateScale(14),
                     borderRadius: dynamicModerateScale(10),
@@ -2714,16 +2781,16 @@ const ProfileScreen: React.FC = () => {
         onRequestClose={() => setShowErrorModal(false)}
         statusBarTranslucent={true}
       >
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
           onPress={() => setShowErrorModal(false)}
         >
-          <TouchableOpacity 
+          <TouchableOpacity
             activeOpacity={1}
-            onPress={() => {}} // Prevent closing when tapping inside modal
+            onPress={() => { }} // Prevent closing when tapping inside modal
           >
-            <View style={[styles.errorModalContainer, { 
+            <View style={[styles.errorModalContainer, {
               backgroundColor: theme.colors.surface,
               borderRadius: dynamicModerateScale(16),
               padding: dynamicModerateScale(16),
@@ -2731,7 +2798,7 @@ const ProfileScreen: React.FC = () => {
               <View style={[styles.errorModalHeader, {
                 marginBottom: dynamicModerateScale(10),
               }]}>
-                <View style={[styles.errorIconContainer, { 
+                <View style={[styles.errorIconContainer, {
                   backgroundColor: '#ff444420',
                   width: dynamicModerateScale(42),
                   height: dynamicModerateScale(42),
@@ -2740,16 +2807,16 @@ const ProfileScreen: React.FC = () => {
                 }]}>
                   <Icon name="error-outline" size={getIconSize(22)} color="#ff4444" />
                 </View>
-                <Text 
-                  style={[styles.errorModalTitle, { 
+                <Text
+                  style={[styles.errorModalTitle, {
                     color: theme.colors.text,
                     fontSize: getFontSize(14),
                   }]}
                 >
                   Error
                 </Text>
-                <TouchableOpacity 
-                  style={[styles.closeModalButton, { 
+                <TouchableOpacity
+                  style={[styles.closeModalButton, {
                     backgroundColor: theme.colors.inputBackground,
                     width: dynamicModerateScale(24),
                     height: dynamicModerateScale(24),
@@ -2763,11 +2830,11 @@ const ProfileScreen: React.FC = () => {
                   <Icon name="close" size={getIconSize(16)} color={theme.colors.textSecondary} />
                 </TouchableOpacity>
               </View>
-              
+
               <View style={[styles.errorModalContent, {
                 marginBottom: dynamicModerateScale(12),
               }]}>
-                <Text style={[styles.errorModalMessage, { 
+                <Text style={[styles.errorModalMessage, {
                   color: theme.colors.text,
                   fontSize: getFontSize(10),
                   lineHeight: dynamicModerateScale(16),
@@ -2775,9 +2842,9 @@ const ProfileScreen: React.FC = () => {
                   {errorModalMessage}
                 </Text>
               </View>
-              
-              <TouchableOpacity 
-                style={[styles.errorModalButton, { 
+
+              <TouchableOpacity
+                style={[styles.errorModalButton, {
                   backgroundColor: '#ff4444',
                   paddingVertical: dynamicModerateScale(9),
                   borderRadius: dynamicModerateScale(10),
@@ -2943,19 +3010,19 @@ const styles = StyleSheet.create({
   },
   menuItemSubtext: {
   },
-     toggle: {
-      justifyContent: 'flex-start',
-      alignItems: 'center',
-      flexDirection: 'row',
-      paddingHorizontal: 2,
-    },
-    toggleThumb: {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.15,
-      shadowRadius: 2,
-      elevation: 2,
-    },
+  toggle: {
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    flexDirection: 'row',
+    paddingHorizontal: 2,
+  },
+  toggleThumb: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
   signOutButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -3287,7 +3354,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  
+
   // Sign Out Modal Styles
   signOutModalContainer: {
     width: screenWidth * 0.88,
@@ -3303,7 +3370,7 @@ const styles = StyleSheet.create({
     shadowRadius: moderateScale(6),
     elevation: moderateScale(6),
   },
-  
+
   // Delete Account Modal Styles
   deleteAccountModalContainer: {
     width: screenWidth * 0.87,

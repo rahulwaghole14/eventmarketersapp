@@ -44,6 +44,7 @@ export interface UserProfile {
   website?: string;
   createdAt: string;
   updatedAt: string;
+  receiveDailyMarketing?: boolean;
   // Protected original values from registration (never overwritten)
   _originalCompanyName?: string;
   _originalAddress?: string;
@@ -311,6 +312,17 @@ class AuthApiService {
       url.startsWith('/data/') ||
       url.includes('\\') // Windows paths
     );
+  }
+
+  // Update marketing preferences (Opt-In/Opt-Out for Daily Marketing)
+  async updateMarketingPreferences(receiveDailyMarketing: boolean): Promise<any> {
+    try {
+      const response = await api.patch('/api/mobile/users/me/marketing-preferences', { receiveDailyMarketing });
+      return response.data;
+    } catch (error) {
+      console.error('Update marketing preferences error:', error);
+      throw error;
+    }
   }
 
   // Logout user
