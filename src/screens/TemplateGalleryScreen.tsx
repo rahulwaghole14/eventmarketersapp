@@ -37,6 +37,10 @@ interface UploadedPhoto {
   id: string;
   uri: string;
   timestamp: number;
+  aspectRatio?: '1:1' | '9:16';
+  width?: number;
+  height?: number;
+  imageAspectRatio?: number;
 }
 
 // Responsive design helpers
@@ -130,14 +134,22 @@ const TemplateGalleryScreen: React.FC = () => {
   }, [loadUploadedPhotos]);
 
   // Handle image selection from picker
-  const handleImageSelected = async (imageUri: string) => {
-    logger.log('Image selected:', imageUri);
+  const handleImageSelected = async (
+    imageUri: string, 
+    aspectRatio: '1:1' | '9:16' = '1:1',
+    cropDimensions?: { width: number; height: number; aspectRatio: number }
+  ) => {
+    logger.log('Image selected:', imageUri, 'ratio:', aspectRatio, 'dimensions:', cropDimensions);
     
     // Save to uploaded photos
     const newPhoto: UploadedPhoto = {
       id: `photo_${Date.now()}`,
       uri: imageUri,
       timestamp: Date.now(),
+      aspectRatio: aspectRatio,
+      width: cropDimensions?.width,
+      height: cropDimensions?.height,
+      imageAspectRatio: cropDimensions?.aspectRatio,
     };
     
     const updatedPhotos = [newPhoto, ...uploadedPhotos];
@@ -145,13 +157,15 @@ const TemplateGalleryScreen: React.FC = () => {
     await saveUploadedPhotos(updatedPhotos);
     
     // Navigate to PosterEditor screen with the selected image
-    console.log("🔧 [TEMPLATE GALLERY] Navigating with businessProfile:", selectedBusinessProfile);
+    console.log("🔧 [TEMPLATE GALLERY] Navigating with businessProfile, aspectRatio:", aspectRatio, "cropDimensions:", cropDimensions);
     
     navigation.navigate('PosterEditor', {
       selectedImage: {
         uri: imageUri,
         title: 'Custom Upload',
         description: 'Your uploaded photo',
+        width: cropDimensions?.width,
+        height: cropDimensions?.height,
       },
       selectedLanguage: 'English',
       selectedTemplateId: undefined,
@@ -159,6 +173,8 @@ const TemplateGalleryScreen: React.FC = () => {
       type: selectedBusinessProfile ? "business" : "custom",
       categoryName: selectedBusinessProfile?.category || 'Custom Upload',
       source: "TemplateGallery",
+      aspectRatio: aspectRatio,
+      imageDimensions: cropDimensions,
       
       // ✅ CRITICAL: Pass business profile like working flow
       businessProfile: selectedBusinessProfile,
@@ -203,25 +219,58 @@ const TemplateGalleryScreen: React.FC = () => {
 
   // Handle photo press from gallery
   const handlePhotoPress = (photo: UploadedPhoto) => {
-    console.log("🔧 [TEMPLATE GALLERY] Photo press navigating with businessProfile:", selectedBusinessProfile);
+    console.log("🔧 [TEMPLATE GALLERY] Photo press navigating with businessProfile:", selectedBusinessProfile, "photo:", photo);
     
-    navigation.navigate('PosterEditor', {
-      selectedImage: {
-        uri: photo.uri,
-        title: 'Custom Upload',
-        description: 'Your uploaded photo',
+    Image.getSize(
+      photo.uri,
+      (w, h) => {
+        const computedRatio = (w > 0 && h > 0) ? (w / h) : (photo.imageAspectRatio || 1);
+        const ratioType: '1:1' | '9:16' = (h / w) > 1.15 ? '9:16' : (photo.aspectRatio || '1:1');
+        
+        console.log("🔧 [TEMPLATE GALLERY] Photo press measured dimensions:", w, "x", h, "ratioType:", ratioType);
+        
+        navigation.navigate('PosterEditor', {
+          selectedImage: {
+            uri: photo.uri,
+            title: 'Custom Upload',
+            description: 'Your uploaded photo',
+            width: w,
+            height: h,
+          },
+          selectedLanguage: 'English',
+          selectedTemplateId: undefined,
+          posterCategory: selectedBusinessProfile?.category || 'Custom',
+          type: selectedBusinessProfile ? "business" : "custom",
+          categoryName: selectedBusinessProfile?.category || 'Custom Upload',
+          source: "TemplateGallery",
+          aspectRatio: ratioType,
+          imageDimensions: { width: w, height: h, aspectRatio: computedRatio },
+          businessProfile: selectedBusinessProfile,
+          businessCategory: selectedBusinessProfile?.category || undefined,
+        } as any);
       },
-      selectedLanguage: 'English',
-      selectedTemplateId: undefined,
-      posterCategory: selectedBusinessProfile?.category || 'Custom',
-      type: selectedBusinessProfile ? "business" : "custom",
-      categoryName: selectedBusinessProfile?.category || 'Custom Upload',
-      source: "TemplateGallery",
-      
-      // ✅ CRITICAL: Pass business profile like working flow
-      businessProfile: selectedBusinessProfile,
-      businessCategory: selectedBusinessProfile?.category || undefined,
-    } as any);
+      (err) => {
+        console.warn("⚠️ [TEMPLATE GALLERY] Could not get image size for photo:", photo.uri, err);
+        const ratioType = photo.aspectRatio || '1:1';
+        navigation.navigate('PosterEditor', {
+          selectedImage: {
+            uri: photo.uri,
+            title: 'Custom Upload',
+            description: 'Your uploaded photo',
+          },
+          selectedLanguage: 'English',
+          selectedTemplateId: undefined,
+          posterCategory: selectedBusinessProfile?.category || 'Custom',
+          type: selectedBusinessProfile ? "business" : "custom",
+          categoryName: selectedBusinessProfile?.category || 'Custom Upload',
+          source: "TemplateGallery",
+          aspectRatio: ratioType,
+          imageDimensions: photo.imageAspectRatio ? { width: photo.width || 1080, height: photo.height || 1080, aspectRatio: photo.imageAspectRatio } : undefined,
+          businessProfile: selectedBusinessProfile,
+          businessCategory: selectedBusinessProfile?.category || undefined,
+        } as any);
+      }
+    );
   };
 
   // Show custom delete modal
@@ -496,7 +545,8 @@ const TemplateGalleryScreen: React.FC = () => {
         cropWidth={2400}
         cropHeight={2400}
         isCircleCrop={false}
-        title="Crop Background Image"
+        allowAspectRatioSelection={true}
+        title="Crop & Upload Photo"
       />
 
       {/* ── Custom Delete Confirmation Modal ── */}

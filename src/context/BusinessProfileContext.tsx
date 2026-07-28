@@ -397,8 +397,8 @@ export const BusinessProfileProvider: React.FC<BusinessProfileProviderProps> = (
       isCurrentlySelected: selectedBusinessProfile?.id === profileId
     });
 
-    // CRITICAL: If this profile is currently selected, update the selected profile
-    if (selectedBusinessProfile?.id === profileId) {
+    // CRITICAL: If this profile is currently selected (or if no profile is selected yet), update the selected profile
+    if (selectedBusinessProfile?.id === profileId || !selectedBusinessProfile) {
       console.log(` [BUSINESS PROFILE CONTEXT] Updating selected profile with complete data`);
 
       // Fetch business subscription status for the updated profile

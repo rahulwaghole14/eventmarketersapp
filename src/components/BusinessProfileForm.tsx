@@ -241,16 +241,25 @@ const BusinessProfileForm: React.FC<BusinessProfileFormProps> = ({
 
   useEffect(() => {
     if (profile) {
+      const logoUrl = profile.companyLogo || profile.logo || profile.profileLogo || profile.businessLogo || '';
       setFormData({
-        name: profile.name,
-        description: profile.description,
-        category: profile.category,
+        name: profile.name || '',
+        description: profile.description || '',
+        category: profile.category || '',
         subcategory: profile.subCategory || profile.subcategory || '',
-        address: profile.address,
-        phone: profile.phone,
-        email: profile.email,
+        address: profile.address || '',
+        phone: profile.phone || '',
+        alternatePhone: profile.alternatePhone || '',
+        email: profile.email || '',
         website: profile.website || '',
+        companyLogo: logoUrl,
+        logo: logoUrl,
       });
+      if (logoUrl) {
+        setLogoImage(logoUrl);
+      } else {
+        setLogoImage(null);
+      }
     } else {
       // Reset form for new profile
       setFormData({
@@ -260,9 +269,13 @@ const BusinessProfileForm: React.FC<BusinessProfileFormProps> = ({
         subcategory: '',
         address: '',
         phone: '',
+        alternatePhone: '',
         email: '',
         website: '',
+        companyLogo: '',
+        logo: '',
       });
+      setLogoImage(null);
     }
   }, [profile, visible]);
 
@@ -901,6 +914,20 @@ const BusinessProfileForm: React.FC<BusinessProfileFormProps> = ({
                   setFocusedField={setFocusedField}
                   theme={theme}
                   inputRef={registerInputRef('address')}
+                  onSubmitEditing={handleSubmitEditing('description')}
+                />
+
+                <FloatingInput
+                  value={formData.description || ''}
+                  onChangeText={(value) => handleInputChange('description', value)}
+                  field="description"
+                  placeholder="Enter company description"
+                  multiline
+                  numberOfLines={3}
+                  focusedField={focusedField}
+                  setFocusedField={setFocusedField}
+                  theme={theme}
+                  inputRef={registerInputRef('description')}
                   returnKeyType="done"
                   blurOnSubmit
                   onSubmitEditing={handleSubmitEditing()}

@@ -44,44 +44,14 @@ const requestStoragePermission = async (): Promise<boolean> => {
   }
 
   try {
-    // Android 13+ (API 33+) - Use new media permissions
-    if (Platform.Version >= 33) {
-      console.log('🔍 [PERMISSION] Android 13+ detected, requesting READ_MEDIA_IMAGES');
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES,
-        {
-          title: 'Storage Permission Required',
-          message: 'EventMarketers needs access to your storage to save posters to your gallery.',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel', 
-          buttonPositive: 'OK',
-        }
-      );
-      
-      console.log('📋 [PERMISSION] READ_MEDIA_IMAGES result:', granted);
-      return granted === PermissionsAndroid.RESULTS.GRANTED;
-    }
-    
-    // Android 10-12 (API 29-32) - Scoped Storage era
+    // Android 10+ (API 29+) - Scoped Storage handles saving to gallery automatically without permissions
     if (Platform.Version >= 29) {
-      console.log('🔍 [PERMISSION] Android 10-12 detected, requesting WRITE_EXTERNAL_STORAGE');
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-        {
-          title: 'Storage Permission Required',
-          message: 'EventMarketers needs access to your storage to save posters to your gallery.',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'OK',
-        }
-      );
-      
-      console.log('📋 [PERMISSION] WRITE_EXTERNAL_STORAGE result:', granted);
-      return granted === PermissionsAndroid.RESULTS.GRANTED;
+      console.log('🔍 [PERMISSION] Android 10+ (API 29+) detected, Scoped Storage bypass active');
+      return true;
     }
     
-    // Android 8-9 (API 26-28) - Legacy storage
-    console.log('🔍 [PERMISSION] Android 8-9 detected, requesting WRITE_EXTERNAL_STORAGE');
+    // Android 9 and below (API 28 and below) - Legacy storage permission needed
+    console.log('🔍 [PERMISSION] Legacy Android (< API 29) detected, requesting WRITE_EXTERNAL_STORAGE');
     const granted = await PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
       {
@@ -111,14 +81,12 @@ const checkStoragePermission = async (): Promise<boolean> => {
   }
 
   try {
-    // Android 13+ (API 33+)
-    if (Platform.Version >= 33) {
-      const result = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES);
-      console.log('🔍 [PERMISSION] READ_MEDIA_IMAGES check result:', result);
-      return result;
+    // Android 10+ (API 29+)
+    if (Platform.Version >= 29) {
+      return true;
     }
     
-    // Android 8-12 (API 26-32)
+    // Android 9 and below (API 28 and below)
     const result = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE);
     console.log('🔍 [PERMISSION] WRITE_EXTERNAL_STORAGE check result:', result);
     return result;
@@ -176,54 +144,36 @@ const responsiveFontSize = {
 };
 
 // Enhanced responsive dimensions calculation with orientation support
-const getResponsiveDimensions = (insets: any) => {
+const getResponsiveDimensions = (insets: any, aspect: number = 1) => {
   const availableWidth = screenWidth - (insets.left + insets.right);
   const availableHeight = screenHeight - (insets.top + insets.bottom);
   
-  // Calculate image dimensions based on screen size and orientation
-  let imageWidthRatio = 0.9;
-  let imageHeightRatio = 0.7;
+  let maxPreviewWidth = availableWidth * 0.9;
+  let maxPreviewHeight = availableHeight * 0.55;
   
   if (isLandscape) {
-    // Landscape mode - prioritize width
-    imageWidthRatio = isTablet ? 0.6 : 0.7;
-    imageHeightRatio = isTablet ? 0.8 : 0.6;
-  } else {
-    // Portrait mode - standard ratios
-    if (isUltraSmallScreen) {
-      imageWidthRatio = 0.95;
-      imageHeightRatio = 0.75;
-    } else if (isSmallScreen) {
-      imageWidthRatio = 0.92;
-      imageHeightRatio = 0.7;
-    } else if (isMediumScreen) {
-      imageWidthRatio = 0.9;
-      imageHeightRatio = 0.65;
-    } else if (isLargeScreen) {
-      imageWidthRatio = 0.88;
-      imageHeightRatio = 0.6;
-    } else {
-      imageWidthRatio = 0.85;
-      imageHeightRatio = 0.55;
-    }
+    maxPreviewWidth = availableWidth * 0.6;
+    maxPreviewHeight = availableHeight * 0.7;
   }
   
-  const imageWidth = Math.min(availableWidth * imageWidthRatio, screenWidth * imageWidthRatio);
-  const imageHeight = Math.min(availableHeight * imageHeightRatio, screenHeight * imageHeightRatio);
-
-  // ✅ The poster canvas is always 1:1 square, so use the smaller dimension to
-  // create a square preview frame. Without this, a 360×260 container with
-  // resizeMode='contain' would shrink the square poster to 260×260 — blurry.
-  const posterSquareSize = Math.min(imageWidth, imageHeight);
+  let previewWidth = maxPreviewWidth;
+  let previewHeight = previewWidth / (aspect || 1);
+  
+  if (previewHeight > maxPreviewHeight) {
+    previewHeight = maxPreviewHeight;
+    previewWidth = previewHeight * (aspect || 1);
+  }
+  
+  const posterSquareSize = Math.min(previewWidth, previewHeight);
   
   return {
-    imageWidth,
-    imageHeight,
+    imageWidth: previewWidth,
+    imageHeight: previewHeight,
+    previewWidth,
+    previewHeight,
     posterSquareSize,
     availableWidth,
     availableHeight,
-    imageWidthRatio,
-    imageHeightRatio
   };
 };
 
@@ -247,6 +197,7 @@ interface PosterPreviewScreenProps {
       visibleFields?: {[key: string]: boolean};
       canvasWidth?: number;
       canvasHeight?: number;
+      aspectRatio?: '1:1' | '9:16' | string;
       isSubscribed?: boolean; // Subscription status passed from editor
     };
   };
@@ -297,9 +248,6 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
     return Math.max(10, Math.round(baseSize * (currentScreenWidth / 375) * 0.6));
   };
   
-  // Get responsive dimensions
-  const { imageWidth, imageHeight, posterSquareSize, availableWidth, availableHeight } = getResponsiveDimensions(insets);
-
   const { 
     capturedImageUri, 
     selectedImage, 
@@ -312,8 +260,39 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
     visibleFields,
     canvasWidth,
     canvasHeight,
+    aspectRatio: routeAspectRatio,
     isSubscribed = false // Default to false if not provided
   } = route.params;
+
+  const [aspectRatioValue, setAspectRatioValue] = useState<number>(() => {
+    if (canvasWidth && canvasHeight && canvasHeight > 0) {
+      return canvasWidth / canvasHeight;
+    }
+    if (routeAspectRatio === '9:16') {
+      return 9 / 16;
+    }
+    return 1;
+  });
+
+  useEffect(() => {
+    const targetUri = capturedImageUri || selectedImage?.uri;
+    if (targetUri) {
+      Image.getSize(
+        targetUri,
+        (w, h) => {
+          if (w > 0 && h > 0) {
+            const measuredRatio = w / h;
+            console.log('📸 [POSTER PREVIEW] Measured image size:', w, 'x', h, 'aspect ratio:', measuredRatio);
+            setAspectRatioValue(measuredRatio);
+          }
+        },
+        (err) => console.warn('Could not get preview image size:', err)
+      );
+    }
+  }, [capturedImageUri, selectedImage?.uri]);
+
+  // Get responsive dimensions based on detected aspect ratio
+  const { imageWidth, imageHeight, previewWidth, previewHeight, posterSquareSize, availableWidth, availableHeight } = getResponsiveDimensions(insets, aspectRatioValue);
 
   // Memoized captured image source to prevent reload flashing during re-renders
   const previewImageSource = useMemo(() => {
@@ -983,8 +962,8 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
           </View>
         ) : (
           <View style={{
-            width: posterSquareSize,
-            height: posterSquareSize,
+            width: previewWidth,
+            height: previewHeight,
             borderRadius: 8,
             overflow: 'hidden',
             alignSelf: 'center',
@@ -994,8 +973,8 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
           }}>
             {imageLoading && (
               <View style={[styles.loadingOverlay, { 
-                width: posterSquareSize, 
-                height: posterSquareSize,
+                width: previewWidth, 
+                height: previewHeight,
                 zIndex: 2,
               }]}>
                 <Text style={styles.loadingText}>Loading poster...</Text>
@@ -1004,15 +983,10 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
             <Image
               source={previewImageSource || undefined}
               style={{
-                position: 'absolute',
-                width: Math.round(posterSquareSize * PixelRatio.get()),
-                height: Math.round(posterSquareSize * PixelRatio.get()),
-                left: (posterSquareSize - Math.round(posterSquareSize * PixelRatio.get())) / 2,
-                top: (posterSquareSize - Math.round(posterSquareSize * PixelRatio.get())) / 2,
-                transform: [{ scale: 1 / PixelRatio.get() }],
+                width: '100%',
+                height: '100%',
               }}
-              resizeMode="cover"
-              resizeMethod="scale"
+              resizeMode="contain"
               onError={(error) => {
                 console.log('Image load error:', error);
                 console.log('Error details:', error.nativeEvent);

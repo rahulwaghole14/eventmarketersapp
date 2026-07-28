@@ -614,23 +614,25 @@ class BusinessProfileService {
           console.log('   🖼️ logo:', backendProfile.logo || '(empty)');
 
           const updatedProfile: BusinessProfile = {
-            id: backendProfile.id,
-            name: backendProfile.businessName,
-            description: backendProfile.description || '',
-            category: backendProfile.category,
-            subCategory: backendProfile.subCategory || backendProfile.subcategory,
-            subcategory: backendProfile.subCategory || backendProfile.subcategory,
-            address: backendProfile.address || '',
-            phone: backendProfile.phone || '',
-            alternatePhone: backendProfile.alternatePhone || '',
-            email: backendProfile.email || '',
-            website: backendProfile.website || '',
-            companyLogo: backendProfile.logo || '',
-            logo: backendProfile.logo || '',
-            banner: '',
-            services: [],
-            createdAt: backendProfile.createdAt,
-            updatedAt: backendProfile.updatedAt,
+            id: backendProfile.id || id,
+            name: backendProfile.name || backendProfile.businessName || data.name || '',
+            description: backendProfile.description !== undefined ? backendProfile.description : (data.description !== undefined ? data.description : ''),
+            category: backendProfile.category || data.category || '',
+            subCategory: backendProfile.businessSubcategory || backendProfile.subCategory || backendProfile.subcategory || data.businessSubcategory || data.subCategory || data.subcategory || '',
+            subcategory: backendProfile.businessSubcategory || backendProfile.subCategory || backendProfile.subcategory || data.businessSubcategory || data.subCategory || data.subcategory || '',
+            address: backendProfile.address !== undefined ? backendProfile.address : (data.address !== undefined ? data.address : ''),
+            phone: backendProfile.phone !== undefined ? backendProfile.phone : (data.phone !== undefined ? data.phone : ''),
+            alternatePhone: backendProfile.alternatePhone !== undefined ? backendProfile.alternatePhone : (data.alternatePhone !== undefined ? data.alternatePhone : ''),
+            email: backendProfile.email !== undefined ? backendProfile.email : (data.email !== undefined ? data.email : ''),
+            website: backendProfile.website !== undefined ? backendProfile.website : (data.website !== undefined ? data.website : ''),
+            companyLogo: backendProfile.companyLogo || backendProfile.logo || backendProfile.businessLogo || backendProfile.profileLogo || backendProfile.image || backendProfile.photo || data.companyLogo || data.logo || '',
+            logo: backendProfile.logo || backendProfile.companyLogo || backendProfile.businessLogo || backendProfile.profileLogo || backendProfile.image || backendProfile.photo || data.logo || data.companyLogo || '',
+            banner: backendProfile.banner || backendProfile.coverImage || '',
+            services: backendProfile.services || [],
+            createdAt: backendProfile.createdAt || new Date().toISOString(),
+            updatedAt: backendProfile.updatedAt || new Date().toISOString(),
+            subscriptionStatus: backendProfile.subscriptionStatus,
+            isSubscriptionActive: backendProfile.isSubscriptionActive,
           };
           return updatedProfile;
         } else {
@@ -1153,8 +1155,10 @@ class BusinessProfileService {
   // Clear cache (useful for testing or when data needs to be refreshed)
   clearCache(userId?: string): void {
     if (userId) {
-      // Clear user-specific cache
+      // Clear user-specific cache (both v1 and v2 keys)
       cacheService.clear(`business_profiles_user_${userId}`);
+      cacheService.clear(`business_profiles_user_v2_${userId}`);
+      cacheService.clearPattern(`business_profiles_user_`);
       // Also clear individual profile caches for this user's profiles
       cacheService.clearPattern(`business_profile_`);
     } else {

@@ -3301,7 +3301,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
               <Image
                 source={FRAME_OPTIONS.find(f => f.id === selectedFrame)?.source}
                 style={{ width: '100%', height: '100%' }}
-                resizeMode="contain"
+                resizeMode="stretch"
               />
             </View>
           )}
@@ -3383,7 +3383,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
                       <Image
                         source={FRAME_OPTIONS.find(f => f.id === selectedFrame)?.source}
                         style={{ width: '100%', height: '100%' }}
-                        resizeMode="contain"
+                        resizeMode="stretch"
                       />
                     </View>
                   )}
@@ -3424,7 +3424,7 @@ const VideoEditorScreen: React.FC<VideoEditorScreenProps> = ({ route }) => {
                     <Image
                       source={FRAME_OPTIONS.find(f => f.id === selectedFrame)?.source}
                       style={{ width: '100%', height: '100%' }}
-                      resizeMode="contain"
+                      resizeMode="stretch"
                     />
                   </View>
                 )}

@@ -1,6 +1,6 @@
 {
   "name": "market-brand",
-  "version": "53",
+  "version": "58",
   "private": true,
   "scripts": {
     "android": "react-native run-android",

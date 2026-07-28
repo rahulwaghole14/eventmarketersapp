@@ -443,6 +443,8 @@ interface PosterEditorScreenProps {
         description?: string;
         id?: string;
         templateId?: string;
+        width?: number;
+        height?: number;
       };
       selectedLanguage: string;
       selectedTemplateId: string;
@@ -453,6 +455,8 @@ interface PosterEditorScreenProps {
       categoryName?: string;
       businessProfile?: any;
       businessCategory?: string;
+      aspectRatio?: '1:1' | '9:16';
+      imageDimensions?: { width: number; height: number; aspectRatio: number };
     };
   };
 }
@@ -460,7 +464,9 @@ interface PosterEditorScreenProps {
 const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
   const navigation = useNavigation<NavigationProp<MainStackParamList>>();
   const insets = useSafeAreaInsets();
-  const { selectedImage, selectedLanguage, selectedTemplateId, selectedTemplate: initialTemplate, posterCategory, type, categoryName, businessProfile, businessCategory, source } = route.params;
+  const { selectedImage, selectedLanguage, selectedTemplateId, selectedTemplate: initialTemplate, posterCategory, type, categoryName, businessProfile, businessCategory, source, aspectRatio: initialAspectRatio, imageDimensions } = route.params;
+
+  const [aspectRatio, setAspectRatio] = useState<'1:1' | '9:16'>(initialAspectRatio || '1:1');
 
 
 
@@ -1016,17 +1022,34 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
       }
     }
 
-    // Make canvas square: width = height (1:1 aspect ratio for 1024x1024 images)
-    // Add vertical constraint for square-ish devices (foldables)
     let canvasWidth = Math.min(availableWidth * canvasWidthRatio, currentScreenWidth * canvasWidthRatio);
+    let canvasHeight = canvasWidth;
 
-    // Safety check: Ensure canvas doesn't take more than 45% of height on square-ish screens
-    const maxHeightAllowed = availableHeight * (isFoldableExpanded ? 0.42 : 0.5);
-    if (canvasWidth > maxHeightAllowed) {
-      canvasWidth = maxHeightAllowed;
+    const customRatio = imageDimensions?.aspectRatio;
+
+    if (customRatio && customRatio > 0) {
+      let calcHeight = canvasWidth / customRatio;
+      const maxAllowedHeight = availableHeight * (isLandscapeMode ? 0.65 : 0.48);
+      if (calcHeight > maxAllowedHeight) {
+        calcHeight = maxAllowedHeight;
+        canvasWidth = calcHeight * customRatio;
+      }
+      canvasHeight = calcHeight;
+    } else if (aspectRatio === '9:16') {
+      let calcHeight = canvasWidth * (16 / 9);
+      const maxStoryHeight = availableHeight * (isLandscapeMode ? 0.65 : 0.48);
+      if (calcHeight > maxStoryHeight) {
+        calcHeight = maxStoryHeight;
+        canvasWidth = calcHeight * (9 / 16);
+      }
+      canvasHeight = calcHeight;
+    } else {
+      const maxHeightAllowed = availableHeight * (isFoldableExpanded ? 0.42 : 0.5);
+      if (canvasWidth > maxHeightAllowed) {
+        canvasWidth = maxHeightAllowed;
+      }
+      canvasHeight = canvasWidth;
     }
-
-    const canvasHeight = canvasWidth; // Square canvas!
 
     return {
       canvasWidth,
@@ -1034,25 +1057,45 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
       availableWidth,
       availableHeight,
       canvasWidthRatio,
-      canvasHeightRatio: canvasWidthRatio // Same as width ratio for square
+      canvasHeightRatio: aspectRatio === '9:16' ? (canvasHeight / availableHeight) : canvasWidthRatio
     };
-  }, [currentScreenWidth, currentScreenHeight, isLandscapeMode, isTabletDevice, isUltraSmallDevice, isSmallDevice, isMediumDevice, isLargeDevice, insets]);
+  }, [currentScreenWidth, currentScreenHeight, isLandscapeMode, isTabletDevice, isUltraSmallDevice, isSmallDevice, isMediumDevice, isLargeDevice, insets, aspectRatio, isFoldableExpanded, imageDimensions]);
 
   const { canvasWidth, canvasHeight, availableWidth, availableHeight } = responsiveDimensions;
 
-  // Calculate a custom pixel ratio to capture the poster at exactly 2400x2400px resolution
+  // Calculate a custom pixel ratio to capture the poster at high resolution
   const capturePixelRatio = useMemo(() => {
-    return canvasWidth > 0 ? 2400 / canvasWidth : PixelRatio.get();
-  }, [canvasWidth]);
+    const targetWidth = aspectRatio === '9:16' ? 1350 : 2400;
+    return canvasWidth > 0 ? targetWidth / canvasWidth : PixelRatio.get();
+  }, [canvasWidth, aspectRatio]);
 
   // Memoized background image source to prevent reloads during state changes/re-renders
   const backgroundImageSource = useMemo(() => {
     return {
       uri: getHighQualityImageUrl(selectedImage.uri),
-      width: 2400,
-      height: 2400,
     };
   }, [selectedImage.uri]);
+
+  // Memoized available frames list filtered according to image/poster aspect ratio
+  const availableFrames = useMemo(() => {
+    const numericRatio = imageDimensions?.aspectRatio;
+    const strRatio = (aspectRatio as string) || '';
+
+    const isRatio32 = strRatio === '3:2' || (numericRatio && Math.abs(numericRatio - 1.5) < 0.15);
+    const isRatio169 = strRatio === '16:9' || (numericRatio && Math.abs(numericRatio - 1.777) < 0.15);
+    const isRatio916 = strRatio === '9:16' || (numericRatio && Math.abs(numericRatio - 0.5625) < 0.15);
+
+    if (isRatio32) {
+      return FRAME_OPTIONS.filter(f => f.id.startsWith('ratio_3_2_frame'));
+    }
+    if (isRatio169) {
+      return FRAME_OPTIONS.filter(f => f.id.startsWith('ratio_16_9_frame'));
+    }
+    if (isRatio916) {
+      return FRAME_OPTIONS.filter(f => f.id.startsWith('aspect_frame'));
+    }
+    return FRAME_OPTIONS.filter(f => !f.id.startsWith('aspect_frame') && !f.id.startsWith('ratio_3_2_frame') && !f.id.startsWith('ratio_16_9_frame'));
+  }, [aspectRatio, imageDimensions]);
 
   // Dynamic responsive helper functions
   const getResponsiveIconSize = useCallback(() => {
@@ -2293,6 +2336,27 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
       newLayers.push(addressLayer);
     }
 
+    // Description layer
+    if (profile.description && profile.description.trim()) {
+      const descriptionLayer: Layer = {
+        id: generateId(),
+        type: 'text',
+        content: `📝 ${profile.description}`,
+        position: { x: leftColumnX, y: Math.round(448 * scaleY) },
+        size: { width: canvasWidth - 40, height: contactLineHeight },
+        rotation: 0,
+        zIndex: 10,
+        fieldType: 'description',
+        style: {
+          fontSize: Math.max(isTabletDevice ? 12 : 9, footerTextSize),
+          color: '#ffffff',
+          fontFamily: 'System',
+          fontWeight: '400',
+        },
+      };
+      newLayers.push(descriptionLayer);
+    }
+
     // Services - positioned below the 3-line footer if needed
     if (profile.services && profile.services.length > 0) {
       const servicesText = profile.services.slice(0, 3).join(' • ');
@@ -2319,8 +2383,6 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
     if (selectedFrame) {
       setVisibleFields(prev => ({ ...prev, footerBackground: false }));
     }
-
-    setLayers(newLayers);
 
     setLayers(newLayers);
 
@@ -3800,6 +3862,9 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                   selectedTemplateId: selectedTemplateId,
                   selectedBusinessProfile: activeBusinessProfile,
                   isSubscribed: isSubscribed, // Pass subscription status to preview
+                  aspectRatio: aspectRatio,
+                  canvasWidth: canvasWidth,
+                  canvasHeight: canvasHeight,
                 });
               } else {
                 console.log('Poster ref not available, using fallback');
@@ -3813,6 +3878,9 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                   selectedTemplateId: selectedTemplateId,
                   selectedBusinessProfile: activeBusinessProfile,
                   isSubscribed: isSubscribed, // Pass subscription status to preview
+                  aspectRatio: aspectRatio,
+                  canvasWidth: canvasWidth,
+                  canvasHeight: canvasHeight,
                 });
               }
             } catch (error) {
@@ -3828,6 +3896,9 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                 selectedTemplateId: selectedTemplateId,
                 selectedBusinessProfile: activeBusinessProfile,
                 isSubscribed: isSubscribed, // Pass subscription status to preview
+                aspectRatio: aspectRatio,
+                canvasWidth: canvasWidth,
+                canvasHeight: canvasHeight,
               });
             }
           }}
@@ -3904,14 +3975,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
               <View style={styles.backgroundImageContainer}>
                 <Image
                   source={backgroundImageSource}
-                  style={{
-                    position: 'absolute',
-                    width: 2400,
-                    height: 2400,
-                    left: (canvasWidth - 2400) / 2,
-                    top: (canvasHeight - 2400) / 2,
-                    transform: [{ scale: canvasWidth / 2400 }],
-                  }}
+                  style={styles.backgroundImage}
                   resizeMode="cover"
                   resizeMethod="scale"
                 />
@@ -3920,7 +3984,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                   <Image
                     source={FRAME_OPTIONS.find(f => f.id === selectedFrame)?.source}
                     style={styles.frameIntegrated}
-                    resizeMode="contain"
+                    resizeMode="stretch"
                     pointerEvents="none"
                   />
                 )}
@@ -4307,7 +4371,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
               <Text style={styles.framesTitle}>Frames</Text>
             </View>
             <FlatList
-              data={FRAME_OPTIONS}
+              data={availableFrames}
               renderItem={({ item: frame }) => (
                 <FrameItem
                   frame={frame}
@@ -4990,17 +5054,31 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
               formData
             );
 
-            // Refresh the business profiles list so new data is shown on the canvas
+            // Construct updated profile, merging updated data over active profile
+            let completeUpdatedProfile = { ...activeBusinessProfile, ...updated };
+
+            // Refresh the business profiles list in background
             const currentUser = authService.getCurrentUser();
-            let completeUpdatedProfile = updated;
             if (currentUser?.id) {
+              businessProfileService.clearCache(currentUser.id);
               const freshProfiles = await businessProfileService.getUserBusinessProfiles(currentUser.id);
               setBusinessProfiles(freshProfiles);
               const freshProfile = freshProfiles.find(p => p.id === updated.id);
               if (freshProfile) {
-                completeUpdatedProfile = freshProfile;
+                completeUpdatedProfile = { ...freshProfile, ...updated };
               }
             }
+
+            // Protection: ensure existing non-empty fields in activeBusinessProfile are preserved if empty in response
+            Object.keys(activeBusinessProfile).forEach((key) => {
+              const k = key as keyof typeof activeBusinessProfile;
+              if (
+                activeBusinessProfile[k] &&
+                (!completeUpdatedProfile[k] || completeUpdatedProfile[k] === '')
+              ) {
+                (completeUpdatedProfile as any)[k] = activeBusinessProfile[k];
+              }
+            });
 
             // Update global context so the context gets the updated active profile
             await updateBusinessProfileGlobally(activeBusinessProfile.id, completeUpdatedProfile);
@@ -5012,6 +5090,14 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
                 [pendingToggleField]: true
               }));
               setPendingToggleField(null);
+            }
+
+            // Immediately re-apply updated business profile to poster to create/update canvas layers
+            applyBusinessProfileToPoster(completeUpdatedProfile);
+
+            // Re-apply frame layout if a frame is currently selected
+            if (selectedFrame) {
+              applyFrameLayout(selectedFrame);
             }
 
             setSuccessMessage('Business profile updated successfully');

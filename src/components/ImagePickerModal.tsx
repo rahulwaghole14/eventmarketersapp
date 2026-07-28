@@ -44,10 +44,15 @@ const getModalDimensions = () => {
 interface ImagePickerModalProps {
   visible: boolean;
   onClose: () => void;
-  onImageSelected: (imageUri: string) => void;
+  onImageSelected: (
+    imageUri: string, 
+    aspectRatio?: '1:1' | '9:16', 
+    cropDimensions?: { width: number; height: number; aspectRatio: number }
+  ) => void;
   cropWidth?: number;
   cropHeight?: number;
   isCircleCrop?: boolean;
+  allowAspectRatioSelection?: boolean;
   title?: string;
 }
 
@@ -58,10 +63,12 @@ const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
   cropWidth = 400,
   cropHeight = 400,
   isCircleCrop = true,
+  allowAspectRatioSelection = false,
   title: customTitle,
 }) => {
   const { theme } = useTheme();
   const [dimensions, setDimensions] = useState(getModalDimensions());
+  const [selectedAspectRatio, setSelectedAspectRatio] = useState<'1:1' | '9:16'>('1:1');
   const modalAnimation = useRef(new Animated.Value(0)).current;
   const backdropAnimation = useRef(new Animated.Value(0)).current;
 
@@ -149,11 +156,10 @@ const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
 
       console.log('✅ Camera permission granted, opening camera+crop in one step...');
 
-      const image = await ImageCropPicker.openCamera({
-        width: cropWidth,
-        height: cropHeight,
+      const cropOptions: any = {
         cropping: true,
         cropperCircleOverlay: isCircleCrop,
+        freeStyleCropEnabled: allowAspectRatioSelection,
         compressImageQuality: 1.0,
         compressImageMaxWidth: 3000,
         compressImageMaxHeight: 3000,
@@ -164,18 +170,31 @@ const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
         cropperToolbarColor: '#667eea',
         cropperActiveWidgetColor: '#667eea',
         cropperToolbarWidgetColor: '#ffffff',
-        freeStyleCropEnabled: false,
         enableRotationGesture: true,
         avoidEmptySpaceAroundImage: true,
         mediaType: 'photo',
-      });
+      };
+
+      if (!allowAspectRatioSelection) {
+        cropOptions.width = cropWidth;
+        cropOptions.height = cropHeight;
+      }
+
+      const image = await ImageCropPicker.openCamera(cropOptions);
 
       let finalPath = image.path;
       if (Platform.OS === 'android' && !finalPath.startsWith('file://')) {
         finalPath = `file://${finalPath}`;
       }
-      console.log('✅ Camera+crop complete:', finalPath, image.width, 'x', image.height);
-      onImageSelected(finalPath);
+
+      const croppedAspect = (image.width && image.height) ? (image.width / image.height) : 1;
+      const detectedRatio: '1:1' | '9:16' = (image.height / image.width) > 1.15 ? '9:16' : '1:1';
+      console.log('✅ Camera+crop complete:', finalPath, image.width, 'x', image.height, 'ratio:', croppedAspect, 'detected:', detectedRatio);
+      onImageSelected(
+        finalPath, 
+        allowAspectRatioSelection ? detectedRatio : undefined,
+        { width: image.width, height: image.height, aspectRatio: croppedAspect }
+      );
       onClose();
     } catch (error: any) {
       if (
@@ -189,17 +208,15 @@ const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
     }
   };
 
-  // ✅ Single-pass gallery: openPicker picks AND crops in one native step,
-  //   eliminating the double-compression that launchImageLibrary + openCropper caused.
+  // ✅ Single-pass gallery: openPicker picks AND crops in one native step
   const handleGalleryPress = async () => {
     console.log('🖼️ Gallery button pressed');
 
     try {
-      const image = await ImageCropPicker.openPicker({
-        width: cropWidth,
-        height: cropHeight,
+      const cropOptions: any = {
         cropping: true,
         cropperCircleOverlay: isCircleCrop,
+        freeStyleCropEnabled: allowAspectRatioSelection,
         compressImageQuality: 1.0,       // no lossy compression
         compressImageMaxWidth: 3000,
         compressImageMaxHeight: 3000,
@@ -210,18 +227,31 @@ const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
         cropperToolbarColor: '#667eea',
         cropperActiveWidgetColor: '#667eea',
         cropperToolbarWidgetColor: '#ffffff',
-        freeStyleCropEnabled: false,
         enableRotationGesture: true,
         avoidEmptySpaceAroundImage: true,
         mediaType: 'photo',
-      });
+      };
+
+      if (!allowAspectRatioSelection) {
+        cropOptions.width = cropWidth;
+        cropOptions.height = cropHeight;
+      }
+
+      const image = await ImageCropPicker.openPicker(cropOptions);
 
       let finalPath = image.path;
       if (Platform.OS === 'android' && !finalPath.startsWith('file://')) {
         finalPath = `file://${finalPath}`;
       }
-      console.log('✅ Gallery+crop complete:', finalPath, image.width, 'x', image.height);
-      onImageSelected(finalPath);
+
+      const croppedAspect = (image.width && image.height) ? (image.width / image.height) : 1;
+      const detectedRatio: '1:1' | '9:16' = (image.height / image.width) > 1.15 ? '9:16' : '1:1';
+      console.log('✅ Gallery+crop complete:', finalPath, image.width, 'x', image.height, 'ratio:', croppedAspect, 'detected:', detectedRatio);
+      onImageSelected(
+        finalPath, 
+        allowAspectRatioSelection ? detectedRatio : undefined,
+        { width: image.width, height: image.height, aspectRatio: croppedAspect }
+      );
       onClose();
     } catch (error: any) {
       if (

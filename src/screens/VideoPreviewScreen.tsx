@@ -256,27 +256,15 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
   const requestStoragePermission = async (): Promise<boolean> => {
     if (Platform.OS === 'android') {
       try {
-        // For Android 13+ (API 33+), we need READ_MEDIA_VIDEO permission
-        // For older versions, we might need WRITE_EXTERNAL_STORAGE
         const androidVersion = Platform.Version;
         console.log('Android version:', androidVersion);
 
-        if (androidVersion >= 33) {
-          // Android 13+ - use READ_MEDIA_VIDEO permission
-          const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.READ_MEDIA_VIDEO,
-            {
-              title: 'Media Permission',
-              message: 'This app needs access to save videos to your gallery.',
-              buttonNeutral: 'Ask Me Later',
-              buttonNegative: 'Cancel',
-              buttonPositive: 'OK',
-            }
-          );
-          console.log('READ_MEDIA_VIDEO permission result:', granted);
-          return granted === PermissionsAndroid.RESULTS.GRANTED;
+        if (androidVersion >= 29) {
+          // Android 10+ (API 29+) - Scoped Storage handles saving to gallery automatically without permissions
+          console.log('Android 10+ (API 29+) detected, Scoped Storage bypass active');
+          return true;
         } else {
-          // For older Android versions, try WRITE_EXTERNAL_STORAGE
+          // For legacy Android versions (API < 29), request WRITE_EXTERNAL_STORAGE
           const granted = await PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
             {
@@ -292,8 +280,6 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
         }
       } catch (err) {
         console.warn('Permission request error:', err);
-        // For newer Android versions, CameraRoll might work without explicit permissions
-        // Let's try to proceed anyway
         return true;
       }
     }

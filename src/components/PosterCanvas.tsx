@@ -209,11 +209,7 @@ const PosterCanvas: React.FC<PosterCanvasProps> = ({
         {/* Background Image */}
         <View style={styles.backgroundImageContainer}>
           <Image
-            source={{
-              uri: selectedImage.uri,
-              width: PixelRatio.getPixelSizeForLayoutSize(canvasWidth),
-              height: PixelRatio.getPixelSizeForLayoutSize(canvasHeight),
-            }}
+            source={{ uri: selectedImage.uri }}
             style={[styles.backgroundImage, { borderRadius: 12 * scale }]}
             resizeMode="cover"
             resizeMethod="scale"
@@ -241,11 +237,7 @@ const PosterCanvas: React.FC<PosterCanvasProps> = ({
       {/* Background Image */}
       <View style={styles.backgroundImageContainer}>
         <Image
-          source={{
-            uri: selectedImage.uri,
-            width: PixelRatio.getPixelSizeForLayoutSize(canvasWidth),
-            height: PixelRatio.getPixelSizeForLayoutSize(canvasHeight),
-          }}
+          source={{ uri: selectedImage.uri }}
           style={[styles.backgroundImage, { borderRadius: 12 * scale }]}
           resizeMode="cover"
           resizeMethod="scale"
