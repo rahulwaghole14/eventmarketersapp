@@ -109,15 +109,47 @@ class SubscriptionApiService {
             ? plan.features.split(',').map((f: string) => f.trim()).filter((f: string) => f)
             : [];
 
+        const numericPrice = typeof plan.price === 'number'
+          ? plan.price
+          : parseFloat(String(plan.price || 0).replace(/[^\d.]/g, '')) || 0;
+
+        // 1. Use originalPrice if explicitly provided by the API
+        const rawOriginalPrice = plan.originalPrice ?? plan.original_price ?? plan.mrp ?? plan.regularPrice ?? plan.regular_price ?? null;
+        let originalPrice: number | undefined = undefined;
+
+        if (typeof rawOriginalPrice === 'number' && rawOriginalPrice > numericPrice) {
+          originalPrice = rawOriginalPrice;
+        } else if (typeof rawOriginalPrice === 'string') {
+          const parsed = parseFloat(rawOriginalPrice.replace(/[^\d.]/g, ''));
+          if (Number.isFinite(parsed) && parsed > numericPrice) {
+            originalPrice = parsed;
+          }
+        }
+
+        // 2. If not provided, derive from plan name if it explicitly says "X% Off"
+        if (!originalPrice) {
+          const nameMatch = String(plan.name || '').match(/(\d+)%\s*[Oo]ff/i);
+          if (nameMatch) {
+            const discountPct = parseInt(nameMatch[1], 10);
+            if (discountPct > 0 && discountPct < 100) {
+              const derived = Math.round(numericPrice / (1 - discountPct / 100));
+              if (derived > numericPrice) {
+                originalPrice = derived;
+              }
+            }
+          }
+        }
+
         return {
           id: plan.id || '',
           name: plan.name || '',
           description: plan.description || parsedFeatures.join(', ') || '',
-          price: typeof plan.price === 'number' ? plan.price : 0,
+          price: numericPrice,
+          originalPrice: originalPrice,
           currency: plan.currency || 'INR',
           duration: plan.period || plan.duration || 'monthly',
           features: parsedFeatures,
-          isPopular: plan.originalPrice && plan.originalPrice > plan.price // Popular if has discount
+          isPopular: plan.isPopular || Boolean(originalPrice && originalPrice > numericPrice)
         };
       });
 

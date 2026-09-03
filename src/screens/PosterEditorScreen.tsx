@@ -219,8 +219,12 @@ const responsiveFontSize = {
 // Enhanced responsive dimensions calculation with orientation support
 // Canvas is square (1:1 ratio) to match 1024x1024 image ratio
 const getResponsiveDimensions = (insets: any) => {
-  const availableWidth = screenWidth - (insets.left + insets.right);
-  const availableHeight = screenHeight - (insets.top + insets.bottom);
+  const safeLeft = insets?.left || 0;
+  const safeRight = insets?.right || 0;
+  const safeTop = insets?.top || 0;
+  const safeBottom = insets?.bottom || 0;
+  const availableWidth = Math.max(120, screenWidth - (safeLeft + safeRight));
+  const availableHeight = Math.max(120, screenHeight - (safeTop + safeBottom));
 
   // Calculate square canvas dimensions based on screen size
   let canvasWidthRatio = 0.95;
@@ -246,7 +250,7 @@ const getResponsiveDimensions = (insets: any) => {
   }
 
   // Make canvas square: width = height (1:1 aspect ratio for 1024x1024 images)
-  const canvasWidth = Math.min(availableWidth * canvasWidthRatio, screenWidth * canvasWidthRatio);
+  const canvasWidth = Math.max(100, Math.min(availableWidth * canvasWidthRatio, screenWidth * canvasWidthRatio));
   const canvasHeight = canvasWidth; // Square canvas!
 
   return {
@@ -996,8 +1000,12 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
 
   // Get responsive dimensions - dynamically calculated based on current screen size
   const responsiveDimensions = useMemo(() => {
-    const availableWidth = currentScreenWidth - (insets.left + insets.right);
-    const availableHeight = currentScreenHeight - (insets.top + insets.bottom);
+    const safeLeft = insets?.left || 0;
+    const safeRight = insets?.right || 0;
+    const safeTop = insets?.top || 0;
+    const safeBottom = insets?.bottom || 0;
+    const availableWidth = Math.max(120, currentScreenWidth - (safeLeft + safeRight));
+    const availableHeight = Math.max(120, currentScreenHeight - (safeTop + safeBottom));
 
     // Calculate square canvas dimensions based on screen size
     let canvasWidthRatio = 0.95;
@@ -1022,33 +1030,33 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
       }
     }
 
-    let canvasWidth = Math.min(availableWidth * canvasWidthRatio, currentScreenWidth * canvasWidthRatio);
+    let canvasWidth = Math.max(100, Math.min(availableWidth * canvasWidthRatio, currentScreenWidth * canvasWidthRatio));
     let canvasHeight = canvasWidth;
 
     const customRatio = imageDimensions?.aspectRatio;
 
     if (customRatio && customRatio > 0) {
       let calcHeight = canvasWidth / customRatio;
-      const maxAllowedHeight = availableHeight * (isLandscapeMode ? 0.65 : 0.48);
+      const maxAllowedHeight = Math.max(100, availableHeight * (isLandscapeMode ? 0.65 : 0.48));
       if (calcHeight > maxAllowedHeight) {
         calcHeight = maxAllowedHeight;
-        canvasWidth = calcHeight * customRatio;
+        canvasWidth = Math.max(100, calcHeight * customRatio);
       }
-      canvasHeight = calcHeight;
+      canvasHeight = Math.max(100, calcHeight);
     } else if (aspectRatio === '9:16') {
       let calcHeight = canvasWidth * (16 / 9);
-      const maxStoryHeight = availableHeight * (isLandscapeMode ? 0.65 : 0.48);
+      const maxStoryHeight = Math.max(100, availableHeight * (isLandscapeMode ? 0.65 : 0.48));
       if (calcHeight > maxStoryHeight) {
         calcHeight = maxStoryHeight;
-        canvasWidth = calcHeight * (9 / 16);
+        canvasWidth = Math.max(100, calcHeight * (9 / 16));
       }
-      canvasHeight = calcHeight;
+      canvasHeight = Math.max(100, calcHeight);
     } else {
-      const maxHeightAllowed = availableHeight * (isFoldableExpanded ? 0.42 : 0.5);
+      const maxHeightAllowed = Math.max(100, availableHeight * (isFoldableExpanded ? 0.42 : 0.5));
       if (canvasWidth > maxHeightAllowed) {
         canvasWidth = maxHeightAllowed;
       }
-      canvasHeight = canvasWidth;
+      canvasHeight = Math.max(100, canvasWidth);
     }
 
     return {
@@ -3111,9 +3119,43 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
 
   // Helper to apply template styles to layers
   const applyTemplateStylesToLayers = useCallback((templateType: string, layersToStyle: Layer[]): Layer[] => {
-    return layersToStyle.map(layer => {
+    const templateStyle = TEMPLATE_FOOTER_STYLES[templateType] || TEMPLATE_FOOTER_STYLES['business'];
+    const hasFooterBg = layersToStyle.some(l => l.fieldType === 'footerBackground');
+    const hasFooterElements = layersToStyle.some(l =>
+      ['footerCompanyName', 'phone', 'email', 'website', 'category', 'address', 'services'].includes(l.fieldType || '')
+    );
+
+    let baseLayers = layersToStyle;
+
+    // If footer text elements exist but footerBackground layer is missing, inject it so template is visible
+    if (!hasFooterBg && hasFooterElements) {
+      const contactLineHeight = isTabletDevice ? 20 : 16;
+      const footerPadding = 10;
+      const footerHeight = (contactLineHeight * 3) + (footerPadding * 2);
+      const footerY = Math.max(0, canvasHeight - footerHeight);
+
+      const restoredBg: Layer = {
+        id: generateId(),
+        type: 'text',
+        content: '',
+        position: { x: 0, y: footerY },
+        size: { width: canvasWidth, height: footerHeight },
+        rotation: 0,
+        zIndex: 5,
+        fieldType: 'footerBackground',
+        style: {
+          fontSize: 0,
+          color: 'transparent',
+          fontFamily: 'System',
+          fontWeight: '400',
+          backgroundColor: templateStyle.backgroundColor,
+        },
+      };
+      baseLayers = [restoredBg, ...layersToStyle];
+    }
+
+    return baseLayers.map(layer => {
       if (layer.fieldType === 'footerBackground') {
-        const templateStyle = TEMPLATE_FOOTER_STYLES[templateType] || TEMPLATE_FOOTER_STYLES['business'];
         return {
           ...layer,
           style: {
@@ -3125,7 +3167,7 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
 
       // Update text colors for footer elements based on template
       if (['footerCompanyName', 'phone', 'email', 'website', 'category', 'address', 'services'].includes(layer.fieldType || '')) {
-        const textColors = {
+        const textColors: Record<string, string> = {
           'business': '#ffffff',
           'event': '#ffffff',
           'restaurant': '#ffffff',
@@ -3163,14 +3205,14 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
           ...layer,
           style: {
             ...layer.style,
-            color: textColors[templateType as keyof typeof textColors] || textColors['business']
+            color: textColors[templateType] || textColors['business']
           }
         };
       }
 
       return layer;
     });
-  }, []);
+  }, [canvasHeight, canvasWidth, isTabletDevice]);
 
   // Apply template to poster
   const applyTemplate = useCallback((templateType: string, forceBypassFrameCheck = false) => {
@@ -3181,8 +3223,14 @@ const PosterEditorScreen: React.FC<PosterEditorScreenProps> = ({ route }) => {
       return;
     }
 
+    if (forceBypassFrameCheck) {
+      setSelectedFrame(null);
+      setIsAutoLayoutApplied({});
+    }
+
     setSelectedTemplate(templateType);
     setShowTemplatesModal(false);
+    setVisibleFields(prev => ({ ...prev, footerBackground: true }));
 
     // Clear original layers when changing templates so new positions can be stored
     setOriginalLayers([]);

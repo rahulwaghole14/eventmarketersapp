@@ -8,12 +8,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   StatusBar,
-  Alert,
+  Modal,
   ActivityIndicator,
   AppState,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../context/ThemeContext';
 import { getUserFriendlyError } from '../utils/errorHandler';
 
@@ -40,7 +42,27 @@ const OtpVerificationComponent: React.FC<OtpVerificationComponentProps> = ({
   const [code, setCode] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [resendTimer, setResendTimer] = useState(0);
+
+  // Custom Alert Modal state
+  const [modalConfig, setModalConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'error' as 'error' | 'success' | 'info' | 'warning',
+  });
+
+  const showCustomAlert = useCallback(
+    (title: string, message: string, type: 'error' | 'success' | 'info' | 'warning' = 'error') => {
+      setModalConfig({ visible: true, title, message, type });
+    },
+    []
+  );
+
+  const hideCustomAlert = useCallback(() => {
+    setModalConfig((prev) => ({ ...prev, visible: false }));
+  }, []);
 
   // OTP expiry timer state
   const OTP_EXPIRY_DURATION = 300; // 5 minutes
@@ -113,42 +135,57 @@ const OtpVerificationComponent: React.FC<OtpVerificationComponentProps> = ({
 
   const handleVerify = useCallback(async () => {
     if (!isCodeValid) {
-      Alert.alert('Invalid Code', 'Please enter the 6-digit code sent to your email.');
+      const msg = 'Invalid OTP. Please try again';
+      setErrorMessage(msg);
+      showCustomAlert('Invalid OTP', msg, 'error');
       return;
     }
 
     if (isOtpExpired) {
-      Alert.alert('Code Expired', 'Verification code expired. Please request a new code.');
+      const msg = 'Verification code expired. Please request a new code.';
+      setErrorMessage(msg);
+      showCustomAlert('Code Expired', msg, 'warning');
       return;
     }
 
     setIsSubmitting(true);
+    setErrorMessage('');
     try {
       await onVerify(code);
     } catch (error: any) {
       const message = getUserFriendlyError(error);
-      Alert.alert('Verification Failed', message);
+      const displayMsg = (message && message.toLowerCase().includes('expired'))
+        ? message
+        : 'Invalid OTP. Please try again';
+      setErrorMessage(displayMsg);
+      showCustomAlert('Invalid OTP', displayMsg, 'error');
     } finally {
       setIsSubmitting(false);
     }
-  }, [code, isCodeValid, isOtpExpired, onVerify]);
+  }, [code, isCodeValid, isOtpExpired, onVerify, showCustomAlert]);
 
   const handleResend = useCallback(async () => {
     setIsSubmitting(true);
     try {
       await onResend();
-      Alert.alert('Code Resent', 'A new verification code has been sent to your email.');
+      showCustomAlert('Code Resent', 'A new verification code has been sent to your WhatsApp.', 'success');
       setResendTimer(resendCooldown);
       // Reset OTP expiry timer
       setOtpExpiryTimer(OTP_EXPIRY_DURATION);
       setIsOtpExpired(false);
+      setErrorMessage('');
     } catch (error: any) {
       const message = getUserFriendlyError(error);
-      Alert.alert('Resend Failed', message);
+      const isAlreadyVerified = message.toLowerCase().includes('already verified') || message.toLowerCase().includes('already registered');
+      showCustomAlert(
+        isAlreadyVerified ? 'Already Verified' : 'Resend Failed',
+        message,
+        isAlreadyVerified ? 'info' : 'error'
+      );
     } finally {
       setIsSubmitting(false);
     }
-  }, [onResend, resendCooldown]);
+  }, [onResend, resendCooldown, showCustomAlert]);
 
   const formatResendTimer = useCallback(() => {
     const minutes = Math.floor(resendTimer / 60);
@@ -196,7 +233,7 @@ const OtpVerificationComponent: React.FC<OtpVerificationComponentProps> = ({
                 style={[
                   styles.codeInput,
                   {
-                    borderColor: (isFocused || code) ? theme.colors.primary : theme.colors.border,
+                    borderColor: errorMessage ? theme.colors.error : ((isFocused || code) ? theme.colors.primary : theme.colors.border),
                     backgroundColor: theme.colors.inputBackground,
                     color: theme.colors.text,
                   },
@@ -204,7 +241,10 @@ const OtpVerificationComponent: React.FC<OtpVerificationComponentProps> = ({
                 keyboardType="numeric"
                 maxLength={6}
                 value={code}
-                onChangeText={setCode}
+                onChangeText={(text) => {
+                  setCode(text);
+                  if (errorMessage) setErrorMessage('');
+                }}
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
                 placeholder="000000"
@@ -215,14 +255,20 @@ const OtpVerificationComponent: React.FC<OtpVerificationComponentProps> = ({
               />
             </View>
 
-            {/* Expiry message */}
-            {isOtpExpired && (
+            {/* Error message */}
+            {errorMessage ? (
+              <View style={styles.expiryMessageContainer}>
+                <Text style={[styles.expiryMessageText, { color: theme.colors.error }]}>
+                  {errorMessage}
+                </Text>
+              </View>
+            ) : isOtpExpired ? (
               <View style={styles.expiryMessageContainer}>
                 <Text style={[styles.expiryMessageText, { color: theme.colors.error }]}>
                   Verification code expired. Please request a new code.
                 </Text>
               </View>
-            )}
+            ) : null}
 
             <TouchableOpacity
               style={[
@@ -264,6 +310,73 @@ const OtpVerificationComponent: React.FC<OtpVerificationComponentProps> = ({
           </View>
         </KeyboardAvoidingView>
       </LinearGradient>
+
+      {/* Custom Alert Modal */}
+      <Modal
+        visible={modalConfig.visible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={hideCustomAlert}
+        statusBarTranslucent={true}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={hideCustomAlert}
+        >
+          <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+            <View style={[styles.modalContainer, { backgroundColor: theme.colors.surface || theme.colors.cardBackground || '#ffffff' }]}>
+              <View
+                style={[
+                  styles.modalIconContainer,
+                  {
+                    backgroundColor:
+                      modalConfig.type === 'error' ? 'rgba(229, 62, 62, 0.1)' :
+                      modalConfig.type === 'success' ? 'rgba(56, 161, 105, 0.1)' :
+                      modalConfig.type === 'warning' ? 'rgba(255, 152, 0, 0.15)' :
+                      'rgba(49, 130, 206, 0.1)'
+                  }
+                ]}
+              >
+                <Icon
+                  name={
+                    modalConfig.type === 'error' ? 'error-outline' :
+                    modalConfig.type === 'success' ? 'check-circle-outline' :
+                    modalConfig.type === 'warning' ? 'warning-amber' :
+                    'info-outline'
+                  }
+                  size={40}
+                  color={
+                    modalConfig.type === 'error' ? (theme.colors.error || '#E53E3E') :
+                    modalConfig.type === 'success' ? '#38A169' :
+                    modalConfig.type === 'warning' ? '#FF9800' :
+                    '#3182CE'
+                  }
+                />
+              </View>
+
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+                {modalConfig.title}
+              </Text>
+
+              <View style={styles.modalContent}>
+                <Text style={[styles.modalMessage, { color: theme.colors.textSecondary }]}>
+                  {modalConfig.message}
+                </Text>
+              </View>
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: theme.colors.primary }]}
+                  onPress={hideCustomAlert}
+                >
+                  <Text style={styles.modalButtonText}>OK</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -356,6 +469,63 @@ const styles = StyleSheet.create({
   },
   resendButton: {
     fontSize: 14,
+    fontWeight: '600',
+  },
+  // Custom Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: Dimensions.get('window').width * 0.85,
+    maxWidth: 380,
+    padding: 20,
+    borderRadius: 20,
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+  },
+  modalIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalContent: {
+    marginBottom: 20,
+    paddingHorizontal: 8,
+  },
+  modalMessage: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  modalActions: {
+    width: '100%',
+  },
+  modalButton: {
+    height: 46,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+  },
+  modalButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
     fontWeight: '600',
   },
 });

@@ -23,19 +23,25 @@ export const getUserFriendlyError = (error: any): string => {
       // Bad Request - often validation errors
       if (backendMessage && typeof backendMessage === 'string') {
         const lowerMsg = backendMessage.toLowerCase();
-        if (lowerMsg.includes("already verified")) {
-          return "This code or phone number has already been verified.";
+        if (lowerMsg.includes("already verified") || lowerMsg.includes("already registered")) {
+          return "This phone number is already verified. Please sign in instead.";
         }
-        if (lowerMsg.includes("invalid")) {
-          return "The information you entered is incorrect.";
+        if (lowerMsg.includes("invalid") || lowerMsg.includes("otp") || lowerMsg.includes("code") || lowerMsg.includes("incorrect") || lowerMsg.includes("wrong")) {
+          return "Invalid OTP. Please try again";
         }
         if (lowerMsg.includes("expired")) {
           return "This code has expired. Please request a new one.";
         }
       }
-      return "Something went wrong. Please check your input.";
+      return "Invalid OTP. Please try again";
     case 401:
-      // Unauthorized - invalid credentials
+      // Unauthorized - check for invalid OTP or credentials
+      if (backendMessage && typeof backendMessage === 'string') {
+        const lowerMsg = backendMessage.toLowerCase();
+        if (lowerMsg.includes("otp") || lowerMsg.includes("code") || lowerMsg.includes("verification")) {
+          return "Invalid OTP. Please try again";
+        }
+      }
       return "Invalid email or password.";
     case 403:
       // Forbidden - check for specific download limit message
@@ -61,8 +67,8 @@ export const getUserFriendlyError = (error: any): string => {
   // Handle common backend message patterns
   const lowerMessage = backendMessage.toLowerCase();
 
-  if (lowerMessage.includes("invalid")) {
-    return "The information you entered is incorrect.";
+  if (lowerMessage.includes("invalid") || lowerMessage.includes("otp") || lowerMessage.includes("code")) {
+    return "Invalid OTP. Please try again";
   }
 
   if (lowerMessage.includes("expired")) {

@@ -31,7 +31,10 @@ const PosterCanvas: React.FC<PosterCanvasProps> = ({
   currentPositions,
   screenCanvasWidth,
 }) => {
-  const scale = screenCanvasWidth ? (canvasWidth / screenCanvasWidth) : 1;
+  const safeCanvasWidth = Math.max(100, canvasWidth || 100);
+  const safeCanvasHeight = Math.max(100, canvasHeight || 100);
+  const safeScreenCanvasWidth = screenCanvasWidth && screenCanvasWidth > 0 ? screenCanvasWidth : safeCanvasWidth;
+  const scale = safeCanvasWidth / safeScreenCanvasWidth;
 
   const renderLayer = (layer: any) => {
     if (layer.type === 'text') {
@@ -204,13 +207,13 @@ const PosterCanvas: React.FC<PosterCanvasProps> = ({
       <View style={[
         styles.canvas,
         borderStyle,
-        { width: canvasWidth, height: canvasHeight, borderRadius: 12 * scale }
+        { width: safeCanvasWidth, height: safeCanvasHeight, borderRadius: Math.max(0, 12 * scale) }
       ]}>
         {/* Background Image */}
         <View style={styles.backgroundImageContainer}>
           <Image
             source={{ uri: selectedImage.uri }}
-            style={[styles.backgroundImage, { borderRadius: 12 * scale }]}
+            style={[styles.backgroundImage, { borderRadius: Math.max(0, 12 * scale) }]}
             resizeMode="cover"
             resizeMethod="scale"
           />
@@ -225,7 +228,7 @@ const PosterCanvas: React.FC<PosterCanvasProps> = ({
       style={[
         styles.canvas,
         borderStyle,
-        { width: canvasWidth, height: canvasHeight, borderRadius: 12 * scale }
+        { width: safeCanvasWidth, height: safeCanvasHeight, borderRadius: Math.max(0, 12 * scale) }
       ]}
       options={{
         format: 'png',

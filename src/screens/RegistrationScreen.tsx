@@ -141,7 +141,7 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
 
   const handleVerifyOtp = async () => {
     if (!otpCode || otpCode.trim().length !== 6) {
-      setOtpValidationError('Please enter a 6-digit OTP code');
+      setOtpValidationError('Invalid OTP. Please try again');
       return;
     }
     setOtpValidationError('');

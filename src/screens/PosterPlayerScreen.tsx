@@ -690,6 +690,14 @@ const PosterPlayerScreen: React.FC = () => {
     return initialPoster;
   }, [initialPoster]);
 
+  // SINGLE SOURCE OF TRUTH: Controlled poster state
+  const [currentPoster, setCurrentPoster] = useState<Template | null>(null);
+  const [currentId, setCurrentId] = useState<string>(initialTemplateId || initialPoster?.id || '');
+  const [isPosterLoading, setIsPosterLoading] = useState<boolean>(true);
+  const userSelectedPosterRef = useRef<boolean>(false); // Protect user selection from API overwrites
+  const [allTemplates, setAllTemplatesState] = useState<Template[]>([]);
+  const allTemplatesRef = useRef<Template[]>([]);
+
   // SAFE POSTER ACCESSOR: Prevent crashes when currentPoster is null
   const safeGetPosterInfo = useCallback(() => {
     if (!currentPoster || currentPoster.id === 'loading' || currentPoster.id.startsWith('category_')) {
@@ -707,14 +715,6 @@ const PosterPlayerScreen: React.FC = () => {
       thumbnail: currentPoster.thumbnail || (currentPoster as any)?.content?.background
     };
   }, [currentPoster]);
-
-  // SINGLE SOURCE OF TRUTH: Controlled poster state
-  const [currentPoster, setCurrentPoster] = useState<Template | null>(null);
-  const [currentId, setCurrentId] = useState<string>(initialTemplateId || initialPoster?.id || '');
-  const [isPosterLoading, setIsPosterLoading] = useState<boolean>(true);
-  const userSelectedPosterRef = useRef<boolean>(false); // Protect user selection from API overwrites
-  const [allTemplates, setAllTemplatesState] = useState<Template[]>([]);
-  const allTemplatesRef = useRef<Template[]>([]);
 
   // Wrapper to log all setAllTemplates calls
   const setAllTemplates = useCallback((templates: Template[] | ((prev: Template[]) => Template[])) => {
@@ -3975,13 +3975,15 @@ const PosterPlayerScreen: React.FC = () => {
     if (selectedLanguage === 'all') {
       // Skip if user manually selected a poster - don't override their choice
       if (userSelectedPosterRef.current) {
-        const userSelectedPoster = allTemplates.find(t => t.id === userSelectedPosterRef.current);
+        const userSelectedPoster = currentPoster?.id
+          ? allTemplates.find(t => t.id === currentPoster.id)
+          : null;
         if (userSelectedPoster) {
           // User's selection is always valid when "All" is selected
           return;
         }
         // User-selected poster not found in templates, clear ref
-        userSelectedPosterRef.current = null;
+        userSelectedPosterRef.current = false;
       }
 
       // Ensure all templates have languages merged

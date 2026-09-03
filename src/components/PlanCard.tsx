@@ -14,6 +14,11 @@ interface PlanCardProps {
     id: string;
     name: string;
     price: number;
+    originalPrice?: number;
+    original_price?: number;
+    mrp?: number;
+    regularPrice?: number;
+    regular_price?: number;
     duration?: string;
     features?: string[];
     popular?: boolean;
@@ -111,16 +116,52 @@ const PlanCard: React.FC<PlanCardProps> = ({
           </View>
         </View>
 
-        <View style={styles.priceContainer}>
-          <Text style={[styles.price, { color: theme.colors.primary }]}>
-            ₹{plan.price}
-          </Text>
-          {plan.duration && (
-            <Text style={[styles.duration, { color: theme.colors.textSecondary }]}>
-              /{plan.duration}
-            </Text>
-          )}
-        </View>
+        {(() => {
+          // 1. Use originalPrice if explicitly provided by the API
+          const rawOriginal = plan.originalPrice ?? plan.original_price ?? plan.mrp ?? plan.regularPrice ?? plan.regular_price ?? null;
+          let parsedOriginal: number | null = typeof rawOriginal === 'number' && rawOriginal > plan.price
+            ? rawOriginal
+            : typeof rawOriginal === 'string'
+              ? (() => { const p = parseFloat(rawOriginal.replace(/[^\d.]/g, '')); return (Number.isFinite(p) && p > plan.price) ? p : null; })()
+              : null;
+
+          // 2. If not provided, check if plan name explicitly says "X% Off" / "X% OFF"
+          if (!parsedOriginal) {
+            const nameMatch = String(plan.name || '').match(/(\d+)%\s*[Oo]ff/i);
+            if (nameMatch) {
+              const discountPct = parseInt(nameMatch[1], 10);
+              if (discountPct > 0 && discountPct < 100) {
+                parsedOriginal = Math.round(plan.price / (1 - discountPct / 100));
+              }
+            }
+          }
+
+          const hasDiscount = parsedOriginal !== null && parsedOriginal > plan.price;
+          const discountPercent = hasDiscount ? Math.round(((parsedOriginal! - plan.price) / parsedOriginal!) * 100) : 0;
+
+          return (
+            <View style={styles.priceContainer}>
+              {hasDiscount && (
+                <Text style={[styles.originalPrice, { color: theme.colors.textSecondary }]}>
+                  ₹{parsedOriginal}
+                </Text>
+              )}
+              <Text style={[styles.price, { color: theme.colors.primary }]}>
+                ₹{plan.price}
+              </Text>
+              {plan.duration && (
+                <Text style={[styles.duration, { color: theme.colors.textSecondary }]}>
+                  /{plan.duration}
+                </Text>
+              )}
+              {hasDiscount && discountPercent > 0 && (
+                <View style={styles.discountTag}>
+                  <Text style={styles.discountTagText}>{discountPercent}% OFF</Text>
+                </View>
+              )}
+            </View>
+          );
+        })()}
       </View>
 
       <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
@@ -265,6 +306,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'baseline',
     marginTop: 4,
+    flexWrap: 'wrap',
+  },
+  originalPrice: {
+    fontSize: 18,
+    fontWeight: '600',
+    textDecorationLine: 'line-through',
+    marginRight: 8,
+    opacity: 0.6,
   },
   price: {
     fontSize: 28,
@@ -274,6 +323,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginLeft: 4,
     fontWeight: '500',
+  },
+  discountTag: {
+    backgroundColor: '#16A34A',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginLeft: 8,
+    alignSelf: 'center',
+  },
+  discountTagText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   divider: {
     height: 1,

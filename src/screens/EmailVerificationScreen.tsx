@@ -51,17 +51,22 @@ const EmailVerificationScreen: React.FC<Props> = ({ navigation, route }) => {
       // Navigation will be handled automatically by auth state change
     } else {
       console.error('[EmailVerification] Verification failed. Success:', response.success, 'Token:', !!token);
-      throw new Error('Verification failed');
+      throw new Error('Invalid OTP. Please try again');
     }
   }, [phone, navigation]);
 
   const handleResend = useCallback(async () => {
-    console.log('api', { phone });
-    
-    await loginAPIs.resendEmailVerification({ phone });
-    
-    console.log('Response', 'Resend requested');
-  }, [phone]);
+    console.log('[EmailVerification] Resending OTP code:', { phone, email });
+    if (phone) {
+      try {
+        await loginAPIs.loginUser({ phone });
+      } catch (error) {
+        await loginAPIs.resendEmailVerification({ phone });
+      }
+    } else {
+      await loginAPIs.resendEmailVerification({ email });
+    }
+  }, [phone, email]);
 
   return (
     <OtpVerificationComponent
