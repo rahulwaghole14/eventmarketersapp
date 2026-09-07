@@ -2,7 +2,7 @@ import api from './api';
 
 export interface DownloadContentParams {
   resourceId: string;
-  resourceType: 'POSTER';
+  resourceType: 'POSTER' | 'VIDEO' | 'TEMPLATE' | 'GREETING' | 'CONTENT' | 'CALENDAR';
   businessProfileId: string;
 }
 

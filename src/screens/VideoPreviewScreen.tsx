@@ -30,6 +30,9 @@ import RNFS from 'react-native-fs';
 import LinearGradient from 'react-native-linear-gradient';
 // import videoProcessingService from '../services/videoProcessingService'; // Removed - service deleted
 import { showDownloadNotification } from '../utils/notification';
+import { useCentralizedDownload } from '../hooks/useCentralizedDownload';
+import { subscribeToShowDownloadLimitModal } from '../utils/downloadLimitEvents';
+import DownloadLimitMessage from '../components/DownloadLimitMessage';
 
 const OMBRE_GRADIENTS: Record<string, string[]> = {
   'ombre-sunset': ['#FF6B6B', '#FFA500', '#FFD700'],
@@ -231,6 +234,8 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
   });
   const hasAccess = isAccessGranted(accessState);
 
+  const { downloadContent } = useCentralizedDownload();
+
   // Video state
   const [isVideoPlaying, setIsVideoPlaying] = useState(true);
   const [videoDuration, setVideoDuration] = useState(0);
@@ -245,6 +250,16 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
     width: videoWidth,
     height: videoHeight,
   });
+  const [showDownloadLimitModal, setShowDownloadLimitModal] = useState(false);
+
+  // Listen for global download limit modal events
+  useEffect(() => {
+    const subscription = subscribeToShowDownloadLimitModal(() => {
+      setShowDownloadLimitModal(true);
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   // processedVideoPath is only used for download/share, not for preview display
   const processedVideoPath = initialProcessedVideoPath;
@@ -592,6 +607,18 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
       }
 
       setDownloadProgress(80);
+
+      // Check download eligibility with backend before saving
+      const downloadAllowed = await downloadContent({
+        resourceId: (selectedVideo as any)?.id || 'video',
+        resourceType: 'VIDEO'
+      });
+
+      if (!downloadAllowed) {
+        console.log('❌ Video download blocked by limit check');
+        setIsDownloading(false);
+        return;
+      }
 
       // Save to gallery using CameraRoll
       console.log('Attempting to save video to gallery:', finalVideoPath);
@@ -963,6 +990,11 @@ const VideoPreviewScreen: React.FC<VideoPreviewScreenProps> = ({ route }) => {
           </View>
         </View>
       </Modal>
+
+      <DownloadLimitMessage
+        visible={showDownloadLimitModal}
+        onClose={() => setShowDownloadLimitModal(false)}
+      />
     </SafeAreaView>
   );
 };

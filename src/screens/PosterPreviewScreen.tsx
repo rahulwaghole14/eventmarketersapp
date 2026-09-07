@@ -624,11 +624,22 @@ const PosterPreviewScreen: React.FC<PosterPreviewScreenProps> = ({ route }) => {
          
          console.log('???? [PERMISSION] Storage permission granted, saving to gallery...');
          
-         // Save directly to gallery without calling download API
-         await CameraRoll.save(capturedImageUri, {
-           type: 'photo',
-           album: 'EventMarketers'
-         });
+                  // Check download eligibility with backend first
+          const downloadAllowed = await downloadContent({
+            resourceId: 'uploaded_template',
+            resourceType: 'POSTER'
+          });
+
+          if (!downloadAllowed) {
+            console.log('❌ Download blocked by centralized limit');
+            return;
+          }
+
+          // Save to gallery
+          await CameraRoll.save(capturedImageUri, {
+            type: 'photo',
+            album: 'EventMarketers'
+          });
          
          console.log('???? [UPLOADED TEMPLATE] Image saved to gallery directly');
          

@@ -6901,9 +6901,46 @@ const HomeScreen: React.FC = React.memo(() => {
                   </View>
                 </TouchableOpacity>
                 <View style={styles.userInfoContainer}>
-                  <Text style={[styles.userName, { color: theme.colors.text }]} numberOfLines={1}>
-                    {userName}
-                  </Text>
+                  {(() => {
+                    const isPromo = subscriptionStatus?.planName?.toUpperCase()?.includes('PROMO') || (subscriptionStatus as any)?.subscriptionType === 'PROMO';
+                    const hasActiveSub = isSubscriptionActive || isSubscribed || subscriptionStatus?.status?.toLowerCase() === 'active';
+                    const expiryVal = subscriptionStatus?.expiryDate || (subscriptionStatus as any)?.endDate;
+                    const promoDaysLeft = expiryVal ? Math.max(0, Math.ceil((new Date(expiryVal).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : null;
+
+                    return (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: moderateScale(6) }}>
+                        <Text style={[styles.userName, { color: theme.colors.text }]} numberOfLines={1}>
+                          {userName}
+                        </Text>
+                        {hasActiveSub && (
+                          <TouchableOpacity
+                            onPress={() => navigation.navigate('Subscription' as any)}
+                            activeOpacity={0.7}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              backgroundColor: isPromo ? '#8a2be220' : '#28a74520',
+                              paddingHorizontal: moderateScale(6),
+                              paddingVertical: moderateScale(2),
+                              borderRadius: moderateScale(10),
+                              borderWidth: 1,
+                              borderColor: isPromo ? '#8a2be250' : '#28a74550',
+                              gap: moderateScale(3),
+                            }}
+                          >
+                            <Icon name={isPromo ? "stars" : "verified"} size={moderateScale(11)} color={isPromo ? "#8a2be2" : "#28a745"} />
+                            <Text style={{
+                              color: isPromo ? "#8a2be2" : "#28a745",
+                              fontSize: moderateScale(8.5),
+                              fontWeight: '700',
+                            }}>
+                              {isPromo ? (promoDaysLeft !== null ? `PROMO • ${promoDaysLeft}d` : 'PROMO') : 'PRO'}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    );
+                  })()}
                   <Text style={[styles.headerSubtitle, { color: theme.colors.textSecondary }]}>
                     Post, Promote, Grow
                   </Text>

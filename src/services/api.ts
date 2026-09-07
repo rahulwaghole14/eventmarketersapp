@@ -239,11 +239,15 @@ api.interceptors.response.use(
     if (error.response?.status >= 400 && error.response?.status < 500) {
       // Check for daily download limit error specifically
       if (isDailyDownloadLimitError(error)) {
-        console.log('🚫 [API] Daily download limit reached:', error.response?.data);
-        emitDownloadLimitReached({
-          message: error.response?.data?.message || 'Daily download limit reached',
-          businessProfileId: error.response?.data?.businessProfileId
-        });
+        const requestUrl = error.config?.url || '';
+        // Do not emit blocking modal for background tracking calls
+        if (!requestUrl.includes('/downloads/track')) {
+          console.log('🚫 [API] Daily download limit reached:', error.response?.data);
+          emitDownloadLimitReached({
+            message: error.response?.data?.message || 'Daily download limit reached',
+            businessProfileId: error.response?.data?.businessProfileId
+          });
+        }
         return Promise.reject(error);
       }
 

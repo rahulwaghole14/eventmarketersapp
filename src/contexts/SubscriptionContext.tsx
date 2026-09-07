@@ -45,6 +45,8 @@ interface SubscriptionContextType {
   setPaymentInProgress: (inProgress: boolean) => void;
   // Centralized subscription status check
   isSubscriptionActive: boolean;
+  // Promo code redemption
+  redeemPromo: (code: string) => Promise<{ success: boolean; message: string }>;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
@@ -628,6 +630,26 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
     }
   }, []);
 
+  // Redeem Promo Code
+  const redeemPromo = useCallback(async (code: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      setIsLoading(true);
+      const result = await subscriptionApi.redeemPromoCode(code);
+      // Force refresh subscription and transactions immediately
+      await refreshSubscription(true);
+      await refreshTransactions();
+      return {
+        success: true,
+        message: result.message || 'Promo code applied successfully!'
+      };
+    } catch (error: any) {
+      console.error('❌ Error redeeming promo in context:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [refreshSubscription, refreshTransactions]);
+
   return (
     <SubscriptionContext.Provider value={{
       isSubscribed,
@@ -657,6 +679,8 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
       setPaymentInProgress,
       // Centralized subscription status check based on profile API
       isSubscriptionActive: isSubscribed || authService.isSubscriptionActive(),
+      // Promo code redemption
+      redeemPromo,
     }}>
       {children}
     </SubscriptionContext.Provider>

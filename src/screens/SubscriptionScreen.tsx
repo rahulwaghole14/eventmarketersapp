@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   InteractionManager,
   Modal,
+  TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
@@ -79,7 +80,7 @@ const SubscriptionScreen: React.FC = () => {
   console.log('🔍 SUBSCRIPTION SCREEN - Route params:', route.params);
   console.log('🔍 SUBSCRIPTION SCREEN - Source:', source);
 
-  const { isSubscribed, subscriptionStatus: contextSubscriptionStatus, plans: contextPlans, refreshSubscription, refreshPlans, addTransaction, setIsSubscribed, isLoading, autopayState, enableAutopay, disableAutopay, refreshAutopayStatus, setPaymentInProgress } = useSubscription();
+  const { isSubscribed, subscriptionStatus: contextSubscriptionStatus, plans: contextPlans, refreshSubscription, refreshPlans, addTransaction, setIsSubscribed, isLoading, autopayState, enableAutopay, disableAutopay, refreshAutopayStatus, setPaymentInProgress, redeemPromo } = useSubscription();
   const { selectedBusinessProfile, setActivationPending, clearActivationPending, isActivationPending: isProfileActivationPending, setSelectedBusinessProfile } = useBusinessProfile();
 
   const businessProfileId = routeBusinessProfileId || selectedBusinessProfile?.id;
@@ -92,6 +93,35 @@ const SubscriptionScreen: React.FC = () => {
   // Business profile subscription state
   const [businessSubscriptionStatus, setBusinessSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const [isBusinessSubscriptionLoading, setIsBusinessSubscriptionLoading] = useState(false);
+
+  // Promo code state
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [isRedeemingPromo, setIsRedeemingPromo] = useState(false);
+  const [promoMessage, setPromoMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  const handleRedeemPromo = async () => {
+    if (!promoCodeInput.trim()) {
+      setPromoMessage({ text: 'Please enter a promo code', type: 'error' });
+      return;
+    }
+    try {
+      setIsRedeemingPromo(true);
+      setPromoMessage(null);
+      const res = await redeemPromo(promoCodeInput.trim());
+      setPromoMessage({ text: res.message, type: 'success' });
+      setPromoCodeInput('');
+      if (Platform.OS === 'android') {
+        ToastAndroid.show(res.message, ToastAndroid.LONG);
+      } else {
+        Alert.alert('Success 🎉', res.message);
+      }
+    } catch (err: any) {
+      const errMsg = err.message || 'Failed to redeem promo code';
+      setPromoMessage({ text: errMsg, type: 'error' });
+    } finally {
+      setIsRedeemingPromo(false);
+    }
+  };
 
   // Performance optimization: Flag to control post-payment flow
   const [isReturningFromPayment, setIsReturningFromPayment] = useState(false);
@@ -1400,70 +1430,92 @@ const SubscriptionScreen: React.FC = () => {
             )}
 
 
-          {/* Current Subscription Status (if subscribed or database status is laggy ACTIVE) */}
-          {effectiveSubscriptionStatus?.status?.toUpperCase() === 'ACTIVE' && (
-            <View style={[styles.currentSubscriptionCard, {
-              backgroundColor: theme.colors.cardBackground,
-              marginBottom: dynamicModerateScale(12),
-              padding: isTabletDevice ? dynamicModerateScale(16) : dynamicModerateScale(12),
-              borderRadius: dynamicModerateScale(12),
-              borderWidth: 1.5,
-              borderColor: isExpiredByDate ? '#dc3545' : (isCurrentPlanActive ? '#28a745' : '#2196f3'),
-            }]}>
-              <View style={[styles.currentSubscriptionHeader, {
-                marginBottom: isTabletDevice ? dynamicModerateScale(8) : dynamicModerateScale(6),
+          {/* Current Subscription Status (including PROMO and active plans) */}
+          {(effectiveSubscriptionStatus?.status?.toUpperCase() === 'ACTIVE' || contextSubscriptionStatus?.status?.toUpperCase() === 'ACTIVE' || isSubscribed) && (() => {
+            const activeStatusData: any = (effectiveSubscriptionStatus?.status?.toUpperCase() === 'ACTIVE' ? effectiveSubscriptionStatus : contextSubscriptionStatus) || {};
+            const activePlanRawName = activeStatusData.planName || effectiveSubscriptionStatus?.planName || contextSubscriptionStatus?.planName || 'Active Plan';
+            const isPromoPlan = activePlanRawName?.toUpperCase()?.includes('PROMO') || activeStatusData.subscriptionType === 'PROMO' || (effectiveSubscriptionStatus as any)?.subscriptionType === 'PROMO' || (contextSubscriptionStatus as any)?.subscriptionType === 'PROMO';
+            const displayTitle = isPromoPlan ? 'Complimentary Access (PROMO Trial)' : activePlanRawName;
+            const expiryDateVal = activeStatusData.expiryDate || activeStatusData.endDate || effectiveSubscriptionStatus?.expiryDate || (effectiveSubscriptionStatus as any)?.endDate || contextSubscriptionStatus?.expiryDate;
+            const isExpired = expiryDateVal ? new Date(expiryDateVal) < new Date() : false;
+            
+            const daysRemaining = expiryDateVal ? Math.max(0, Math.ceil((new Date(expiryDateVal).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : null;
+            const expiryFormatted = expiryDateVal ? new Date(expiryDateVal).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : null;
+
+            return (
+              <View style={[styles.currentSubscriptionCard, {
+                backgroundColor: theme.colors.cardBackground,
+                marginBottom: dynamicModerateScale(12),
+                padding: isTabletDevice ? dynamicModerateScale(16) : dynamicModerateScale(14),
+                borderRadius: dynamicModerateScale(12),
+                borderWidth: 1.5,
+                borderColor: isExpired ? '#dc3545' : (isPromoPlan ? '#8a2be2' : '#28a745'),
               }]}>
-                <Icon 
-                  name={isExpiredByDate ? "cancel" : (isCurrentPlanActive ? "check-circle" : "info")} 
-                  size={isTabletDevice ? getIconSize(28) : getIconSize(24)} 
-                  color={isExpiredByDate ? "#dc3545" : (isCurrentPlanActive ? "#28a745" : "#2196f3")} 
-                />
-                <View style={[styles.currentSubscriptionInfo, {
-                  marginLeft: dynamicModerateScale(10),
+                <View style={[styles.currentSubscriptionHeader, {
+                  marginBottom: dynamicModerateScale(6),
                 }]}>
-                  <Text style={[styles.currentSubscriptionTitle, {
-                    color: theme.colors.text,
-                    fontSize: dynamicModerateScale(12),
-                    marginBottom: dynamicModerateScale(2),
+                  <Icon 
+                    name={isExpired ? "cancel" : (isPromoPlan ? "stars" : "check-circle")} 
+                    size={isTabletDevice ? getIconSize(28) : getIconSize(24)} 
+                    color={isExpired ? "#dc3545" : (isPromoPlan ? "#8a2be2" : "#28a745")} 
+                  />
+                  <View style={[styles.currentSubscriptionInfo, {
+                    marginLeft: dynamicModerateScale(10),
+                    flex: 1,
                   }]}>
-                    {isExpiredByDate 
-                      ? `${effectiveSubscriptionStatus?.planName || selectedPlan?.name || 'Current Plan'} (Expired)`
-                      : (isCurrentPlanActive 
-                        ? (effectiveSubscriptionStatus?.planName || selectedPlan?.name || 'Active Plan')
-                        : `${selectedPlan?.name || 'Selected Plan'} (Not Active)`)
-                    }
-                  </Text>
-                  <Text style={[styles.currentSubscriptionSubtitle, {
-                    color: theme.colors.textSecondary,
-                    fontSize: dynamicModerateScale(9),
-                    lineHeight: dynamicModerateScale(14),
-                  }]}>
-                    {(() => {
-                      const expiryDate = effectiveSubscriptionStatus?.expiryDate || effectiveSubscriptionStatus?.endDate;
-                      if (expiryDate) {
-                        const expiryDateFormatted = new Date(expiryDate).toLocaleDateString('en-IN', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric'
-                        });
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                      <Text style={[styles.currentSubscriptionTitle, {
+                        color: theme.colors.text,
+                        fontSize: dynamicModerateScale(13),
+                        fontWeight: '700',
+                      }]}>
+                        {displayTitle} {isExpired ? '(Expired)' : ''}
+                      </Text>
+                      <View style={{
+                        backgroundColor: isExpired ? '#dc354520' : (isPromoPlan ? '#8a2be220' : '#28a74520'),
+                        paddingHorizontal: dynamicModerateScale(8),
+                        paddingVertical: dynamicModerateScale(2),
+                        borderRadius: dynamicModerateScale(6),
+                        marginLeft: dynamicModerateScale(6),
+                      }}>
+                        <Text style={{
+                          color: isExpired ? '#dc3545' : (isPromoPlan ? '#8a2be2' : '#28a745'),
+                          fontSize: dynamicModerateScale(9),
+                          fontWeight: '700',
+                        }}>
+                          {isExpired ? 'EXPIRED' : (isPromoPlan ? 'PROMO ACTIVE' : 'ACTIVE')}
+                        </Text>
+                      </View>
+                    </View>
 
-                        if (isExpiredByDate) {
-                          return `Expired on ${expiryDateFormatted}`;
-                        }
+                    <Text style={[styles.currentSubscriptionSubtitle, {
+                      color: theme.colors.textSecondary,
+                      fontSize: dynamicModerateScale(10),
+                      lineHeight: dynamicModerateScale(15),
+                      marginTop: dynamicModerateScale(3),
+                    }]}>
+                      {isExpired 
+                        ? `Expired on ${expiryFormatted || 'N/A'}`
+                        : (daysRemaining !== null 
+                            ? `${daysRemaining} days remaining • Expires ${expiryFormatted}` 
+                            : 'Active subscription')}
+                    </Text>
 
-                        if (isCurrentPlanActive) {
-                          const daysRemaining = Math.ceil((new Date(expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                          return `${daysRemaining} days remaining • Expires ${expiryDateFormatted}`;
-                        }
-                      }
-                      
-                      return `You currently have an active subscription to ${effectiveSubscriptionStatus?.planName || 'another plan'}.`;
-                    })()}
-                  </Text>
+                    {isPromoPlan && !isExpired && (
+                      <Text style={{
+                        color: '#8a2be2',
+                        fontSize: dynamicModerateScale(9),
+                        fontWeight: '600',
+                        marginTop: dynamicModerateScale(4),
+                      }}>
+                        ✓ Full access to all premium event posters & video templates
+                      </Text>
+                    )}
+                  </View>
                 </View>
               </View>
-            </View>
-          )}
+            );
+          })()}
 
           {/* Autopay Status Display */}
           {autopayState.isAutopayActive && (
@@ -1685,6 +1737,112 @@ const SubscriptionScreen: React.FC = () => {
                 >Priority support</Text>
               </View>
             </View>
+          </View>
+
+          {/* Promo Code Redemption Card */}
+          <View style={{
+            backgroundColor: theme.colors.cardBackground,
+            borderRadius: dynamicModerateScale(12),
+            padding: dynamicModerateScale(14),
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            marginBottom: dynamicModerateScale(16),
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: dynamicModerateScale(8) }}>
+              <Icon name="local-offer" size={getIconSize(22)} color="#667eea" style={{ marginRight: dynamicModerateScale(8) }} />
+              <Text style={{
+                fontSize: dynamicModerateScale(12),
+                fontWeight: '700',
+                color: theme.colors.text,
+              }}>
+                Have a Promo Code?
+              </Text>
+            </View>
+            <Text style={{
+              fontSize: dynamicModerateScale(9),
+              color: theme.colors.textSecondary,
+              marginBottom: dynamicModerateScale(10),
+            }}>
+              Enter your promotional code below to activate complimentary trial access.
+            </Text>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: dynamicModerateScale(8) }}>
+              <TextInput
+                style={{
+                  flex: 1,
+                  height: dynamicModerateScale(40),
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  borderRadius: dynamicModerateScale(8),
+                  paddingHorizontal: dynamicModerateScale(12),
+                  backgroundColor: theme.colors.inputBackground || theme.colors.cardBackground,
+                  color: theme.colors.text,
+                  fontSize: dynamicModerateScale(11),
+                  fontWeight: '600',
+                  letterSpacing: 1.5,
+                }}
+                value={promoCodeInput}
+                onChangeText={(val) => {
+                  setPromoCodeInput(val.toUpperCase());
+                  if (promoMessage) setPromoMessage(null);
+                }}
+                placeholder="ENTER PROMO CODE"
+                placeholderTextColor={theme.colors.textSecondary}
+                autoCapitalize="characters"
+                autoCorrect={false}
+              />
+              <TouchableOpacity
+                style={{
+                  backgroundColor: '#667eea',
+                  borderRadius: dynamicModerateScale(8),
+                  paddingHorizontal: dynamicModerateScale(16),
+                  height: dynamicModerateScale(40),
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  opacity: isRedeemingPromo || !promoCodeInput.trim() ? 0.6 : 1,
+                }}
+                onPress={handleRedeemPromo}
+                disabled={isRedeemingPromo || !promoCodeInput.trim()}
+              >
+                {isRedeemingPromo ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={{
+                    color: '#ffffff',
+                    fontWeight: '700',
+                    fontSize: dynamicModerateScale(10),
+                  }}>
+                    Apply
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {promoMessage && (
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginTop: dynamicModerateScale(8),
+                backgroundColor: promoMessage.type === 'success' ? '#E8F5E9' : '#FFEBEE',
+                padding: dynamicModerateScale(8),
+                borderRadius: dynamicModerateScale(6),
+              }}>
+                <Icon
+                  name={promoMessage.type === 'success' ? 'check-circle' : 'error-outline'}
+                  size={16}
+                  color={promoMessage.type === 'success' ? '#2E7D32' : '#C62828'}
+                  style={{ marginRight: dynamicModerateScale(6) }}
+                />
+                <Text style={{
+                  fontSize: dynamicModerateScale(9),
+                  color: promoMessage.type === 'success' ? '#2E7D32' : '#C62828',
+                  flex: 1,
+                  fontWeight: '500',
+                }}>
+                  {promoMessage.text}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Bottom Spacer for Sticky Button */}

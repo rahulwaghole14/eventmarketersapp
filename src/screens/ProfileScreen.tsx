@@ -1993,6 +1993,93 @@ const ProfileScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
 
+          {/* Subscription & Plan Status Card */}
+          {(() => {
+            const isPromoSub = subscriptionStatus?.planName?.toUpperCase()?.includes('PROMO') || (subscriptionStatus as any)?.subscriptionType === 'PROMO';
+            const subActive = isSubscribed || subscriptionStatus?.status?.toLowerCase() === 'active' || (subscriptionStatus as any)?.isActive;
+            const expiryDateVal = subscriptionStatus?.expiryDate || (subscriptionStatus as any)?.endDate;
+            const daysRemaining = expiryDateVal ? Math.max(0, Math.ceil((new Date(expiryDateVal).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : null;
+            const expiryFormatted = expiryDateVal ? new Date(expiryDateVal).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : null;
+
+            return (
+              <View style={[styles.section, { marginBottom: dynamicModerateScale(12) }]}>
+                <Text style={[styles.sectionTitle, {
+                  fontSize: getFontSize(10),
+                  marginBottom: dynamicModerateScale(5),
+                  paddingHorizontal: dynamicModerateScale(8),
+                  color: theme.colors.text,
+                }]}>Subscription & Plan</Text>
+                <TouchableOpacity
+                  style={[styles.subscriptionCard, {
+                    backgroundColor: theme.colors.cardBackground,
+                    marginHorizontal: dynamicModerateScale(8),
+                    marginBottom: dynamicModerateScale(6),
+                    paddingVertical: dynamicModerateScale(12),
+                    paddingHorizontal: dynamicModerateScale(12),
+                    borderRadius: dynamicModerateScale(12),
+                    borderWidth: 1.5,
+                    borderColor: subActive ? (isPromoSub ? '#8a2be2' : '#28a745') : theme.colors.primary,
+                  }]}
+                  onPress={handleSubscription}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.subscriptionContent}>
+                    <View style={styles.subscriptionLeft}>
+                      <View style={[styles.subscriptionIcon, {
+                        backgroundColor: subActive ? (isPromoSub ? '#8a2be220' : '#28a74520') : `${theme.colors.primary}20`,
+                        width: dynamicModerateScale(36),
+                        height: dynamicModerateScale(36),
+                        borderRadius: dynamicModerateScale(18),
+                        marginRight: dynamicModerateScale(10),
+                      }]}>
+                        <Icon 
+                          name={subActive ? (isPromoSub ? "stars" : "verified") : "workspace-premium"} 
+                          size={getIconSize(20)} 
+                          color={subActive ? (isPromoSub ? '#8a2be2' : '#28a745') : theme.colors.primary} 
+                        />
+                      </View>
+                      <View style={styles.subscriptionInfo}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: dynamicModerateScale(6) }}>
+                          <Text style={[styles.subscriptionTitle, {
+                            color: theme.colors.text,
+                            fontSize: getFontSize(10.5),
+                            fontWeight: '700',
+                          }]}>
+                            {subActive ? (isPromoSub ? 'Complimentary Trial' : (subscriptionStatus?.planName || 'Pro Plan')) : 'Upgrade to Pro'}
+                          </Text>
+                          <View style={{
+                            backgroundColor: subActive ? (isPromoSub ? '#8a2be220' : '#28a74520') : `${theme.colors.primary}20`,
+                            paddingHorizontal: dynamicModerateScale(6),
+                            paddingVertical: dynamicModerateScale(1),
+                            borderRadius: dynamicModerateScale(4),
+                          }}>
+                            <Text style={{
+                              color: subActive ? (isPromoSub ? '#8a2be2' : '#28a745') : theme.colors.primary,
+                              fontSize: getFontSize(7.5),
+                              fontWeight: '700',
+                            }}>
+                              {subActive ? (isPromoSub ? 'PROMO' : 'ACTIVE') : 'UPGRADE'}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text style={[styles.subscriptionSubtitle, {
+                          color: theme.colors.textSecondary,
+                          fontSize: getFontSize(8),
+                          marginTop: dynamicModerateScale(2),
+                        }]}>
+                          {subActive 
+                            ? (daysRemaining !== null ? `${daysRemaining} days left • Expires ${expiryFormatted}` : 'Active subscription')
+                            : 'Unlock all premium posters, video templates & tools'}
+                        </Text>
+                      </View>
+                    </View>
+                    <Icon name="chevron-right" size={getIconSize(20)} color={theme.colors.textSecondary} />
+                  </View>
+                </TouchableOpacity>
+              </View>
+            );
+          })()}
+
           {/* Account Settings */}
           <View style={[styles.section, {
             marginBottom: dynamicModerateScale(12),

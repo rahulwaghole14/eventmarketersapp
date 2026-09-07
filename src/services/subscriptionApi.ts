@@ -933,6 +933,34 @@ class SubscriptionApiService {
       throw new Error(errorMessage);
     }
   }
+
+  // Redeem a promo code
+  async redeemPromoCode(promoCode: string) {
+    try {
+      const currentUser = authService.getCurrentUser();
+      const userId = currentUser?.id;
+
+      if (!userId) {
+        throw new Error('User not authenticated');
+      }
+
+      console.log('🎟️ Redeeming promo code:', promoCode, 'for user:', userId);
+
+      const response = await api.post('/api/mobile/subscription/redeem-promo', {
+        promoCode: promoCode.trim().toUpperCase()
+      });
+
+      // Clear subscription status cache after redeeming promo
+      this.clearStatusCache(userId);
+
+      console.log('✅ Promo code redeemed:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Redeem promo error:', error);
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to redeem promo code';
+      throw new Error(errorMessage);
+    }
+  }
 }
 
 export default new SubscriptionApiService();
