@@ -166,24 +166,29 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
 
         const promoStatus = (response as any).promoStatus || (response as any).data?.promoStatus;
 
-        if (promoStatus?.applied) {
-          showCustomModal(
-            'Promo Code Applied! 🎉',
-            promoStatus.message || 'Complimentary trial subscription activated successfully.',
-            'success',
-            'Continue',
-            () => navigation.navigate('CategorySelection')
-          );
-        } else if (promoStatus && !promoStatus.applied && promoCode.trim()) {
-          showCustomModal(
-            'Invalid Promo Code',
-            promoStatus.error || 'The entered promo code is invalid.',
-            'error',
-            'Continue',
-            () => navigation.navigate('CategorySelection')
-          );
+        if (promoCode.trim()) {
+          // User provided a promo code
+          if (promoStatus?.applied) {
+            showCustomModal(
+              'Promo Code Applied! 🎉',
+              promoStatus.message || 'Complimentary trial subscription activated successfully.',
+              'success',
+              'Continue',
+              () => navigation.navigate('CategorySelection')
+            );
+          } else {
+            // Promo code was entered but invalid: STOP! DO NOT PROCEED TO NEXT SCREEN!
+            const errorMsg = promoStatus?.error || 'The entered promo code is invalid. Please check the code or clear it to proceed.';
+            setPromoValidationError(errorMsg);
+            showCustomModal(
+              'Invalid Promo Code',
+              errorMsg,
+              'error'
+            );
+            return;
+          }
         } else {
-          // Transition to next screen (Category Selection)
+          // No promo code entered: proceed to Category Selection
           navigation.navigate('CategorySelection');
         }
       } else {
