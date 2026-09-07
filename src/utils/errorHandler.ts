@@ -23,6 +23,9 @@ export const getUserFriendlyError = (error: any): string => {
       // Bad Request - often validation errors
       if (backendMessage && typeof backendMessage === 'string') {
         const lowerMsg = backendMessage.toLowerCase();
+        if (lowerMsg.includes("promo")) {
+          return backendMessage;
+        }
         if (lowerMsg.includes("already verified") || lowerMsg.includes("already registered")) {
           return "This phone number is already verified. Please sign in instead.";
         }
@@ -95,6 +98,12 @@ export const getUserFriendlyError = (error: any): string => {
  * Check if error is specifically for daily download limit
  */
 export const isDailyDownloadLimitError = (error: any): boolean => {
-  return error?.response?.status === 403 && 
-         error?.response?.data?.message === "Daily download limit reached";
+  const status = error?.response?.status;
+  const msg = (error?.response?.data?.message || '').toLowerCase();
+  const err = (error?.response?.data?.error || '').toLowerCase();
+  return status === 403 && (
+    err.includes('download limit') ||
+    msg.includes('download limit') ||
+    msg.includes('promo user')
+  );
 };

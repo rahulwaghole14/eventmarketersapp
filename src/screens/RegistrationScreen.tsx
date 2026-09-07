@@ -61,6 +61,7 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
   // Validation States
   const [phoneValidationError, setPhoneValidationError] = useState('');
   const [otpValidationError, setOtpValidationError] = useState('');
+  const [promoValidationError, setPromoValidationError] = useState('');
 
   // Modals / Animation States
   const [modalConfig, setModalConfig] = useState({
@@ -113,23 +114,15 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
       const status = error.response?.status;
       const errMsg = error.response?.data?.error || error.response?.data?.message || error.message || '';
       
-      // If user already exists (409 conflict), trigger resend verification code
+      // If user already exists (409 conflict), show Already Registered modal and redirect to Sign In
       if (status === 409 || errMsg.toLowerCase().includes('already exists') || errMsg.toLowerCase().includes('duplicate')) {
-        try {
-          console.log('User already exists. Sending OTP resend request.');
-          await loginAPIs.resendEmailVerification({ phone: phone.trim() });
-          setOtpSent(true);
-          setResendCooldown(60);
-          showCustomModal('OTP Sent', 'A verification OTP has been sent to your WhatsApp.', 'success');
-        } catch (resendError: any) {
-          const resendMessage = getUserFriendlyError(resendError);
-          const rawResendMsg = resendError.response?.data?.error || resendError.response?.data?.message || resendError.message || '';
-          if (rawResendMsg.toLowerCase().includes('verified')) {
-            showCustomModal('Already Registered', 'This phone number is already registered and verified. Please sign in instead.', 'warning', 'Go to Sign In', () => navigation.navigate('Login'));
-          } else {
-            showCustomModal('Registration Error', resendMessage, 'error');
-          }
-        }
+        showCustomModal(
+          'Already Registered',
+          'This phone number is already registered. Please sign in to your account.',
+          'warning',
+          'Go to Sign In',
+          () => navigation.navigate('Login')
+        );
       } else {
         const friendlyMessage = getUserFriendlyError(error);
         showCustomModal('Registration Error', friendlyMessage, 'error');
@@ -145,6 +138,7 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
       return;
     }
     setOtpValidationError('');
+    setPromoValidationError('');
     setIsLoading(true);
 
     try {
@@ -170,14 +164,46 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
         // Clear logout flag
         await AsyncStorage.removeItem('isLoggedOut');
 
-        // Transition to next screen (Category Selection)
-        navigation.navigate('CategorySelection');
+        const promoStatus = (response as any).promoStatus || (response as any).data?.promoStatus;
+
+        if (promoStatus?.applied) {
+          showCustomModal(
+            'Promo Code Applied! 🎉',
+            promoStatus.message || 'Complimentary trial subscription activated successfully.',
+            'success',
+            'Continue',
+            () => navigation.navigate('CategorySelection')
+          );
+        } else if (promoStatus && !promoStatus.applied && promoCode.trim()) {
+          showCustomModal(
+            'Invalid Promo Code',
+            promoStatus.error || 'The entered promo code is invalid.',
+            'error',
+            'Continue',
+            () => navigation.navigate('CategorySelection')
+          );
+        } else {
+          // Transition to next screen (Category Selection)
+          navigation.navigate('CategorySelection');
+        }
       } else {
         throw new Error('Verification failed');
       }
     } catch (error: any) {
+      const backendError = error?.response?.data?.error || error?.response?.data?.message || '';
       const errMsg = getUserFriendlyError(error);
-      setOtpValidationError(errMsg);
+
+      if (backendError.toLowerCase().includes('promo') || errMsg.toLowerCase().includes('promo')) {
+        const promoMsg = backendError || errMsg || 'Invalid promo code. Please check the code or clear it to proceed.';
+        setPromoValidationError(promoMsg);
+        showCustomModal(
+          'Invalid Promo Code',
+          promoMsg,
+          'error'
+        );
+      } else {
+        setOtpValidationError(errMsg);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -372,6 +398,7 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
                           <TouchableOpacity onPress={() => {
                             setHasPromo(false);
                             setPromoCode('');
+                            setPromoValidationError('');
                           }}>
                             <Icon name="close" size={18} color={theme.colors.textSecondary} />
                           </TouchableOpacity>
@@ -381,20 +408,31 @@ const RegistrationScreen: React.FC = ({ navigation }: any) => {
                             styles.input,
                             {
                               color: theme.colors.text,
-                              borderColor: focusedField === 'promoCode' ? theme.colors.primary : theme.colors.border,
+                              borderColor: promoValidationError ? theme.colors.error : (focusedField === 'promoCode' ? theme.colors.primary : theme.colors.border),
                               backgroundColor: theme.colors.inputBackground,
                               textTransform: 'uppercase',
                               letterSpacing: 2,
                             }
                           ]}
                           value={promoCode}
-                          onChangeText={(val) => setPromoCode(val.toUpperCase())}
+                          onChangeText={(val) => {
+                            setPromoCode(val.toUpperCase());
+                            if (promoValidationError) setPromoValidationError('');
+                          }}
                           onFocus={() => setFocusedField('promoCode')}
                           onBlur={() => setFocusedField(null)}
                           placeholder="ENTER PROMO CODE"
                           placeholderTextColor={theme.colors.textSecondary}
                           autoCapitalize="characters"
                         />
+                        {promoValidationError ? (
+                          <View style={styles.errorContainer}>
+                            <Icon name="error" size={16} color={theme.colors.error} />
+                            <Text style={[styles.errorText, { color: theme.colors.error }]}>
+                              {promoValidationError}
+                            </Text>
+                          </View>
+                        ) : null}
                       </View>
                     ) : (
                       <TouchableOpacity style={{ marginTop: 15 }} onPress={() => setHasPromo(true)}>
